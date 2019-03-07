@@ -1,0 +1,9 @@
+#Ingore everything
+*
+
+#But this files
+!.gitignore
+!*.cpp
+!*.h
+!*.bat
+!*/
