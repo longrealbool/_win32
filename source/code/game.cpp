@@ -156,9 +156,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         RandomChoice = RollTheDice() % 3;
       }
       
-      
+      // NOTE(Egor): keep track of is there a need to create another stairwell
+      bool32 CreatedZDoor = false;
       if (RandomChoice == 2) {
         
+        CreatedZDoor = true;
         if(AbsTileZ == 0) 
           DoorUp = true;
         else if(AbsTileZ == 1) 
@@ -210,7 +212,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             
           }
           
-          if(TileY == 2 && TileX == 5) {
+          if(TileY == 4 && TileX == 8) {
             if(DoorUp) 
               TileValue = 4;
             if(DoorDown)
@@ -226,21 +228,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       DoorToBottom = DoorToTop;    
       DoorToRight = false;
       DoorToTop = false;
-      
-      if(DoorUp) {
-        DoorDown = true;
-        DoorUp = false;
-      }
-      else if(DoorDown) {
-        DoorUp = true;
-        DoorDown = false;
+
+      if(CreatedZDoor) {
+        
+        DoorDown = !DoorDown;
+        DoorUp = !DoorUp;
       }
       else {
+        
         DoorUp = false;
         DoorDown = false;
       }
-      
-      
       
       if(RandomChoice == 2) {
         
@@ -250,13 +248,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           AbsTileZ = 1;
       }
       else if(RandomChoice == 0) {
-        DoorUp = false;
-        DoorDown = false;
         ScreenX++;
       }
       else if(RandomChoice == 1) {
-        DoorUp = false;
-        DoorDown = false;
         ScreenY++;
       }
       

@@ -1,37 +1,4 @@
 
-inline void
-RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRel) {
-  
-  real32 RelCoord = *TileRel; // DEBUG
-  
-  int32 Offset = RoundReal32ToInt32(*TileRel /TileMap->TileSideInMeters);
-  *Tile += Offset;
-  *TileRel -= Offset*TileMap->TileSideInMeters;
-  
-  // NOTE: (Egor) the tile_map is toroidal, we allow overflow and underflow 
-  // in a natural C uint32 way
-  Assert(*Tile >= 0);
-  
-  Assert(*TileRel >= -TileMap->TileSideInMeters*0.5f);
-  Assert(*TileRel <= TileMap->TileSideInMeters*0.5f);
-  
-}
-
-// TODO (Egor): we cannot move faster than 1 tile map in on gameLoop
-inline tile_map_position
-CanonicalizePosition(tile_map *TileMap, tile_map_position *Pos) {
-  
-  tile_map_position Result = *Pos;
-  
-  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.X);
-  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Y);
-  
-  *Pos = Result;
-  
-  return Result;
-}
-
-
 
 
 inline tile_chunk *
@@ -182,6 +149,44 @@ IsTileMapTileEmpty(tile_map *TileMap, tile_chunk *TileChunk, uint32 TestTileX, u
   
   return IsEmpty;
 }
+
+////
+// TODO(Egor): maybe I should transfer this into another file
+
+inline void
+RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRel) {
+  
+  real32 RelCoord = *TileRel; // DEBUG
+  
+  int32 Offset = RoundReal32ToInt32(*TileRel /TileMap->TileSideInMeters);
+  *Tile += Offset;
+  *TileRel -= Offset*TileMap->TileSideInMeters;
+  
+  // NOTE: (Egor) the tile_map is toroidal, we allow overflow and underflow 
+  // in a natural C uint32 way
+  Assert(*Tile >= 0);
+  
+  Assert(*TileRel >= -TileMap->TileSideInMeters*0.5f);
+  Assert(*TileRel <= TileMap->TileSideInMeters*0.5f);
+  
+}
+
+// TODO (Egor): we cannot move faster than 1 tile map in on gameLoop
+inline tile_map_position
+CanonicalizePosition(tile_map *TileMap, tile_map_position *Pos) {
+  
+  tile_map_position Result = *Pos;
+  
+  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.X);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Y);
+  
+  *Pos = Result;
+  
+  return Result;
+}
+
+
+
 
 inline bool32
 AreOnTheSameTile(tile_map_position *A, tile_map_position *B) {
