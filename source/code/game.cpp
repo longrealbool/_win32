@@ -13,7 +13,7 @@ GameOutputSound(game_state *GameState, game_sound_output_buffer *SoundBuffer, in
       SampleIndex < SoundBuffer->SampleCount;
       ++SampleIndex)
   {
-    // TODO(): Draw this out for people
+    // TODO(Egor): Draw this out for people
 #if 0
     real32 SineValue = sinf(GameState->tSine);
     int16 SampleValue = (int16)(SineValue * ToneVolume);
@@ -32,6 +32,41 @@ GameOutputSound(game_state *GameState, game_sound_output_buffer *SoundBuffer, in
 #endif
   }
 }
+
+#pragma pack(push, 1)
+struct bitmap_header {
+  uint16 FileType;     /* File type, always 4D42h ("BM") */
+  uint32 FileSize;     /* Size of the file in bytes */
+  uint16 Reserved1;    /* Always 0 */
+  uint16 Reserved2;    /* Always 0 */
+  uint32 BitmapOffset; /* Starting position of image data in bytes */
+  uint32 Size;            /* Size of this header in bytes */
+  int32 Width;           /* Image width in pixels */
+  int32 Height;          /* Image height in pixels */
+  uint16 Planes;          /* Number of color planes */
+  uint16 BitsPerPixel;    /* Number of bits per pixel */
+  /* Fields added for Windows 3.x follow this line */
+};
+#pragma pack(pop)
+
+
+internal uint32*
+DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
+             thread_context *Thread, char *FileName)
+{
+  uint32 *Result = 0;
+  debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
+  
+  if(ReadResult.ContentsSize != 0) {
+    bitmap_header *BitMapHeader = (bitmap_header *)ReadResult.Contents;
+    
+    uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + BitMapHeader->BitmapOffset);
+    Result = Pixel;
+  }
+  return Result;
+  
+}
+
 
 
 internal void
@@ -94,8 +129,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   game_state *GameState = (game_state *)Memory->PermanentStorage;
   if(!Memory->IsInitialized)
   {
-    // TODO(): This may be more appropriate to do in the platform layer
+    // TODO(Egor): This may be more appropriate to do in the platform layer
     Memory->IsInitialized = true;
+    
+
+    GameState->Result = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_background.bmp");
     
     GameState->PlayerP.AbsTileX = 2;
     GameState->PlayerP.AbsTileY = 4;
@@ -432,10 +470,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 PlayerMaxX, PlayerMinY,
                 PlayerR, PlayerG, PlayerB);
   
-/*  DrawRectangle(Buffer, GameState->PlayerX - 5, GameState->PlayerY, 
-                GameState->PlayerX + 5, GameState->PlayerY + 1,
-                0.0f, 0.0f, 0.0f);
-  */
+  uint32 *Dest = (uint32 *)Buffer->Memory;
+  uint32 *Source = (uint32 *)GameState->Result;
+  
+  for(int32 Y = 0; Y < Buffer->Height; ++Y) {
+    for(int32 X = 0; X < Buffer->Width; ++X) {
+      *Dest++ = *Source++;
+    }
+  }
+      
+  
     
 }
 

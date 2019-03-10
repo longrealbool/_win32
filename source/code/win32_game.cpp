@@ -1200,7 +1200,8 @@ WinMain(HINSTANCE Instance,
             ScreenToClient(Window, &MouseP);
             NewInput->MouseX = MouseP.x;
             NewInput->MouseY = MouseP.y;
-            NewInput->MouseZ = 0; // TODO(Egor): Support mousewheel?
+            // TODO(Egor): Support mousewheel?
+            NewInput->MouseZ = 0;
             Win32ProcessKeyboardMessage(&NewInput->MouseButtons[0],
                                         GetKeyState(VK_LBUTTON) & (1 << 15));
             Win32ProcessKeyboardMessage(&NewInput->MouseButtons[1],
