@@ -58,11 +58,30 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
   debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
   
   if(ReadResult.ContentsSize != 0) {
-    bitmap_header *BitMapHeader = (bitmap_header *)ReadResult.Contents;
+    bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
     
-    uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + BitMapHeader->BitmapOffset);
+    // NOTE(Egor, bitmap_format): it revealed that there are two types of bitmap
+    // 1. with 0xRR GG BB AA (lit. endian) <-- evil joke of gimp developers 
+    // 2. with 0xAA RR GG BB (lit. endian) <-- mathces with windows type
+    
+    uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
     Result = Pixel;
+    
+#if 1 // 1 if we working with the the 1 fist type of bitmap
+    
+    uint32 *SourceDest = Pixel;
+    
+    for(int32 X = 0; X < Header->Width; ++X) {
+      for(int32 Y = 0; Y < Header->Height; ++Y) {
+        *SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
+        SourceDest++;
+      }
+    }
+    
+#endif
+    
   }
+  
   return Result;
   
 }
@@ -473,8 +492,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   uint32 *Dest = (uint32 *)Buffer->Memory;
   uint32 *Source = (uint32 *)GameState->Result;
   
-  for(int32 Y = 0; Y < Buffer->Height; ++Y) {
+
+  
+  for(int32 Y = Buffer->Height - 1; Y >= 0; --Y) {
+    
+    Dest = (uint32 *)Buffer->Memory + Y * Buffer->Pitch/4;
     for(int32 X = 0; X < Buffer->Width; ++X) {
+      
       *Dest++ = *Source++;
     }
   }
