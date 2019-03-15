@@ -246,6 +246,13 @@ struct world {
   
   tile_map *TileMap;
 };
+
+struct loaded_bitmap {
+  uint32 Height;
+  uint32 Width;
+  
+  uint32* Pixels;
+};
   
 struct game_state {
   
@@ -253,7 +260,8 @@ struct game_state {
   world* World;
   tile_map_position PlayerP;
   
-  uint32 *Result;
+  loaded_bitmap Backdrop;
+  
 };
 
 

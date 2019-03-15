@@ -50,11 +50,11 @@ struct bitmap_header {
 #pragma pack(pop)
 
 
-internal uint32*
+internal loaded_bitmap
 DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
              thread_context *Thread, char *FileName)
 {
-  uint32 *Result = 0;
+  loaded_bitmap LoadedBitmap = {};
   debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
   
   if(ReadResult.ContentsSize != 0) {
@@ -62,27 +62,30 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     
     // NOTE(Egor, bitmap_format): it revealed that there are two types of bitmap
     // 1. with 0xRR GG BB AA (lit. endian) <-- evil joke of gimp developers 
-    // 2. with 0xAA RR GG BB (lit. endian) <-- mathces with windows type
+    // 2. with 0xAA RR GG BB (lit. endian) <-- matches with windows type
     
     uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
-    Result = Pixel;
+    LoadedBitmap.Pixels = Pixel;
+    LoadedBitmap.Height = Header->Height;
+    LoadedBitmap.Width = Header->Width;
     
-#if 1 // 1 if we working with the the 1 fist type of bitmap
+#if 0 // 1 if we working with the the first type of bitmap
     
     uint32 *SourceDest = Pixel;
     
-    for(int32 X = 0; X < Header->Width; ++X) {
-      for(int32 Y = 0; Y < Header->Height; ++Y) {
+    // NOTE(Egor, bitmap_format): be aware that bitmap can have negative height for
+    // top-down pictures, and there can be compression
+    for(int32 Y = 0; Y < Header->Height; ++Y) {
+      for(int32 X = 0; X < Header->Width; ++X) {
         *SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
         SourceDest++;
       }
     }
     
 #endif
-    
   }
   
-  return Result;
+  return LoadedBitmap;
   
 }
 
@@ -152,7 +155,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Memory->IsInitialized = true;
     
 
-    GameState->Result = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_background.bmp");
+    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background_0.bmp");
     
     GameState->PlayerP.AbsTileX = 2;
     GameState->PlayerP.AbsTileY = 4;
@@ -420,10 +423,45 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   
   
+  // basic bitmap rendering test
+#if 1
+  
+  loaded_bitmap *Backdrop = &GameState->Backdrop;
+  int32 BlitHeight = Backdrop->Height;
+  int32 BlitWidth = Backdrop->Width;
+  
+  if(BlitWidth > Buffer->Width) {
+    BlitWidth = Buffer->Width;
+  }
+  if(BlitHeight > Buffer->Height) {
+    BlitHeight = Buffer->Height;
+  }
+  
+
+  uint8 *DestRow = (uint8 *)Buffer->Memory;
+  uint32 *SourceRow = (uint32 *)Backdrop->Pixels + (Backdrop->Height-1)*(Backdrop->Width);
+  
+  uint32 *Dest = (uint32 *)Buffer->Memory;
+  uint32 *Source;
+  
+  for(int32 Y = 0; Y < BlitHeight; ++Y) {
+    
+    Source = SourceRow;
+    Dest = (uint32 *)DestRow;
+    
+    for(int32 X = 0; X < BlitWidth; ++X) {
+      *Dest++ = *Source++;
+    }
+    SourceRow -= Backdrop->Width;
+    DestRow += Buffer->Pitch;
+  }
+  
+#else
   
   
-  DrawRectangle(Buffer, 0.0f, 0.0f, (real32)Buffer->Width, (real32)Buffer->Height,
-                1.0f, 0.0f, 1.0f);
+    DrawRectangle(Buffer, 0.0f, 0.0f, (real32)Buffer->Width, (real32)Buffer->Height,
+                  1.0f, 0.0f, 1.0f);
+#endif
   
   real32 CenterX = 0.5f*Buffer->Width;
   real32 CenterY = 0.5f*Buffer->Height;
@@ -440,15 +478,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->PlayerP.AbsTileZ);
       real32 Gray = 0.5f;
       
-      if(TileID > 0) {
+      if(TileID > 1) {
         
         if(TileID == 2 || TileID == 3) {
           
-          Gray = 1.0f;
+          Gray = 0.25f;
         }
         
         if(TileID == 4 || TileID == 5) {
-          Gray = 0.25f;
+          Gray = 0.5f;
         }
         
         if(Row == GameState->PlayerP.AbsTileY && Column == GameState->PlayerP.AbsTileX) {
@@ -489,20 +527,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 PlayerMaxX, PlayerMinY,
                 PlayerR, PlayerG, PlayerB);
   
-  uint32 *Dest = (uint32 *)Buffer->Memory;
-  uint32 *Source = (uint32 *)GameState->Result;
-  
 
   
-  for(int32 Y = Buffer->Height - 1; Y >= 0; --Y) {
-    
-    Dest = (uint32 *)Buffer->Memory + Y * Buffer->Pitch/4;
-    for(int32 X = 0; X < Buffer->Width; ++X) {
-      
-      *Dest++ = *Source++;
-    }
-  }
-      
+
   
     
 }
