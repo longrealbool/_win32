@@ -261,6 +261,9 @@ struct game_state {
   tile_map_position PlayerP;
   
   loaded_bitmap Backdrop;
+  loaded_bitmap HeroHead;
+  loaded_bitmap HeroCape;
+  loaded_bitmap HeroTorso;
   
 };
 

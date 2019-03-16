@@ -46,6 +46,12 @@ struct bitmap_header {
   uint16 Planes;          /* Number of color planes */
   uint16 BitsPerPixel;    /* Number of bits per pixel */
   /* Fields added for Windows 3.x follow this line */
+  uint32 Compression;
+  uint32 SizeOfBitmap;
+  int32 HorzResolution;
+  int32 VertResolution;
+  uint32 ColorUser;
+  uint32 ColorsImportant;
 };
 #pragma pack(pop)
 
@@ -89,7 +95,90 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
   
 }
 
+/*
+internal void
+DrawBitmap(game_offscreen_buffer *Buffer,
+           loaded_bitmap *Bitmap,
+           real32 X,
+           real32 Y) {
+           
+  int32 StartX = RoundReal32ToInt32(X);
+  int32 StartY = RoundReal32ToInt32(Y);
+  
+  int32 BlitHeight = Bitmap->Height;
+  int32 BlitWidth = Bitmap->Width;
+  
+  if(BlitWidth > Buffer->Width) {
+    BlitWidth = Buffer->Width;
+  }
+  if(BlitHeight > Buffer->Height) {
+    BlitHeight = Buffer->Height;
+  }
+  
+  uint32 *SourceRow = (uint32 *)Bitmap->Pixels + (Bitmap->Height-1)*(Bitmap->Width);
+  
+  uint32 DestHeight = (StartY - BlitHeight/2)*Buffer->Pitch;
+  uint32 DestWidth = (StartX - BlitWidth/2)*Buffer->BytesPerPixel;
+  
+  uint32 *BlitingDest;
+  uint8 *Dest = (uint8 *)Buffer->Memory + DestHeight + DestWidth;
+  uint32 *Source;
+  
+  for(int32 ScreenY = 0; ScreenY < BlitHeight; ++ScreenY) {
+  
+    Source = SourceRow;
+    BlitingDest = (uint32 *)Dest;
+    
+    for(int32 ScreenX = 0; ScreenX < BlitWidth; ++ScreenX) {
+      *BlitingDest++ = *Source++;
+    }
+    SourceRow -= Bitmap->Width;
+    Dest += Buffer->Pitch;
+  }
+  
+}  
 
+*/
+
+internal void
+DrawBitmap(game_offscreen_buffer *Buffer,
+           loaded_bitmap *Bitmap,
+           real32 RealMinX, real32 RealMinY) {
+  
+  int32 MinX = RoundReal32ToInt32(RealMinX);
+  int32 MinY = RoundReal32ToInt32(RealMinY);
+  int32 MaxX = RoundReal32ToInt32(RealMinX + (real32)Bitmap->Width);
+  int32 MaxY = RoundReal32ToInt32(RealMinY + (real32)Bitmap->Height);
+  
+  // clipping value to actual size of the backbuffer
+  if(MinX < 0) MinX = 0;
+  if(MinY < 0) MinY = 0;
+  // we will write up to, but not including to final row and column
+  if(MaxX > Buffer->Width) MaxX = Buffer->Width;
+  if(MaxY > Buffer->Height) MaxY = Buffer->Height;
+  
+  // NOTE(Egor): just example
+  // uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch*Buffer->Height;
+  
+  uint32 *SourceRow = (uint32 *)Bitmap->Pixels + (Bitmap->Height-1)*(Bitmap->Width);
+  
+  // go to line to draw
+  uint8 *DestRow = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*Buffer->BytesPerPixel);
+  
+  for(int Y = MinY; Y < MaxY; ++Y)
+  {
+    uint32 *Dest = (uint32 *)DestRow;
+    uint32 *Source = SourceRow;
+    for(int X = MinX; X < MaxX; ++X)
+    {
+      *Dest++ = *Source++;
+    }
+    DestRow += Buffer->Pitch;
+    SourceRow -= Bitmap->Width;
+
+  }
+  
+}
 
 internal void
 DrawRectangle(game_offscreen_buffer *Buffer,
@@ -155,7 +244,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Memory->IsInitialized = true;
     
 
-    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background_0.bmp");
+//    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background_0.bmp");
+    
+    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_background.bmp");
+    GameState->HeroHead = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_head.bmp");
+    GameState->HeroCape = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_cape.bmp");
+    GameState->HeroTorso = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_torso.bmp");
+    
+    
     
     GameState->PlayerP.AbsTileX = 2;
     GameState->PlayerP.AbsTileY = 4;
@@ -422,46 +518,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   }
   
   
-  
-  // basic bitmap rendering test
-#if 1
-  
-  loaded_bitmap *Backdrop = &GameState->Backdrop;
-  int32 BlitHeight = Backdrop->Height;
-  int32 BlitWidth = Backdrop->Width;
-  
-  if(BlitWidth > Buffer->Width) {
-    BlitWidth = Buffer->Width;
-  }
-  if(BlitHeight > Buffer->Height) {
-    BlitHeight = Buffer->Height;
-  }
-  
+  DrawBitmap(Buffer, &GameState->Backdrop, 0, 0);
 
-  uint8 *DestRow = (uint8 *)Buffer->Memory;
-  uint32 *SourceRow = (uint32 *)Backdrop->Pixels + (Backdrop->Height-1)*(Backdrop->Width);
-  
-  uint32 *Dest = (uint32 *)Buffer->Memory;
-  uint32 *Source;
-  
-  for(int32 Y = 0; Y < BlitHeight; ++Y) {
-    
-    Source = SourceRow;
-    Dest = (uint32 *)DestRow;
-    
-    for(int32 X = 0; X < BlitWidth; ++X) {
-      *Dest++ = *Source++;
-    }
-    SourceRow -= Backdrop->Width;
-    DestRow += Buffer->Pitch;
-  }
-  
-#else
-  
-  
-    DrawRectangle(Buffer, 0.0f, 0.0f, (real32)Buffer->Width, (real32)Buffer->Height,
-                  1.0f, 0.0f, 1.0f);
-#endif
   
   real32 CenterX = 0.5f*Buffer->Width;
   real32 CenterY = 0.5f*Buffer->Height;
@@ -518,14 +576,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   real32 PlayerMinX =  CenterX - MetersToPixels*PlayerWidth/2;
    
-  real32 PlayerMinY = CenterY; 
+  real32 PlayerMinY = CenterY - MetersToPixels*PlayerHeight; 
   
   real32 PlayerMaxX = PlayerMinX + PlayerWidth*MetersToPixels;
   real32 PlayerMaxY = PlayerMinY - PlayerHeight*MetersToPixels;
   
-  DrawRectangle(Buffer, PlayerMinX, PlayerMaxY,
+  /*DrawRectangle(Buffer, PlayerMinX, PlayerMaxY,
                 PlayerMaxX, PlayerMinY,
-                PlayerR, PlayerG, PlayerB);
+                PlayerR, PlayerG, PlayerB);*/
+  DrawBitmap(Buffer, &GameState->HeroHead, 
+             PlayerMinX, PlayerMinY);
   
 
   
