@@ -52,6 +52,10 @@ struct bitmap_header {
   int32 VertResolution;
   uint32 ColorUser;
   uint32 ColorsImportant;
+  /* bitmap winNT color masks */
+  uint32 RedMask;
+  uint32 GreenMask;
+  uint32 BlueMask;
 };
 #pragma pack(pop)
 
