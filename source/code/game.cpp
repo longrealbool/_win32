@@ -59,6 +59,35 @@ struct bitmap_header {
 };
 #pragma pack(pop)
 
+struct bit_scan_result {
+  bool32 Found;
+  uint32 Index;
+};
+
+inline bit_scan_result 
+FindLeastSignificantSetBit(uint32 Value) {
+  
+  bit_scan_result Result = {};
+  
+#if COMPILER_MSVC
+  
+  Result.Found = _BitScanForward(&Result.Index, Value);
+#else
+  
+  for(uint32 Test = 0; Test < 32; ++Test) {
+    
+    if(Value & (1 << Test)) {
+      Result.Index = Test;
+      Result.Found = true;
+      break;
+    }
+  }
+#endif
+  
+  return Result;
+  
+}
+
 
 internal loaded_bitmap
 DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
@@ -68,35 +97,51 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
   debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
   
   if(ReadResult.ContentsSize != 0) {
+    
     bitmap_header *Header = (bitmap_header *)ReadResult.Contents;
     
-    // NOTE(Egor, bitmap_format): it revealed that there are two types of bitmap
-    // 1. with 0xRR GG BB AA (lit. endian) <-- evil joke of gimp developers 
-    // 2. with 0xAA RR GG BB (lit. endian) <-- matches with windows type
-    
+    // NOTE(Egor, bitmap_format): be aware that bitmap can have negative height for
+    // top-down pictures, and there can be compression
     uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
     LoadedBitmap.Pixels = Pixel;
     LoadedBitmap.Height = Header->Height;
     LoadedBitmap.Width = Header->Width;
     
-#if 0 // 1 if we working with the the first type of bitmap
+    // NOTE(Egor, bitmap_loading): we have to account all color masks in header,
+    // in order to correctly load bitmaps saved with different software
+    uint32 RedMask = Header->RedMask;
+    uint32 GreenMask = Header->GreenMask;
+    uint32 BlueMask = Header->BlueMask;
+    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
     
+    bit_scan_result AlphaShift = FindLeastSignificantSetBit(AlphaMask);
+    bit_scan_result RedShift = FindLeastSignificantSetBit(RedMask);
+    bit_scan_result GreenShift = FindLeastSignificantSetBit(GreenMask);
+    bit_scan_result BlueShift = FindLeastSignificantSetBit(BlueMask);
+
+    Assert(AlphaShift.Found);    
+    Assert(RedShift.Found);
+    Assert(GreenShift.Found);
+    Assert(BlueShift.Found);
+
     uint32 *SourceDest = Pixel;
-    
-    // NOTE(Egor, bitmap_format): be aware that bitmap can have negative height for
-    // top-down pictures, and there can be compression
+
     for(int32 Y = 0; Y < Header->Height; ++Y) {
       for(int32 X = 0; X < Header->Width; ++X) {
-        *SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
+        
+        uint32 C = *SourceDest;
+        *SourceDest = (((C >> AlphaShift.Index) & 0xFF) << 24 |
+                       ((C >> RedShift.Index) & 0xFF) << 16 |
+                       ((C >> GreenShift.Index) & 0xFF) << 8 |
+                       ((C >> BlueShift.Index) & 0xFF) << 0) ;
+        
         SourceDest++;
       }
     }
     
-#endif
   }
   
   return LoadedBitmap;
-  
 }
 
 /*

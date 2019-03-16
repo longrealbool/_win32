@@ -27,5 +27,6 @@ inline int32 TruncateReal32ToInt32(real32 Real32) {
 }
 
 
+
 #define GAME_INTRINSICS_H
 #endif
