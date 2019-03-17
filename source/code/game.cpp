@@ -1,4 +1,5 @@
 #include "game.h"
+#include "game_tile.cpp"
 
 
 
@@ -269,13 +270,7 @@ DrawRectangle(game_offscreen_buffer *Buffer,
   }
 }
 
-internal void 
-InitializeArena(memory_arena *Arena, size_t Size, uint8 *Base) {
-  
-  Arena->Size = Size;
-  Arena->Base = Base;
-  Arena->Used = 0;
-}
+
 
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)

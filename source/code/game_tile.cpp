@@ -1,6 +1,4 @@
 
-
-
 inline tile_chunk *
 GetTileChunk(tile_map *TileMap, tile_chunk_position *ChunkPos) {
   //NOTE(egor): get the specific tileChunk (256x256 tiles)
