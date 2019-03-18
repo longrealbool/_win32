@@ -109,6 +109,15 @@ struct loaded_bitmap {
   
   uint32* Pixels;
 };
+
+struct hero_bitmaps {
+  
+  loaded_bitmap HeroHead;
+  loaded_bitmap HeroCape;
+  loaded_bitmap HeroTorso;
+  uint32 AlignX;
+  uint32 AlignY;
+};
   
 struct game_state {
   
@@ -117,12 +126,8 @@ struct game_state {
   tile_map_position PlayerP;
   
   loaded_bitmap Backdrop;
-  loaded_bitmap HeroHead;
-  loaded_bitmap HeroCape;
-  loaded_bitmap HeroTorso;
-  loaded_bitmap Feature;
-  
-  bool32 IsFeatureOn;
+  hero_bitmaps Hero[4];
+  uint32 FacingDirection;
   
 };
 
