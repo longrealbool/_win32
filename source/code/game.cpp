@@ -60,34 +60,7 @@ struct bitmap_header {
 };
 #pragma pack(pop)
 
-struct bit_scan_result {
-  bool32 Found;
-  uint32 Index;
-};
 
-inline bit_scan_result 
-FindLeastSignificantSetBit(uint32 Value) {
-  
-  bit_scan_result Result = {};
-  
-#if COMPILER_MSVC
-  
-  Result.Found = _BitScanForward(&Result.Index, Value);
-#else
-  
-  for(uint32 Test = 0; Test < 32; ++Test) {
-    
-    if(Value & (1 << Test)) {
-      Result.Index = Test;
-      Result.Found = true;
-      break;
-    }
-  }
-#endif
-  
-  return Result;
-  
-}
 
 
 internal loaded_bitmap
@@ -221,7 +194,28 @@ DrawBitmap(game_offscreen_buffer *Buffer,
     uint32 *Source = SourceRow;
     for(int X = MinX; X < MaxX; ++X)
     {
-      *Dest++ = *Source++;
+
+      real32 A = (real32)((*Source >> 24) & 0xFF) / 255.0f;
+      real32 Rs = (real32)((*Source >> 16) & 0xFF);
+      real32 Gs = (real32)((*Source >> 8) & 0xFF);
+      real32 Bs = (real32)((*Source >> 0) & 0xFF);
+
+      
+      real32 Rd = (real32)((*Dest >> 16) & 0xFF);
+      real32 Gd = (real32)((*Dest >> 8) & 0xFF);
+      real32 Bd = (real32)((*Dest >> 0) & 0xFF);
+      
+      real32 R = (1.0f - A)*Rd + A*Rs;
+      real32 G = (1.0f - A)*Gd + A*Gs;
+      real32 B = (1.0f - A)*Bd + A*Bs;
+      
+      
+      *Dest = (((uint32)(R + 0.5f) << 16) |
+               ((uint32)(G + 0.5f) << 8) |
+               ((uint32)(B + 0.5f) << 0));
+      
+      Dest++;
+      Source++;
     }
     DestRow += Buffer->Pitch;
     SourceRow -= Bitmap->Width;
@@ -288,12 +282,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Memory->IsInitialized = true;
     
 
-//    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background_0.bmp");
+    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
+    GameState->HeroHead = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//new_hero.bmp");
+    GameState->Feature = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//feature.bmp");
     
-    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_background.bmp");
-    GameState->HeroHead = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_head.bmp");
-    GameState->HeroCape = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_cape.bmp");
-    GameState->HeroTorso = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_torso.bmp");
+//    GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
+//    GameState->HeroHead = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_head.bmp");
+//    GameState->HeroCape = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_cape.bmp");
+//    GameState->HeroTorso = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_torso.bmp");
     
     
     
@@ -511,6 +507,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       if(Controller->Back.EndedDown) {
         PlayerSpeed = 100.0f;
+        if(GameState->IsFeatureOn == 0) {
+          GameState->IsFeatureOn = 1;
+        }
+        else {
+          GameState->IsFeatureOn = 0;
+        }
+        
       }
       
       dPlayerX *= PlayerSpeed;
@@ -561,9 +564,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-  
+  //DrawRectangle(Buffer, 0.0f, 0.0f, (real32)Buffer->Width, (real32)Buffer->Height,
+  //              1.0f, 0.0f, 1.0f);
   DrawBitmap(Buffer, &GameState->Backdrop, 0, 0);
-
+  
   
   real32 CenterX = 0.5f*Buffer->Width;
   real32 CenterY = 0.5f*Buffer->Height;
@@ -584,11 +588,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         if(TileID == 2 || TileID == 3) {
           
-          Gray = 0.25f;
+          Gray = 1.0f;
         }
         
         if(TileID == 4 || TileID == 5) {
-          Gray = 0.5f;
+          Gray = 0.25f;
         }
         
         if(Row == GameState->PlayerP.AbsTileY && Column == GameState->PlayerP.AbsTileX) {
@@ -618,18 +622,25 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 PlayerG = 0.0f;
   real32 PlayerB = 0.0f;
   
-  real32 PlayerMinX =  CenterX - MetersToPixels*PlayerWidth/2;
-   
-  real32 PlayerMinY = CenterY - MetersToPixels*PlayerHeight; 
   
-  real32 PlayerMaxX = PlayerMinX + PlayerWidth*MetersToPixels;
-  real32 PlayerMaxY = PlayerMinY - PlayerHeight*MetersToPixels;
+  real32 PlayerLeft = CenterX - MetersToPixels*PlayerWidth/2;
+  real32 PlayerTop = CenterY - PlayerHeight*MetersToPixels;
   
-  /*DrawRectangle(Buffer, PlayerMinX, PlayerMaxY,
-                PlayerMaxX, PlayerMinY,
+  real32 PlayerRight = PlayerLeft + PlayerWidth*MetersToPixels;
+  real32 PlayerBottom = PlayerTop + PlayerHeight*MetersToPixels;
+  
+  /*DrawRectangle(Buffer, PlayerLeft, PlayerTop,
+                PlayerRight, PlayerBottom,
                 PlayerR, PlayerG, PlayerB);*/
+  
+  
+  if(GameState->IsFeatureOn) {
+    DrawBitmap(Buffer, &GameState->Feature, 
+               PlayerLeft-30, PlayerTop-40);
+  }
+  
   DrawBitmap(Buffer, &GameState->HeroHead, 
-             PlayerMinX, PlayerMinY);
+             PlayerLeft-30, PlayerTop-40);
   
 
   

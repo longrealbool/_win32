@@ -120,6 +120,9 @@ struct game_state {
   loaded_bitmap HeroHead;
   loaded_bitmap HeroCape;
   loaded_bitmap HeroTorso;
+  loaded_bitmap Feature;
+  
+  bool32 IsFeatureOn;
   
 };
 
