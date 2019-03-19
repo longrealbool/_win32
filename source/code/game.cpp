@@ -187,10 +187,12 @@ DrawBitmap(game_offscreen_buffer *Buffer,
   // NOTE(Egor): just example
   // uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch*Buffer->Height;
   
-  uint32 *SourceRow = (uint32 *)Bitmap->Pixels + (Bitmap->Height-1)*(Bitmap->Width);
+  //uint32 *SourceRow = (uint32 *)Bitmap->Pixels + (Bitmap->Height-1)*(Bitmap->Width);
+  
+  uint32 *SourceRow = (uint32 *)Bitmap->Pixels;
   
   // go to line to draw
-  uint8 *DestRow = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*Buffer->BytesPerPixel);
+  uint8 *DestRow = ((uint8 *)Buffer->Memory + (MaxY-1)*Buffer->Pitch + MinX*Buffer->BytesPerPixel);
   
   for(int Y = MinY; Y < MaxY; ++Y)
   {
@@ -221,8 +223,8 @@ DrawBitmap(game_offscreen_buffer *Buffer,
       Dest++;
       Source++;
     }
-    DestRow += Buffer->Pitch;
-    SourceRow -= Bitmap->Width;
+    DestRow -= Buffer->Pitch;
+    SourceRow += Bitmap->Width;
 
   }
   
