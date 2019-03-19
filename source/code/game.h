@@ -123,7 +123,9 @@ struct game_state {
   
   memory_arena WorldArena;
   world* World;
+  
   tile_map_position PlayerP;
+  tile_map_position CameraP;
   
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];

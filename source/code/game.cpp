@@ -335,6 +335,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     
     
+    GameState->CameraP.AbsTileX = 17/2;
+    GameState->CameraP.AbsTileY = 9/2;
+    
     GameState->PlayerP.AbsTileX = 2;
     GameState->PlayerP.AbsTileY = 4;
     GameState->PlayerP.X = 0.0f;
@@ -614,13 +617,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   for(int32 ViewRow = -6; ViewRow < 6; ++ViewRow) {
     for(int32 ViewColumn = -10; ViewColumn < 10; ++ViewColumn) {
       
-      uint32 Column = GameState->PlayerP.AbsTileX + ViewColumn;
-      uint32 Row = GameState->PlayerP.AbsTileY + ViewRow;
+      uint32 Column = GameState->CameraP.AbsTileX + ViewColumn;
+      uint32 Row = GameState->CameraP.AbsTileY + ViewRow;
       
       //    uint32 TestColumn = Column & 255;
       //    uint32 TestRow = Row & 255;
       
-      uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->PlayerP.AbsTileZ);
+      uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->CameraP.AbsTileZ);
       real32 Gray = 0.5f;
       
       if(TileID > 1) {
@@ -638,16 +641,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           Gray = 0.0f;
         }
         
-        real32 CenX = CenterX  + ((real32)ViewColumn * TileSideInPixels) - MetersToPixels*GameState->PlayerP.X;
-        real32 CenY = CenterY  - ((real32)ViewRow * TileSideInPixels) + MetersToPixels*GameState->PlayerP.Y;  
+        real32 CenX = CenterX  + ((real32)ViewColumn * TileSideInPixels) - MetersToPixels*GameState->CameraP.X;
+        real32 CenY = CenterY  - ((real32)ViewRow * TileSideInPixels) + MetersToPixels*GameState->CameraP.Y;  
         
         real32 MinX = CenX - 0.5f*TileSideInPixels;
         real32 MinY = CenY - 0.5f*TileSideInPixels;
         real32 MaxX = CenX + 0.5f*TileSideInPixels;
         real32 MaxY = CenY + 0.5f*TileSideInPixels;
         
-        // NOTE: (Egor) MinY and MaxY is inverted because in windows
-        // bitmap Y coord is growing downwards
+        // NOTE: (Egor) in windows bitmap Y coord is growing downwards
         DrawRectangle(Buffer, MinX, MinY, MaxX, MaxY, Gray, Gray, Gray);
         if(TileID == 3) {
           SetTileValue(&GameState->WorldArena, TileMap, Column, Row, GameState->PlayerP.AbsTileZ, 2);
@@ -662,8 +664,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 PlayerB = 0.0f;
   
   
-  real32 PlayerGroundPointX = CenterX;
-  real32 PlayerGroundPointY = CenterY;
+  real32 PlayerGroundPointX = CenterX - TileSideInPixels*((int32)GameState->CameraP.AbsTileX - (int32)GameState->PlayerP.AbsTileX) + GameState->PlayerP.X*MetersToPixels;
+  real32 PlayerGroundPointY = CenterY + TileSideInPixels*((int32)GameState->CameraP.AbsTileY - (int32)GameState->PlayerP.AbsTileY) - GameState->PlayerP.Y*MetersToPixels; 
   
   real32 PlayerLeft = PlayerGroundPointX - 0.5f*PlayerWidth*MetersToPixels;
   real32 PlayerTop = PlayerGroundPointY - PlayerHeight*MetersToPixels;
