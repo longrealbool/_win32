@@ -183,8 +183,22 @@ CanonicalizePosition(tile_map *TileMap, tile_map_position *Pos) {
   return Result;
 }
 
-
-
+inline tile_map_difference 
+Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
+  
+  tile_map_difference Result;
+  
+  real32 dTileX = (real32)A->AbsTileX - (real32)B->AbsTileX;
+  real32 dTileY = (real32)A->AbsTileY - (real32)B->AbsTileY;
+  real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
+  
+  Result.dX = TileMap->TileSideInMeters*dTileX + (A->X - B->X);
+  Result.dY = TileMap->TileSideInMeters*dTileY + (A->Y - B->Y);
+  // NOTE(Egor): Z is not a real coordinate right now
+  Result.dZ = TileMap->TileSideInMeters*dTileZ;
+  
+  return Result;
+}
 
 inline bool32
 AreOnTheSameTile(tile_map_position *A, tile_map_position *B) {

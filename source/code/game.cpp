@@ -665,9 +665,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 PlayerG = 0.0f;
   real32 PlayerB = 0.0f;
   
+  tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
   
-  real32 PlayerGroundPointX = CenterX - TileSideInPixels*((int32)GameState->CameraP.AbsTileX - (int32)GameState->PlayerP.AbsTileX) + GameState->PlayerP.X*MetersToPixels;
-  real32 PlayerGroundPointY = CenterY + TileSideInPixels*((int32)GameState->CameraP.AbsTileY - (int32)GameState->PlayerP.AbsTileY) - GameState->PlayerP.Y*MetersToPixels; 
+  real32 PlayerGroundPointX = CenterX + Diff.dX*MetersToPixels;
+  real32 PlayerGroundPointY = CenterY - Diff.dY*MetersToPixels;
   
   real32 PlayerLeft = PlayerGroundPointX - 0.5f*PlayerWidth*MetersToPixels;
   real32 PlayerTop = PlayerGroundPointY - PlayerHeight*MetersToPixels;
