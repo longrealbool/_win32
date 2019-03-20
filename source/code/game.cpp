@@ -177,9 +177,17 @@ DrawBitmap(game_offscreen_buffer *Buffer,
   int32 MaxX = RoundReal32ToInt32(RealX + (real32)Bitmap->Width);
   int32 MaxY = RoundReal32ToInt32(RealY + (real32)Bitmap->Height);
   
+  int32 SourceOffsetX = 0;
   // clipping value to actual size of the backbuffer
-  if(MinX < 0) MinX = 0;
-  if(MinY < 0) MinY = 0;
+  if(MinX < 0) {
+    SourceOffsetX = -MinX;
+    MinX = 0;
+  }
+  int32 SourceOffsetY = 0;
+  if(MinY < 0) { 
+    SourceOffsetY = -MinY;
+    MinY = 0;
+  }
   // we will write up to, but not including to final row and column
   if(MaxX > Buffer->Width) MaxX = Buffer->Width;
   if(MaxY > Buffer->Height) MaxY = Buffer->Height;
@@ -187,12 +195,11 @@ DrawBitmap(game_offscreen_buffer *Buffer,
   // NOTE(Egor): just example
   // uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch*Buffer->Height;
   
-  //uint32 *SourceRow = (uint32 *)Bitmap->Pixels + (Bitmap->Height-1)*(Bitmap->Width);
-  
-  uint32 *SourceRow = (uint32 *)Bitmap->Pixels;
+  uint32 *SourceRow = (uint32 *)Bitmap->Pixels + (Bitmap->Height-1)*(Bitmap->Width);
+  SourceRow += -SourceOffsetY*Bitmap->Width + SourceOffsetX;
   
   // go to line to draw
-  uint8 *DestRow = ((uint8 *)Buffer->Memory + (MaxY-1)*Buffer->Pitch + MinX*Buffer->BytesPerPixel);
+  uint8 *DestRow = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*Buffer->BytesPerPixel);
   
   for(int Y = MinY; Y < MaxY; ++Y)
   {
@@ -223,8 +230,8 @@ DrawBitmap(game_offscreen_buffer *Buffer,
       Dest++;
       Source++;
     }
-    DestRow -= Buffer->Pitch;
-    SourceRow += Bitmap->Width;
+    DestRow += Buffer->Pitch;
+    SourceRow -= Bitmap->Width;
 
   }
   
@@ -603,6 +610,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         GameState->PlayerP = NewPlayerPos;
       }
+      
+      tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
+      
+      if(Diff.dX > (9.0f * TileMap->TileSideInMeters)) {
+        GameState->CameraP.AbsTileX += 17;
+      }
+      if(Diff.dX < -(9.0f * TileMap->TileSideInMeters)) {
+        GameState->CameraP.AbsTileX -= 17;
+      }
+      if(Diff.dY > (5.0f * TileMap->TileSideInMeters)) {
+        GameState->CameraP.AbsTileY += 9;
+      }
+      if(Diff.dY < -(5.0f * TileMap->TileSideInMeters)) {
+        GameState->CameraP.AbsTileY -= 9;
+      }
+      
+      GameState->CameraP.AbsTileZ = GameState->PlayerP.AbsTileZ;
       
       // digital movement
     }

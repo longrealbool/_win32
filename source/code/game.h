@@ -104,8 +104,8 @@ struct world {
 };
 
 struct loaded_bitmap {
-  uint32 Height;
-  uint32 Width;
+  int32 Height;
+  int32 Width;
   
   uint32* Pixels;
 };
