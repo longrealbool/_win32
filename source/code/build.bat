@@ -21,6 +21,8 @@ REM cl %CommonCompilerFlags% ..\handmade\code\win32_game.cpp /link -subsystem:wi
 
 REM 64-bit build /O2 /Oi /fp:fast
 del *.pdb > NUL 2> NUL
+echo WAITING FOR PDB > lock.tmp
 cl %CommonCompilerFlags%  ..\source\code\game.cpp -Fmhgame.map -LD /link -incremental:no -opt:ref -PDB:game_%random%.pdb -EXPORT:GameGetSoundSamples -EXPORT:GameUpdateAndRender
+del lock.tmp
 cl %CommonCompilerFlags% ..\source\code\win32_game.cpp -Fmwin32_game.map /link %CommonLinkerFlags%
 popd
