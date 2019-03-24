@@ -302,45 +302,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     hero_bitmaps *Bitmap = GameState->Hero;
     
-    Bitmap->HeroHead = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_right_head.bmp");
-    Bitmap->HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_right_cape.bmp");
-    Bitmap->HeroTorso = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_right_torso.bmp");
-    Bitmap->AlignX = 72;
-    Bitmap->AlignY = 182;
-    Bitmap++;
     
     Bitmap->HeroHead = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_back_head.bmp");
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//figurine.bmp");
     Bitmap->HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_back_cape.bmp");
-    Bitmap->HeroTorso = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_back_torso.bmp");
-    Bitmap->AlignX = 72;
-    Bitmap->AlignY = 182;
-    Bitmap++;
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_right.bmp");
+    Bitmap->AlignX = 51;
+    Bitmap->AlignY = 112;
     
-    Bitmap->HeroHead = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_left_head.bmp");
-    Bitmap->HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_left_cape.bmp");
-    Bitmap->HeroTorso = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_left_torso.bmp");
-    Bitmap->AlignX = 72;
-    Bitmap->AlignY = 182;
-    Bitmap++;
+    Bitmap[1] = Bitmap[0];
+    Bitmap[1].HeroCape = 
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp");
     
-    Bitmap->HeroHead = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_head.bmp");
-    Bitmap->HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_cape.bmp");
-    Bitmap->HeroTorso = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_torso.bmp");
-    Bitmap->AlignX = 72;
-    Bitmap->AlignY = 182;
-    Bitmap++;
+    Bitmap[2] = Bitmap[0];
+    Bitmap[2].HeroCape = 
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_left.bmp");
+    
+    Bitmap[3] = Bitmap[0];
+    Bitmap[3].HeroCape = 
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_down.bmp");
+
     
     
     
