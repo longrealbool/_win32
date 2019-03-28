@@ -175,8 +175,8 @@ CanonicalizePosition(tile_map *TileMap, tile_map_position *Pos) {
   
   tile_map_position Result = *Pos;
   
-  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.X);
-  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Y);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset.X);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset.Y);
   
   *Pos = Result;
   
@@ -188,12 +188,12 @@ Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
   
   tile_map_difference Result;
   
-  real32 dTileX = (real32)A->AbsTileX - (real32)B->AbsTileX;
-  real32 dTileY = (real32)A->AbsTileY - (real32)B->AbsTileY;
+  v2 dTileXY = V2((real32)A->AbsTileX - (real32)B->AbsTileX,
+                  (real32)A->AbsTileY - (real32)B->AbsTileY);
+  
   real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
   
-  Result.dX = TileMap->TileSideInMeters*dTileX + (A->X - B->X);
-  Result.dY = TileMap->TileSideInMeters*dTileY + (A->Y - B->Y);
+  Result.dXY = TileMap->TileSideInMeters*dTileXY + (A->Offset - B->Offset);
   // NOTE(Egor): Z is not a real coordinate right now
   Result.dZ = TileMap->TileSideInMeters*dTileZ;
   

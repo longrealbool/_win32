@@ -851,7 +851,7 @@ Win32ProcessPendingMessages(win32_state *State, game_controller_input *KeyboardC
                     {
                         Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
                     }
-#if HANDMADE_INTERNAL
+#if GAME_INTERNAL
                     else if(VKCode == 'P')
                     {
                         if(IsDown)

@@ -2,8 +2,7 @@
 
 struct tile_map_difference {
   
-  real32 dX;
-  real32 dY;
+  v2 dXY;
   real32 dZ;
 };
 
@@ -14,8 +13,7 @@ struct tile_map_position {
   uint32 AbsTileZ;
   
   // NOTE(Egor): origin is at the center of a tile
-  real32 X;
-  real32 Y;
+  v2 Offset;
 };
 
 struct tile_chunk_position {

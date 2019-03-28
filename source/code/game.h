@@ -55,6 +55,7 @@ RollTheDice(void) {
   return (unsigned int)(next/65536) % (MINE_RAND_MAX + 1);
 }
 
+#include "game_math.cpp"
 #include "game_intrinsic.h"
 #include "game_tile.h"
 
@@ -86,6 +87,8 @@ struct game_state {
   
   tile_map_position PlayerP;
   tile_map_position CameraP;
+  
+  v2 dPlayerP;
   
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];
