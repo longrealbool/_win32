@@ -571,28 +571,53 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       CanonicalizePosition(TileMap, &NewPlayerPosLeft);
       CanonicalizePosition(TileMap, &NewPlayerPosRight);
       
+      tile_map_position ColP = {};
       
-      
-      bool32 IsValid = (IsTileMapPointEmpty(TileMap, &NewPlayerPos) &&
-                        IsTileMapPointEmpty(TileMap, &NewPlayerPosLeft) &&
-                        IsTileMapPointEmpty(TileMap, &NewPlayerPosRight));
-      
-      if(!AreOnTheSameTile(&GameState->PlayerP, &NewPlayerPos)) {
-        
-        uint32 TileValue = GetTileValue(TileMap, &NewPlayerPos);
-        
-        if(TileValue == 4) {
-          NewPlayerPos.AbsTileZ++;
-        }
-        if(TileValue == 5) {
-          NewPlayerPos.AbsTileZ--;
-        }
-        
-        
+      bool32 IsCollided = false;
+      if(!IsTileMapPointEmpty(TileMap, &NewPlayerPos)) {
+        ColP = NewPlayerPos;
+        IsCollided = true;
+      }
+      if(!IsTileMapPointEmpty(TileMap, &NewPlayerPosLeft)) {
+        ColP = NewPlayerPosLeft;
+        IsCollided = true;
+      }
+      if(!IsTileMapPointEmpty(TileMap, &NewPlayerPosRight)) {
+        ColP = NewPlayerPosRight;
+        IsCollided = true;
       }
       
-      if(IsValid) {
+      if(IsCollided) {
         
+        v2 R = {}; // normal vector to a blockage
+        if(ColP.AbsTileX < GameState->PlayerP.AbsTileX) {
+          R = { 1, 0};
+        }
+        if(ColP.AbsTileX > GameState->PlayerP.AbsTileX) {
+          R = { -1, 0};
+        }
+        if(ColP.AbsTileY < GameState->PlayerP.AbsTileY) {
+          R = { 0, 1};
+        }
+        if(ColP.AbsTileY > GameState->PlayerP.AbsTileY) {
+          R = { 0, -1};
+        }
+        
+        // NOTE(Egor): reflecting vector calculation
+        GameState->dPlayerP = GameState->dPlayerP - 1*Inner(GameState->dPlayerP, R)*R;
+      }
+      else {
+        
+        if(!AreOnTheSameTile(&GameState->PlayerP, &NewPlayerPos)) {
+          
+          uint32 TileValue = GetTileValue(TileMap, &NewPlayerPos);
+          if(TileValue == 4) {
+            NewPlayerPos.AbsTileZ++;
+          }
+          if(TileValue == 5) {
+            NewPlayerPos.AbsTileZ--;
+          }
+        }
         GameState->PlayerP = NewPlayerPos;
       }
       
