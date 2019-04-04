@@ -131,6 +131,17 @@ IsTileMapPointEmpty(tile_map *TileMap, tile_map_position *TestPos) {
   return IsEmpty;
 }
 
+internal bool32
+IsTileValueEmpty(uint32 TileValue) {
+  
+  bool32 IsEmpty = (TileValue == 1 ||
+                    TileValue == 4 ||
+                    TileValue == 5);
+  
+  return IsEmpty;
+  
+}
+
 inline bool32
 IsTileMapTileEmpty(tile_map *TileMap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY) {
   
@@ -139,9 +150,7 @@ IsTileMapTileEmpty(tile_map *TileMap, tile_chunk *TileChunk, uint32 TestTileX, u
   if(TileChunk) {
     // NOTE(egor): we check a tile value inside tile chunk of sixe 256x256
     uint32 TileMapValue = GetTileValueUnchecked(TileMap, TileChunk, TestTileX, TestTileY);
-    IsEmpty = (TileMapValue == 1 ||
-               TileMapValue == 4 ||
-               TileMapValue == 5);
+    IsEmpty = IsTileValueEmpty(TileMapValue);
     
   }
   
@@ -208,5 +217,19 @@ AreOnTheSameTile(tile_map_position *A, tile_map_position *B) {
                    A->AbsTileZ == B->AbsTileZ);
   
   return Result;
+  
+}
+
+inline tile_map_position
+CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+  
+  tile_map_position Result = {};
+  
+  Result.AbsTileX = AbsTileX;
+  Result.AbsTileY = AbsTileY;
+  Result.AbsTileZ = AbsTileZ;
+  
+  return Result;
+  
   
 }

@@ -505,20 +505,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       
       ddPlayer += -GameState->dPlayerP*1.5f;
+      
       tile_map_position NewPlayerPos = GameState->PlayerP;
-      NewPlayerPos.Offset = (0.5f * ddPlayer * Square(Input->dtForFrame) +
-                             GameState->dPlayerP*Input->dtForFrame +
-                             NewPlayerPos.Offset);
+      v2 PlayerDelta = (0.5f * ddPlayer * Square(Input->dtForFrame) +
+                        GameState->dPlayerP*Input->dtForFrame);
+      NewPlayerPos.Offset += PlayerDelta;
       
       GameState->dPlayerP = ddPlayer*Input->dtForFrame + GameState->dPlayerP;
+      CanonicalizePosition(TileMap, &NewPlayerPos);
+#if 1
       
-
+      
       tile_map_position NewPlayerPosLeft = NewPlayerPos;
       NewPlayerPosLeft.Offset.X -= 0.5f*PlayerWidth;
       tile_map_position NewPlayerPosRight = NewPlayerPos;
       NewPlayerPosRight.Offset.X += 0.5f*PlayerWidth;
       
-      CanonicalizePosition(TileMap, &NewPlayerPos);
+
       CanonicalizePosition(TileMap, &NewPlayerPosLeft);
       CanonicalizePosition(TileMap, &NewPlayerPosRight);
       
@@ -561,6 +564,35 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         GameState->PlayerP = NewPlayerPos;
       }
+#else 
+      
+      uint32 MinTileX = 0;
+      uint32 MinTileY = 0;
+      uint32 OnePastMaxTileX = 0;
+      uint32 OnePastMaxTileY = 0;
+      uint32 AbsTileZ = GameState->PlayerP.AbsTileZ;
+      tile_map_position BestPlayerPos = GameState->PlayerP;
+      real32 BestDistanceSq = LengthSq(PlayerDelta);
+      for(uint32 AbsTileY = MinTileY; AbsTileY != OnePastMaxTileY; ++AbsTileY) {
+        for(uint32 AbsTileX = MinTileX; AbsTileX != OnePastMaxTileX; ++AbsTileX) {
+          
+          tile_map_position TestTilePos = CenteredTilePoint(AbsTileX, AbsTileY, AbsTileZ);
+          uint32 TileValue = GetTileValue(TileMap, AbsTileX, AbsTileY, AbsTileZ);
+          if(IsTileValueEmpty(TileValue)) {
+            
+            
+            v2 MinCorner = -0.5f*v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
+            v2 MaxCorner = 0.5f*v2{TileMap->TileSideInMeters, TileMap->TileSideInMeters};
+            
+            tile_map_difference RelNewPlayerPos = Subtract(TileMap, &TestTilePos, &NewPlayerPos);
+            v2 TestP = ClosestPointInRectangle(MinCorner, MaxCorner, RelNewPlayerPos);
+            
+          }
+          
+        }
+      }
+      
+#endif
     }
   }
   
