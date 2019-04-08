@@ -1,6 +1,6 @@
 @echo off
 
-SET VC_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community
+SET VC_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community
 REM I don't know why it doesn't work, assume problem with "%LIB%" - syntax
 REM IF NOT DEFINED "%LIB%" (IF EXIST "%VC_PATH%" (call "%VC_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64))
 

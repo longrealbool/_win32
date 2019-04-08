@@ -79,20 +79,33 @@ struct hero_bitmaps {
   uint32 AlignX;
   uint32 AlignY;
 };
+
+struct entity {
+  
+  bool32 Exists;
+  tile_map_position P;  
+  v2 dP;
+  uint32 FacingDirection;
+  
+  real32 Height;
+  real32 Width;
+};
   
 struct game_state {
   
   memory_arena WorldArena;
   world* World;
+
+  uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
+  uint32 EntityCount;
+  entity Entities[256];
   
-  tile_map_position PlayerP;
+  uint32 CameraFollowingEntityIndex;
   tile_map_position CameraP;
-  
-  v2 dPlayerP;
   
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];
-  uint32 FacingDirection;
+
   
 };
 
