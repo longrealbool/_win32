@@ -17,7 +17,7 @@ IF NOT EXIST ..\..\build mkdir ..\..\build
 pushd ..\..\build
 
 REM 32-bit build
-REM cl %CommonCompilerFlags% ..\handmade\code\win32_game.cpp /link -subsystem:windows,5.1 %CommonLinkerFlags%
+REM cl %CommonCompilerFlags% ..\code\win32_game.cpp /link -subsystem:windows,5.1 %CommonLinkerFlags%
 
 REM 64-bit build /O2 /Oi /fp:fast
 del *.pdb > NUL 2> NUL

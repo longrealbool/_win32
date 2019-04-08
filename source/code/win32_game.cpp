@@ -1062,7 +1062,7 @@ WinMain(HINSTANCE Instance,
     
     Win32LoadXInput();
 
-#if HANDMADE_INTERNAL
+#if GAME_INTERNAL
     DEBUGGlobalShowCursor = true;
 #endif
     WNDCLASSA WindowClass = {};

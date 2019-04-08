@@ -229,5 +229,5 @@ extern "C" {
 }
 #endif
 
-#define HANDMADE_PLATFORM_H
+#define GAME_PLATFORM_H
 #endif
