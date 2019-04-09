@@ -88,15 +88,20 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     uint32 BlueMask = Header->BlueMask;
     uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
     
-    bit_scan_result AlphaShift = FindLeastSignificantSetBit(AlphaMask);
-    bit_scan_result RedShift = FindLeastSignificantSetBit(RedMask);
-    bit_scan_result GreenShift = FindLeastSignificantSetBit(GreenMask);
-    bit_scan_result BlueShift = FindLeastSignificantSetBit(BlueMask);
+    bit_scan_result AlphaScan = FindLeastSignificantSetBit(AlphaMask);
+    bit_scan_result RedScan = FindLeastSignificantSetBit(RedMask);
+    bit_scan_result GreenScan = FindLeastSignificantSetBit(GreenMask);
+    bit_scan_result BlueScan = FindLeastSignificantSetBit(BlueMask);
     
-    Assert(AlphaShift.Found);    
-    Assert(RedShift.Found);
-    Assert(GreenShift.Found);
-    Assert(BlueShift.Found);
+    int32 AlphaShift = 24 - (int32)AlphaScan.Index;
+    int32 RedShift = 16 - (int32)RedScan.Index;
+    int32 GreenShift = 8 - (int32)GreenScan.Index;
+    int32 BlueShift = 0 - (int32)BlueScan.Index;
+    
+    Assert(AlphaScan.Found);    
+    Assert(RedScan.Found);
+    Assert(GreenScan.Found);
+    Assert(BlueScan.Found);
     
     uint32 *SourceDest = Pixel;
     
@@ -104,10 +109,11 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
       for(int32 X = 0; X < Header->Width; ++X) {
         
         uint32 C = *SourceDest;
-        *SourceDest = (((C >> AlphaShift.Index) & 0xFF) << 24 |
-                       ((C >> RedShift.Index) & 0xFF) << 16 |
-                       ((C >> GreenShift.Index) & 0xFF) << 8 |
-                       ((C >> BlueShift.Index) & 0xFF) << 0) ;
+
+        *SourceDest = (RotateLeft(C & AlphaMask, AlphaShift) |
+                       RotateLeft(C & RedMask, RedShift) |
+                       RotateLeft(C & GreenMask, GreenShift) |
+                       RotateLeft(C & BlueMask, BlueShift));
         
         SourceDest++;
       }
@@ -446,13 +452,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Memory->IsInitialized = true;
     
     
-    //GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
-    //GameState->Hero[0].HeroHead = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//new_hero.bmp");
-    
     GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
     
     hero_bitmaps *Bitmap = GameState->Hero;
-    
     
     Bitmap->HeroHead = 
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//figurine.bmp");

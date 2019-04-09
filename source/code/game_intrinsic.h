@@ -40,6 +40,20 @@ struct bit_scan_result {
   uint32 Index;
 };
 
+inline uint32
+RotateLeft(uint32 Value, int32 Amount) {
+  
+  uint32 Result = _rotl(Value, Amount);
+  return Result;
+}
+
+inline uint32
+RotateRight(uint32 Value, int32 Amount) {
+  
+  uint32 Result = _rotr(Value, Amount);
+  return Result;
+}
+
 
 inline bit_scan_result 
 FindLeastSignificantSetBit(uint32 Value) {
