@@ -1,12 +1,23 @@
 #if !defined(GAME_INTRINSICS_H)
 #include "math.h"
 
+inline int32 SignOf(int32 Value) {
+  
+  int32 Result = Value >= 0 ? 1 : -1;
+  return Result;
+}
+
 inline real32 AbsoluteValue(real32 Real32) {
  
   real32 Result = (real32)fabs(Real32);
-  
   return Result;
+}
+
+inline real32 
+SquareRoot(real32 Value) {
   
+  real32 Result = sqrtf(Value);
+  return Result;
 }
 
 inline int32 RoundReal32ToInt32(real32 Real32) {
