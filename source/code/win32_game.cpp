@@ -1079,7 +1079,7 @@ WinMain(HINSTANCE Instance,
     WindowClass.hInstance = Instance;
     WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
 //    WindowClass.hIcon;
-    WindowClass.lpszClassName = "HandmadeHeroWindowClass";
+    WindowClass.lpszClassName = "GameWin32WindowClass";
 
     if(RegisterClassA(&WindowClass))
     {
@@ -1087,7 +1087,7 @@ WinMain(HINSTANCE Instance,
             CreateWindowExA(
                 0, // WS_EX_TOPMOST|WS_EX_LAYERED,
                 WindowClass.lpszClassName,
-                "Handmade Hero",
+                "win32_game",
                 WS_OVERLAPPEDWINDOW|WS_VISIBLE,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
@@ -1128,7 +1128,7 @@ WinMain(HINSTANCE Instance,
 
 #if 0
             // NOTE(Egor): This tests the PlayCursor/WriteCursor update frequency
-            // On the Handmade Hero machine, it was 480 samples.
+            // On machine, it was 480 samples.
             while(GlobalRunning)
             {
                 DWORD PlayCursor;
@@ -1147,7 +1147,7 @@ WinMain(HINSTANCE Instance,
                                                    MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 
             
-#if HANDMADE_INTERNAL
+#if GAME_INTERNAL
             LPVOID BaseAddress = (LPVOID)Terabytes(2);
 #else
             LPVOID BaseAddress = 0;
@@ -1514,7 +1514,7 @@ WinMain(HINSTANCE Instance,
                                 Game.GetSoundSamples(&Thread, &GameMemory, &SoundBuffer);
                             }
 
-#if HANDMADE_INTERNAL
+#if GAME_INTERNAL
                             win32_debug_time_marker *Marker = &DebugTimeMarkers[DebugTimeMarkerIndex];
                             Marker->OutputPlayCursor = PlayCursor;
                             Marker->OutputWriteCursor = WriteCursor;
@@ -1595,17 +1595,17 @@ WinMain(HINSTANCE Instance,
                         ReleaseDC(Window, DeviceContext);
 
                         FlipWallClock = Win32GetWallClock();
-#if HANDMADE_INTERNAL
+#if GAME_INTERNAL
                         // NOTE(Egor): This is debug code
                         {
-                            DWORD PlayCursor;
-                            DWORD WriteCursor;
-                            if(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursor, &WriteCursor) == DS_OK)
+                            DWORD PlayCursorLocal;
+                            DWORD WriteCursorLocal;
+                            if(GlobalSecondaryBuffer->GetCurrentPosition(&PlayCursorLocal, &WriteCursorLocal) == DS_OK)
                             {
                                 Assert(DebugTimeMarkerIndex < ArrayCount(DebugTimeMarkers));
                                 win32_debug_time_marker *Marker = &DebugTimeMarkers[DebugTimeMarkerIndex];
-                                Marker->FlipPlayCursor = PlayCursor;
-                                Marker->FlipWriteCursor = WriteCursor;
+                                Marker->FlipPlayCursor = PlayCursorLocal;
+                                Marker->FlipWriteCursor = WriteCursorLocal;
                             }
                         
                         }
@@ -1630,7 +1630,7 @@ WinMain(HINSTANCE Instance,
                         OutputDebugStringA(FPSBuffer);
 #endif
                         
-#if HANDMADE_INTERNAL
+#if GAME_INTERNAL
                         ++DebugTimeMarkerIndex;
                         if(DebugTimeMarkerIndex == ArrayCount(DebugTimeMarkers))
                         {
