@@ -13,7 +13,7 @@ struct tile_map_position {
   uint32 AbsTileZ;
   
   // NOTE(Egor): origin is at the center of a tile
-  v2 Offset;
+  v2 Offset_;
 };
 
 struct tile_chunk_position {

@@ -32,11 +32,15 @@ inline uint32 RoundReal32ToUInt32(real32 Real32) {
   return Result;
 }
 
-
 inline int32 FloorReal32ToInt32(real32 Real32) {
-  // TODO: dirty hack should consider moving to intrinsic
   
   int32 Result = (int32)floorf(Real32);
+  return Result;
+}
+
+inline int32 CeilReal32ToInt32(real32 Real32) {
+  
+  int32 Result = (int32)ceilf(Real32);
   return Result;
 }
 

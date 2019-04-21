@@ -178,19 +178,30 @@ RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRel) {
   
 }
 
+
+
 // TODO (Egor): we cannot move faster than 1 tile map in on gameLoop
 inline tile_map_position
 CanonicalizePosition(tile_map *TileMap, tile_map_position *Pos) {
   
   tile_map_position Result = *Pos;
   
-  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset.X);
-  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset.Y);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset_.X);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset_.Y);
   
   *Pos = Result;
   
   return Result;
 }
+
+inline tile_map_position
+Offset(tile_map *TileMap, tile_map_position P, v2 Offset) {
+  
+  P.Offset_ += Offset;
+  CanonicalizePosition(TileMap, &P);
+  
+  return P;
+}  
 
 inline tile_map_difference 
 Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
@@ -202,7 +213,7 @@ Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
   
   real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
   
-  Result.dXY = TileMap->TileSideInMeters*dTileXY + (A->Offset - B->Offset);
+  Result.dXY = TileMap->TileSideInMeters*dTileXY + (A->Offset_ - B->Offset_);
   // NOTE(Egor): Z is not a real coordinate right now
   Result.dZ = TileMap->TileSideInMeters*dTileZ;
   
