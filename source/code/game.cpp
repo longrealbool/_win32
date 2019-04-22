@@ -408,7 +408,7 @@ MovePlayer(game_state *GameState, entity *Entity, real32 dT, v2 ddP) {
   
     
     // NOTE(Egor): reflecting vector calculation
-    Entity->P = Offset(TileMap, OldPlayerP, tMin*PlayerDelta);    
+    Entity->P = Offset(TileMap, Entity->P, tMin*PlayerDelta);    
     PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
     Entity->dP = Entity->dP - 1*Inner(Entity->dP, WallNormal)*WallNormal;
     tRemaining -= tMin*tRemaining;
