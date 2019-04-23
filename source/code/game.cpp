@@ -460,36 +460,37 @@ MovePlayer(game_state *GameState, entity *Entity, real32 dT, v2 ddP) {
 
 #endif
 
-inline entity *
-GetEntity(game_state *GameState, uint32 Index) {
+inline entity
+GetEntity(game_state *GameState, entity_residence Residence, uint32 Index) {
   
-  entity *Entity = 0;
+  entity Entity = {};
   
-  if((Index > 0) && (Index < ArrayCount(GameState->Entities))) {
+  if((Index > 0) && (Index < GameState->EntityCount)) {
     
-    Entity = &GameState->Entities[Index];
-    
+    Entity.Residence = Residence;
+    Entity.High = &GameState->HighEntity[Index];
+    Entity.Low = &GameState->LowEntity[Index];
+    Entity.Dormant = &GameState->DormantEntity[Index];
   }
   
   return Entity;
-  
 }
 
 internal void
 InitializePlayer(game_state *GameState, uint32 EntityIndex) {
   
-  entity *Entity = GetEntity(GameState, EntityIndex);
+  entity Entity = GetEntity(GameState, EntityResidence_High,  EntityIndex);
   
-  Entity->Exists = true;
-  Entity->P.AbsTileX = 2;
-  Entity->P.AbsTileY = 4;
-  Entity->P.Offset_.X = 0.0f;
-  Entity->P.Offset_.Y = 0.0f;
+  Entity.Dormant->P.AbsTileX = 2;
+  Entity.Dormant->P.AbsTileY = 4;
+  Entity.Dormant->P.Offset_.X = 0.0f;
+  Entity.Dormant->P.Offset_.Y = 0.0f;
   
-  Entity->Height = 0.5f;
-  Entity->Width = 1.0f;
+  Entity.Dormant->Height = 0.5f;
+  Entity.Dormant->Width = 1.0f;
   
-  if(!GetEntity(GameState, GameState->CameraFollowingEntityIndex)) {
+  // NOTE(Egor): if camera doesn't follows any entity, make it follow this
+  if(!GetEntity(GameState, EntityResidence_Dormant, GameState->CameraFollowingEntityIndex)) {
     
     GameState->CameraFollowingEntityIndex = EntityIndex;
   }
@@ -730,7 +731,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   {
     
     game_controller_input *Controller = GetController(Input, ControllerIndex);
-    entity *ControllingEntity = GetEntity(GameState, 
+    entity *ControllingEntity = GetEntity(GameState, EntityResidence_High, 
                                           GameState->PlayerIndexForController[ControllerIndex]);
     if(ControllingEntity) {
       
@@ -769,7 +770,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-  entity *CameraFollowingEntity = GetEntity(GameState, GameState->CameraFollowingEntityIndex);
+  entity *CameraFollowingEntity = GetEntity(GameState, EntityResidence_High, GameState->CameraFollowingEntityIndex);
   
   if(CameraFollowingEntity) {
     
@@ -852,25 +853,25 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
 
-  entity *Entity = GameState->Entities;
-  for(uint32 EntityIndex = 0; EntityIndex < GameState->EntityCount; ++EntityIndex, ++Entity) {
-
-    if(Entity->Exists) {
-      tile_map_difference Diff = Subtract(TileMap, &Entity->P, &GameState->CameraP);
+  for(uint32 EntityIndex = 0; EntityIndex < GameState->EntityCount; ++EntityIndex) {
+    
+    if(GameState->EntityResidency[EntityIndex] == EntityResidence_High) {
+      
+      high_entity *HighEntity = &GameState->HighEntity[EntityIndex];
+      dormant_entity *DormantEntity = &GameState->DormantEntity[EntityIndex];
+      
       real32 PlayerR = 1.0f;
       real32 PlayerG = 0.0f;
       real32 PlayerB = 0.0f;
       
-      
-      
-      real32 PlayerGroundPointX = CenterX + Diff.dXY.X*MetersToPixels;
-      real32 PlayerGroundPointY = CenterY - Diff.dXY.Y*MetersToPixels;
+      real32 PlayerGroundPointX = CenterX + HighEntity->P.X*MetersToPixels;
+      real32 PlayerGroundPointY = CenterY - HighEntity->P.Y*MetersToPixels;
       
       v2 PlayerLeftTop = 
-      { PlayerGroundPointX - 0.5f*Entity->Width*MetersToPixels ,
-        PlayerGroundPointY - 0.5f*Entity->Height*MetersToPixels};
+      { PlayerGroundPointX - 0.5f*DormantEntity->Width*MetersToPixels ,
+        PlayerGroundPointY - 0.5f*DormantEntity->Height*MetersToPixels};
       
-      v2 EntityWidthHeight = {Entity->Width, Entity->Height};
+      v2 EntityWidthHeight = {DormantEntity->Width, DormantEntity->Height};
       
       DrawRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MetersToPixels*EntityWidthHeight,
                     PlayerR, PlayerG, PlayerB); 

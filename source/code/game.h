@@ -80,15 +80,42 @@ struct hero_bitmaps {
   uint32 AlignY;
 };
 
-struct entity {
+struct high_entity {
   
   bool32 Exists;
-  tile_map_position P;  
+
+  v2 P; // NOTE(Egor): already relative to the camera
   v2 dP;
   uint32 FacingDirection;
+};
+
+struct low_entity {
   
+
+  
+};
+
+struct dormant_entity {
+  
+  tile_map_position P;  
   real32 Height;
   real32 Width;
+};
+
+enum entity_residence {
+
+  EntityResidence_NoneExistant,
+  EntityResidence_Dormant,
+  EntityResidence_Low,
+  EntityResidence_High
+};
+
+struct entity {
+  
+  uint32 Residence;
+  high_entity *High;
+  low_entity *Low;
+  dormant_entity *Dormant;
 };
   
 struct game_state {
@@ -98,7 +125,12 @@ struct game_state {
 
   uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
   uint32 EntityCount;
-  entity Entities[256];
+  
+  entity_residence EntityResidency[256];
+  high_entity HighEntity[256];
+  low_entity LowEntity[256];
+  dormant_entity DormantEntity[256];
+  
   
   uint32 CameraFollowingEntityIndex;
   tile_map_position CameraP;
