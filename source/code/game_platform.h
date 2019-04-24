@@ -41,7 +41,7 @@ extern "C" {
   
   
 #if GAME_SLOW
-  // TODO(Egor): Complete assertion macro - don't worry everyone!
+  // TODO(Egor): Complete assertion macro 
 #define Assert(Expression) if(!(Expression)) {*(int *)0 = 0;}
 #else
 #define Assert(Expression)
