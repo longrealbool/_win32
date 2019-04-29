@@ -262,150 +262,6 @@ TestWall(real32 *tMin, real32 WallC, real32 RelX, real32 RelY,
   return Hit;
 }
   
-  
-  
-internal void
-MovePlayer(game_state *GameState, entity Entity, real32 dT, v2 ddP) {
-  
-
-  tile_map *TileMap = GameState->World->TileMap;
-  
-  real32 ddLengthSq = LengthSq(ddP);
-  
-  if(ddLengthSq > 1.0f) {
-    
-    ddP *= (1.0f/SquareRoot(ddLengthSq));
-  }
-  
-  real32 PlayerSpeed = 50.0f;
-
-  ddP *= PlayerSpeed;
-  
-  ddP += -Entity.High->dP*8.0f;
-  
-  v2 OldPlayerP = Entity.High->P;
-  v2 PlayerDelta = (0.5f * ddP * Square(dT) +
-                    Entity.High->dP*dT);
-  Entity.High->dP = ddP*dT + Entity.High->dP;
-  
-  v2 NewPlayerP = OldPlayerP + PlayerDelta;
-  
-#if 0
-  
-  uint32 MinTileX = Min(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
-  uint32 MinTileY = Min(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
-  uint32 MaxTileX = Max(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
-  uint32 MaxTileY = Max(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
-  
-  uint32 EntityTileWidth = CeilReal32ToInt32(Entity.High->Width / TileMap->TileSideInMeters);
-  uint32 EntityTileHeight = CeilReal32ToInt32(Entity.High->Height / TileMap->TileSideInMeters);
-  
-  MinTileX -= EntityTileWidth;
-  MinTileY -= EntityTileWidth;
-  MaxTileX += EntityTileWidth;
-  MaxTileY += EntityTileWidth;
-  
-  uint32 AbsTileZ = Entity.High->P.AbsTileZ;
-  
-  real32 tRemaining = 1.0f;
-  
-  for(uint32 Iteration = 0; (Iteration < 4) && (tRemaining > 0.0f); ++Iteration) {
-    
-    v2 WallNormal = {};
-    real32 tMin = 1.0f;
-    
-    for(uint32 AbsTileY = MinTileY; AbsTileY <= MaxTileY; ++AbsTileY) {
-      
-      for(uint32 AbsTileX = MinTileX; AbsTileX <= MaxTileX; ++AbsTileX) {
-        
-        tile_map_position TestTileP = CenteredTilePoint(AbsTileX, AbsTileY, AbsTileZ);
-        uint32 TileValue = GetTileValue(TileMap, AbsTileX, AbsTileY, AbsTileZ);
-        if(!IsTileValueEmpty(TileValue)) {
-          
-          real32 DiameterW = TileMap->TileSideInMeters + Entity.High->Width;
-          real32 DiameterH = TileMap->TileSideInMeters + Entity.High->Height;
-          
-          v2 MinCorner = -0.5f*v2{DiameterW, DiameterH};
-          v2 MaxCorner = 0.5f*v2{DiameterW, DiameterH};
-          
-          tile_map_difference RelOldPlayerP = Subtract(TileMap, &Entity.High->P, &TestTileP);
-          v2 Rel = RelOldPlayerP.dXY;
-          
-          
-          if(TestWall(&tMin, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                      MinCorner.Y, MaxCorner.Y)) {
-            WallNormal = v2{1.0f, 0.0f};
-          }
-          if(TestWall(&tMin, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                      MinCorner.Y, MaxCorner.Y)) {
-            WallNormal = v2{-1.0f, 0.0f};
-          }
-          if(TestWall(&tMin, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                      MinCorner.X, MaxCorner.X)) {
-            WallNormal = v2{0.0f, 1.0f};
-          }
-          if(TestWall(&tMin, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                      MinCorner.X, MaxCorner.X)) {
-            WallNormal = v2{0.0f, -1.0f};
-          }
-          
-          //TestWall(MinCorner.X, MinCorner.Y, MaxCorner.Y, RelOldPlayerP.X);
-        }
-      }
-      
-    }
-    
-    
-    // NOTE(Egor): reflecting vector calculation
-    Entity.High->P = Offset(TileMap, Entity.High->P, tMin*PlayerDelta);    
-    PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
-    Entity.High->dP = Entity.High->dP - 1*Inner(Entity.High->dP, WallNormal)*WallNormal;
-    tRemaining -= tMin*tRemaining;
-  }
-  
-  
-  //
-  // NOTE(Egor): move this into it's own function
-  //
-  if(!AreOnTheSameTile(&OldPlayerP, &Entity.High->P)) {
-    
-    uint32 TileValue = GetTileValue(TileMap, &Entity.High->P);
-    if(TileValue == 4) {
-      Entity.High->P.AbsTileZ++;
-    }
-    if(TileValue == 5) {
-      Entity.High->P.AbsTileZ--;
-    }
-  }
-  
-  if(Entity.High->dP.X != 0 || Entity.High->dP.Y != 0) {
-    if(AbsoluteValue(Entity.High->dP.X) > AbsoluteValue(Entity.High->dP.Y)) {
-      
-      if(Entity.High->dP.X > 0) {
-        
-        Entity.High->FacingDirection = 0;        
-      }
-      else {
-        
-        Entity.High->FacingDirection = 2;      
-      }
-    }
-    else if(AbsoluteValue(Entity.High->dP.X) < AbsoluteValue(Entity.High->dP.Y)) {
-      
-      if(Entity.High->dP.Y > 0) {
-        
-        Entity.High->FacingDirection = 1;
-      }
-      else {
-        Entity.High->FacingDirection = 3;
-        
-      }
-    }
-  }
-  
-#endif
-}
-
 
 inline entity
 GetEntity(game_state *GameState, entity_residence Residence, uint32 Index) {
@@ -428,7 +284,150 @@ ChangeEntityResidence(game_state *GameState, entity *Entity, entity_residence Re
   
   // TODO(Egor): impelemt this LOL
   
-};
+  if(Residence == EntityResidence_High) {
+    
+    if(Entity->Residence != EntityResidence_High) {
+    }
+  }
+}
+
+
+internal void
+MovePlayer(game_state *GameState, entity Entity, real32 dT, v2 ddP) {
+  
+  
+  tile_map *TileMap = GameState->World->TileMap;
+  
+  real32 ddLengthSq = LengthSq(ddP);
+  
+  if(ddLengthSq > 1.0f) {
+    
+    ddP *= (1.0f/SquareRoot(ddLengthSq));
+  }
+  
+  real32 PlayerSpeed = 50.0f;
+  
+  ddP *= PlayerSpeed;
+  
+  ddP += -Entity.High->dP*8.0f;
+  
+  v2 OldPlayerP = Entity.High->P;
+  v2 PlayerDelta = (0.5f * ddP * Square(dT) +
+                    Entity.High->dP*dT);
+  Entity.High->dP = ddP*dT + Entity.High->dP;
+  
+  v2 NewPlayerP = OldPlayerP + PlayerDelta;
+  
+  /*
+  uint32 MinTileX = Min(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
+  uint32 MinTileY = Min(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
+  uint32 MaxTileX = Max(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
+  uint32 MaxTileY = Max(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
+  
+  uint32 EntityTileWidth = CeilReal32ToInt32(Entity.High->Width / TileMap->TileSideInMeters);
+  uint32 EntityTileHeight = CeilReal32ToInt32(Entity.High->Height / TileMap->TileSideInMeters);
+  
+  MinTileX -= EntityTileWidth;
+  MinTileY -= EntityTileWidth;
+  MaxTileX += EntityTileWidth;
+  MaxTileY += EntityTileWidth;
+  
+  uint32 AbsTileZ = Entity.High->P.AbsTileZ;
+  */
+  
+  real32 tRemaining = 1.0f;
+  
+  for(uint32 Iteration = 0; (Iteration < 4) && (tRemaining > 0.0f); ++Iteration) {
+    
+    v2 WallNormal = {};
+    real32 tMin = 1.0f;
+    uint32 HitEntityIndex = 0;
+    
+    for(uint32 EntityIndex = 1; EntityIndex < GameState->EntityCount; ++EntityIndex) {
+      
+      entity TestEntity = GetEntity(GameState, EntityResidence_High, EntityIndex);
+      
+      if(TestEntity.Dormant->Collides) {
+        
+        real32 DiameterW = TestEntity.Dormant->Width + Entity.Dormant->Width;
+        real32 DiameterH = TestEntity.Dormant->Height + Entity.Dormant->Height;
+        
+        v2 MinCorner = -0.5f*v2{DiameterW, DiameterH};
+        v2 MaxCorner = 0.5f*v2{DiameterW, DiameterH};
+        
+        v2 Rel = Entity.High->P - TestEntity.High->P;
+        
+        if(TestWall(&tMin, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                    MinCorner.Y, MaxCorner.Y)) {
+          WallNormal = v2{1.0f, 0.0f};
+        }
+        if(TestWall(&tMin, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                    MinCorner.Y, MaxCorner.Y)) {
+          WallNormal = v2{-1.0f, 0.0f};
+        }
+        if(TestWall(&tMin, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                    MinCorner.X, MaxCorner.X)) {
+          WallNormal = v2{0.0f, 1.0f};
+        }
+        if(TestWall(&tMin, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                    MinCorner.X, MaxCorner.X)) {
+          WallNormal = v2{0.0f, -1.0f};
+        }
+      }
+    }
+    
+    Entity.High->P += tMin*PlayerDelta;    
+    if(HitEntityIndex) {
+      
+      // NOTE(Egor): reflecting vector calculation
+      PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
+      tRemaining -= tMin*tRemaining;
+      Entity.High->dP = Entity.High->dP - 1*Inner(Entity.High->dP, WallNormal)*WallNormal;
+      
+      entity HitEntity = GetEntity(GameState, EntityResidence_Dormant, HitEntityIndex);
+      
+      Entity.High->AbsTileZ += HitEntity.Dormant->dAbsTileZ; 
+    }
+    else {
+      
+      break;
+    }
+    
+  }
+  
+  // NOTE(Egor): updating facing directions
+  if(Entity.High->dP.X != 0 || Entity.High->dP.Y != 0) {
+    if(AbsoluteValue(Entity.High->dP.X) > AbsoluteValue(Entity.High->dP.Y)) {
+      
+      if(Entity.High->dP.X > 0) {
+        
+        Entity.High->FacingDirection = 0;        
+      }
+      else {
+        
+        Entity.High->FacingDirection = 2;      
+      }
+    }
+    else if(AbsoluteValue(Entity.High->dP.X) < AbsoluteValue(Entity.High->dP.Y)) {
+      
+      if(Entity.High->dP.Y > 0) {
+        
+        Entity.High->FacingDirection = 1;
+      }
+      else {
+        
+        Entity.High->FacingDirection = 3;
+      }
+    }
+  }
+  
+  UpdateDormant();
+}
+
+
+
+
+
 
 internal void
 InitializePlayer(game_state *GameState, uint32 EntityIndex) {

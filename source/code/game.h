@@ -87,6 +87,7 @@ struct high_entity {
   v2 P; // NOTE(Egor): already relative to the camera
   v2 dP;
   uint32 FacingDirection;
+  uint32 AbsTileZ;
 };
 
 struct low_entity {
@@ -100,6 +101,10 @@ struct dormant_entity {
   tile_map_position P;  
   real32 Height;
   real32 Width;
+  
+  bool32 Collides;
+  // NOTE(Egor): stairs implementation
+  int32 dAbsTileZ;
 };
 
 enum entity_residence {
