@@ -182,26 +182,18 @@ RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRel) {
 
 // TODO (Egor): we cannot move faster than 1 tile map in on gameLoop
 inline tile_map_position
-CanonicalizePosition(tile_map *TileMap, tile_map_position *Pos) {
+MapIntoTileSpace(tile_map *TileMap, tile_map_position BasePos, v2 Offset) {
   
-  tile_map_position Result = *Pos;
+  tile_map_position Result = BasePos;
   
+  Result.Offset_ += Offset;
   RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset_.X);
   RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset_.Y);
-  
-  *Pos = Result;
   
   return Result;
 }
 
-inline tile_map_position
-Offset(tile_map *TileMap, tile_map_position P, v2 Offset) {
-  
-  P.Offset_ += Offset;
-  CanonicalizePosition(TileMap, &P);
-  
-  return P;
-}  
+
 
 inline tile_map_difference 
 Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
