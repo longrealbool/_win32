@@ -87,6 +87,8 @@ struct high_entity {
   v2 P; // NOTE(Egor): already relative to the camera
   v2 dP;
   uint32 FacingDirection;
+  real32 Z;
+  real32 dZ;
   uint32 AbsTileZ;
 };
 

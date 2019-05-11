@@ -127,5 +127,62 @@ LengthSq(v2 A) {
   return Result;
 }
 
+struct rectangle2 {
+ 
+  v2 Min;
+  v2 Max;
+};
+
+inline rectangle2 
+RectMinMax(v2 Min, v2 Max) {
+  
+  rectangle2 Result;
+  Result.Min = Min;
+  Result.Max = Max;
+  
+  return Result;
+}
+
+inline rectangle2
+RectCenterHalfDim(v2 Center, v2 HalfDim) {
+  
+  rectangle2 Result;
+  Result.Min = Center - HalfDim;
+  Result.Max = Center + HalfDim;
+  
+  return Result;
+}
+
+inline rectangle2
+RectCenterDim(v2 Center, v2 Dim) {
+  
+  rectangle2 Result = RectCenterHalfDim(Center, 0.5f*Dim);
+  
+  return Result;
+}
+
+
+inline rectangle2
+RectMinDim(v2 Min, v2 Dim) {
+  
+  rectangle2 Result;
+  Result.Min = Min;
+  Result.Max = Min + Dim;
+  
+  return Result;
+}
+
+
+inline bool32
+IsInReactangle(rectangle2 Rect, v2 Test) {
+  
+  bool32 Result = ((Test.X >= Rect.Min.X) &&
+                   (Test.Y >= Rect.Min.Y) &&
+                   (Test.X < Rect.Max.X) &&
+                   (Test.Y < Rect.Max.Y));
+  
+  return Result;
+}
+
 #define GAME_MATH_H
 #endif
