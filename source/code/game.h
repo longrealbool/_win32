@@ -80,6 +80,13 @@ struct hero_bitmaps {
   uint32 AlignY;
 };
 
+enum entity_type {
+  
+  EntityType_Null,
+  EntityType_Hero,
+  EntityType_Wall
+};
+
 struct high_entity {
   
   bool32 Exists;
@@ -90,20 +97,11 @@ struct high_entity {
   real32 Z;
   real32 dZ;
   uint32 AbsTileZ;
+  
+  uint32 LowEntityIndex;
 };
 
 struct low_entity {
-  
-};
-
-enum entity_type {
-  
-  EntityType_Null,
-  EntityType_Hero,
-  EntityType_Wall
-};
-
-struct dormant_entity {
   
   entity_type Type;
   
@@ -114,22 +112,24 @@ struct dormant_entity {
   bool32 Collides;
   // NOTE(Egor): stairs implementation
   int32 dAbsTileZ;
+  
+  uint32 HighEntityIndex;
+  
 };
+
+
 
 enum entity_residence {
 
   EntityResidence_NoneExistant,
-  EntityResidence_Dormant,
   EntityResidence_Low,
   EntityResidence_High
 };
 
 struct entity {
   
-  uint32 Residence;
   high_entity *High;
   low_entity *Low;
-  dormant_entity *Dormant;
 };
   
 struct game_state {
@@ -138,21 +138,18 @@ struct game_state {
   world* World;
 
   uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
-  uint32 EntityCount;
   
-  entity_residence EntityResidency[256];
-  high_entity HighEntity[256];
+  uint32 LowEntityCount;
   low_entity LowEntity[256];
-  dormant_entity DormantEntity[256];
   
+  uint32 HighEntityCount;
+  high_entity HighEntity[256];
   
   uint32 CameraFollowingEntityIndex;
   tile_map_position CameraP;
   
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];
-
-  
 };
 
 #define GAME_H
