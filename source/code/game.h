@@ -128,6 +128,7 @@ enum entity_residence {
 
 struct entity {
   
+  uint32 LowIndex;
   high_entity *High;
   low_entity *Low;
 };
