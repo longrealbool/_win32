@@ -306,6 +306,8 @@ MakeEntityHighFrequency(game_state *GameState, uint32 LowIndex) {
       HighEntity->LowEntityIndex = LowIndex;
       
       LowEntity->HighEntityIndex = HighIndex;
+      
+      Result = HighEntity;
     }
     else {
       
@@ -413,9 +415,8 @@ AddPlayer(game_state *GameState) {
   uint32 EntityIndex = AddLowEntity(GameState, EntityType_Hero);
   
   low_entity *Entity = GetLowEntity(GameState, EntityIndex);
-  
-  Entity->P.AbsTileX = 5;
-  Entity->P.AbsTileY = 2;
+
+  Entity->P = GameState->CameraP;
   Entity->P.Offset_.X = 0.0f;
   Entity->P.Offset_.Y = 0.0f;
   Entity->Collides = true;
@@ -672,9 +673,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     InitializePlayer(GameState, EntityIndex);
 #endif
     
-    uint32 ScreenBaseX = (UINT32_MAX / TilesPerWidth) / 2;
-    uint32 ScreenBaseY = (UINT32_MAX / TilesPerHeight) / 2;
-    uint32 ScreenBaseZ = UINT32_MAX / 2;
+    uint32 ScreenBaseX = (INT16_MAX / TilesPerWidth) / 2;
+    uint32 ScreenBaseY = (INT16_MAX / TilesPerHeight) / 2;
+    uint32 ScreenBaseZ = INT16_MAX / 2;
     uint32 ScreenY = ScreenBaseY;
     uint32 ScreenX = ScreenBaseX;
     uint32 AbsTileZ = ScreenBaseZ;
@@ -807,8 +808,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     
     tile_map_position NewCameraP = {};
-    NewCameraP.AbsTileY = ScreenBaseY + 9/2;
-    NewCameraP.AbsTileX = ScreenBaseX + 17/2;
+    NewCameraP.AbsTileX = ScreenBaseX*TilesPerWidth + 17/2;
+    NewCameraP.AbsTileY = ScreenBaseY*TilesPerHeight + 9/2;
     NewCameraP.AbsTileZ = ScreenBaseZ;
     SetCamera(GameState, NewCameraP);
     

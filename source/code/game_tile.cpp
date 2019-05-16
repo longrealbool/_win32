@@ -65,7 +65,7 @@ GetTileChunk(tile_map *TileMap, uint32 TileChunkX, uint32 TileChunkY, uint32 Til
       
       uint32 TileCount = TileMap->ChunkDim * TileMap->ChunkDim;
       Chunk->Tiles = PushArray(Arena, TileCount, uint32);
-      for(uint32 TileIndex = 0; TileIndex < TileCount; ++TileCount) {
+      for(uint32 TileIndex = 0; TileIndex < TileCount; ++TileIndex) {
         
         Chunk->Tiles[TileIndex] = 1;
       }
@@ -125,9 +125,10 @@ GetTileValue(tile_map *TileMap, tile_chunk *TileChunk, uint32 TileX, uint32 Tile
 internal uint32
 GetTileValue(tile_map* TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
-  tile_chunk_position TileChunkPos = GetTileChunkPos(TileMap, AbsTileX, AbsTileY, AbsTileZ); 
-  tile_chunk *TileChunk = GetTileChunk(TileMap, AbsTileX, AbsTileY, AbsTileZ);
-  uint32 TileValue = GetTileValue(TileMap, TileChunk, TileChunkPos.TileX, TileChunkPos.TileY);
+  tile_chunk_position ChunkPos = GetTileChunkPos(TileMap, AbsTileX, AbsTileY, AbsTileZ); 
+  tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX,
+                                       ChunkPos.TileChunkY, ChunkPos.TileChunkZ);
+  uint32 TileValue = GetTileValue(TileMap, TileChunk, ChunkPos.TileX, ChunkPos.TileY);
   
   return TileValue;
 }
@@ -154,10 +155,10 @@ internal void
 SetTileValue(memory_arena *Arena, tile_map* TileMap,
              uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ, uint32 TileValue) {
   
-  tile_chunk_position TileChunkPos = GetTileChunkPos(TileMap, AbsTileX, AbsTileY, AbsTileZ); 
-  tile_chunk *TileChunk = GetTileChunk(TileMap, AbsTileX, AbsTileY, AbsTileZ);
-
-  SetTileValue(TileMap, TileChunk, TileChunkPos.TileX, TileChunkPos.TileY, TileValue);
+  tile_chunk_position ChunkPos = GetTileChunkPos(TileMap, AbsTileX, AbsTileY, AbsTileZ); 
+  tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX, ChunkPos.TileChunkY,
+                                       ChunkPos.TileChunkZ, Arena);
+  SetTileValue(TileMap, TileChunk, ChunkPos.TileX, ChunkPos.TileY, TileValue);
 }
 
 
@@ -170,10 +171,10 @@ IsTileMapPointEmpty(tile_map *TileMap, tile_map_position *TestPos) {
              TileValue == 4 ||
              TileValue == 5);
   if(!IsEmpty) {
-    tile_chunk_position TileChunkPos = GetTileChunkPos(TileMap, TestPos->AbsTileX, TestPos->AbsTileY, TestPos->AbsTileZ); 
-    tile_chunk *TileChunk = GetTileChunk(TileMap, TestPos->AbsTileX,
-                                         TestPos->AbsTileY, TestPos->AbsTileZ);
-    SetTileValue(TileMap, TileChunk, TileChunkPos.TileX, TileChunkPos.TileY, 3);
+    tile_chunk_position ChunkPos = GetTileChunkPos(TileMap, TestPos->AbsTileX, TestPos->AbsTileY, TestPos->AbsTileZ); 
+    tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX,
+                                         ChunkPos.TileChunkY, ChunkPos.TileChunkZ);
+    SetTileValue(TileMap, TileChunk, ChunkPos.TileX, ChunkPos.TileY, 3);
   }
   
   return IsEmpty;
