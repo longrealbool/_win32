@@ -587,8 +587,8 @@ SetCamera(game_state *GameState, tile_map_position NewCameraP) {
   
   
   // TODO(Egor): if entity is in bound, and not high, we should make it high
-  uint32 MinTileX = 0;//NewCameraP.AbsTileX - TileSpanX/2;
-  uint32 MinTileY = 0;//NewCameraP.AbsTileY - TileSpanY/2;
+  uint32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
+  uint32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
   uint32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
   uint32 MaxTileY = NewCameraP.AbsTileY + TileSpanY/2;
   
@@ -596,6 +596,8 @@ SetCamera(game_state *GameState, tile_map_position NewCameraP) {
     
     low_entity *LowEntity = GameState->LowEntity + EntityIndex;
     if(LowEntity->HighEntityIndex == 0) {
+      
+      
       
       if((NewCameraP.AbsTileZ == LowEntity->P.AbsTileZ) &&
          (LowEntity->P.AbsTileX >= MinTileX) &&
@@ -652,11 +654,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Bitmap[3].HeroCape = 
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_down.bmp");
     
-    
-    
-    
-    
-    
     InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state),
                     (uint8 *)Memory->PermanentStorage + sizeof(game_state));
     
@@ -667,34 +664,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     world *World = GameState->World;
     World->TileMap = PushStruct(&GameState->WorldArena, tile_map);
     
-    
     tile_map *TileMap = World->TileMap;
-    
-    TileMap->ChunkShift = 4;
-    TileMap->ChunkDim = (1 << TileMap->ChunkShift);
-    TileMap->ChunkMask = TileMap->ChunkDim - 1;
-    
-    TileMap->TileChunkCountX = 128;
-    TileMap->TileChunkCountY = 128;
-    TileMap->TileChunkCountZ = 2;
-    
-    TileMap->TileSideInMeters = 1.4f;
-    
-    
-    TileMap->TileChunks = PushArray(&GameState->WorldArena,
-                                    TileMap->TileChunkCountZ*
-                                    TileMap->TileChunkCountX*
-                                    TileMap->TileChunkCountY,
-                                    tile_chunk);
+    InitializeTileMap(TileMap, 1.4f);
     
 #if 0
     uint32 EntityIndex = AddEntity(GameState);
     InitializePlayer(GameState, EntityIndex);
 #endif
     
-    uint32 ScreenY = 0;
-    uint32 ScreenX = 0;
-    uint32 AbsTileZ = 0;
+    uint32 ScreenBaseX = (UINT32_MAX / TilesPerWidth) / 2;
+    uint32 ScreenBaseY = (UINT32_MAX / TilesPerHeight) / 2;
+    uint32 ScreenBaseZ = UINT32_MAX / 2;
+    uint32 ScreenY = ScreenBaseY;
+    uint32 ScreenX = ScreenBaseX;
+    uint32 AbsTileZ = ScreenBaseZ;
     
     bool32 DoorToRight = false;
     bool32 DoorToLeft = false;
@@ -724,9 +707,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       if (RandomChoice == 2) {
         
         CreatedZDoor = true;
-        if(AbsTileZ == 0) 
+        if(AbsTileZ == ScreenBaseZ) 
           DoorUp = true;
-        else if(AbsTileZ == 1) 
+        else
           DoorDown = true;
         
       }
@@ -741,8 +724,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       for(uint32 TileY = 0; TileY < TilesPerHeight; ++TileY) {
         for(uint32 TileX = 0; TileX < TilesPerWidth; ++TileX) {
           
-          int32 AbsTileY = ScreenY*TilesPerHeight + TileY;
-          int32 AbsTileX = ScreenX*TilesPerWidth + TileX;
+          uint32 AbsTileY = ScreenY*TilesPerHeight + TileY;
+          uint32 AbsTileX = ScreenX*TilesPerWidth + TileX;
           
           uint32 TileValue = 1;
           
@@ -809,10 +792,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       if(RandomChoice == 2) {
         
-        if(AbsTileZ == 1) 
-          AbsTileZ = 0;
+        if(AbsTileZ == ScreenBaseZ) 
+          AbsTileZ = ScreenBaseZ + 1;
         else
-          AbsTileZ = 1;
+          AbsTileZ = ScreenBaseZ;
       }
       else if(RandomChoice == 0) {
         ScreenX++;
@@ -824,8 +807,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     
     tile_map_position NewCameraP = {};
-    NewCameraP.AbsTileY = 9/2;
-    NewCameraP.AbsTileX = 17/2;
+    NewCameraP.AbsTileY = ScreenBaseY + 9/2;
+    NewCameraP.AbsTileX = ScreenBaseX + 17/2;
+    NewCameraP.AbsTileZ = ScreenBaseZ;
     SetCamera(GameState, NewCameraP);
     
     Memory->IsInitialized = true;

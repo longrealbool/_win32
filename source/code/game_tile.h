@@ -29,7 +29,13 @@ struct tile_chunk_position {
 
 struct tile_chunk {
   
+  uint32 TileChunkX;
+  uint32 TileChunkY;
+  uint32 TileChunkZ;
+  
   uint32 *Tiles;
+  
+  tile_chunk *NextInHash;
 };
 
 struct tile_map {
@@ -37,16 +43,13 @@ struct tile_map {
   uint32 ChunkShift;
   uint32 ChunkMask;
   uint32 ChunkDim;
-
-  // NOTE(Egor): number of tilechunks in tile_map
-  uint32 TileChunkCountX;
-  uint32 TileChunkCountY;
-  uint32 TileChunkCountZ;
   
   real32 TileSideInMeters;
 
-  tile_chunk *TileChunks;
+  tile_chunk TileChunkHash[4096];
 };
+
+
 
 
 

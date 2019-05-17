@@ -1,11 +1,13 @@
 @echo off
 
-SET VC_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community
+SET VC_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community
 REM I don't know why it doesn't work, assume problem with "%LIB%" - syntax
 REM IF NOT DEFINED "%LIB%" (IF EXIST "%VC_PATH%" (call "%VC_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64))
 
 REM work in my case, never been tested. PROVIDED AS IS, WITH ABSOLUTELY NO WARRANTY EXPRESSED
 REM OR IMPLIED.  ANY USE IS AT YOUR OWN RISK.
+
+if "%LIB%"=="" (call chcp 437) 
 if "%LIB%"=="" (IF EXIST "%VC_PATH%" (call "%VC_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64))
 
 set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -DGAME_INTERNAL=1 -DGAME_SLOW=1 -DGAME_WIN32=1 -FC -Z7
