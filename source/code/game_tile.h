@@ -8,9 +8,9 @@ struct tile_map_difference {
 
 struct tile_map_position {
   
-  uint32 AbsTileX;
-  uint32 AbsTileY;
-  uint32 AbsTileZ;
+  int32 AbsTileX;
+  int32 AbsTileY;
+  int32 AbsTileZ;
   
   // NOTE(Egor): origin is at the center of a tile
   v2 Offset_;
@@ -18,20 +18,20 @@ struct tile_map_position {
 
 struct tile_chunk_position {
   
-  uint32 TileChunkX;
-  uint32 TileChunkY;
-  uint32 TileChunkZ;
+  int32 TileChunkX;
+  int32 TileChunkY;
+  int32 TileChunkZ;
   
   // NOTE(Egor): tile coord's in on tilechunk
-  uint32 TileX;
-  uint32 TileY;
+  int32 TileX;
+  int32 TileY;
 };
 
 struct tile_chunk {
   
-  uint32 TileChunkX;
-  uint32 TileChunkY;
-  uint32 TileChunkZ;
+  int32 TileChunkX;
+  int32 TileChunkY;
+  int32 TileChunkZ;
   
   uint32 *Tiles;
   

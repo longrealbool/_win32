@@ -1,5 +1,6 @@
 
-#define TILE_CHUNK_SAFE_MARGIN 256  
+// TODO(Egor): I need to think about what SAFE_MARGIN is
+#define TILE_CHUNK_SAFE_MARGIN (INT32_MAX / 16) * 4
 
 
 internal void
@@ -20,16 +21,16 @@ InitializeTileMap(tile_map *TileMap, real32 TileSideInMeters) {
 }
 
 inline tile_chunk *
-GetTileChunk(tile_map *TileMap, uint32 TileChunkX, uint32 TileChunkY, uint32 TileChunkZ,
+GetTileChunk(tile_map *TileMap, int32 TileChunkX, int32 TileChunkY, int32 TileChunkZ,
              memory_arena *Arena = 0) {
   
-  Assert(TileChunkX > TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkY > TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkZ > TILE_CHUNK_SAFE_MARGIN);
+  Assert(TileChunkX > -TILE_CHUNK_SAFE_MARGIN);
+  Assert(TileChunkY > -TILE_CHUNK_SAFE_MARGIN);
+  Assert(TileChunkZ > -TILE_CHUNK_SAFE_MARGIN);
   
-  Assert(TileChunkX < UINT32_MAX - TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkY < UINT32_MAX - TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkZ < UINT32_MAX - TILE_CHUNK_SAFE_MARGIN);
+  Assert(TileChunkX < TILE_CHUNK_SAFE_MARGIN);
+  Assert(TileChunkY < TILE_CHUNK_SAFE_MARGIN);
+  Assert(TileChunkZ < TILE_CHUNK_SAFE_MARGIN);
          
   // TODO(Egor): make a better hash function, lol
   uint32 HashValue = 19*TileChunkX + 7*TileChunkY + 3*TileChunkZ;
@@ -210,7 +211,7 @@ IsTileMapTileEmpty(tile_map *TileMap, tile_chunk *TileChunk, uint32 TestTileX, u
 // TODO(Egor): maybe I should transfer this into another file
 
 inline void
-RecanonicalizeCoord(tile_map *TileMap, uint32 *Tile, real32 *TileRel) {
+RecanonicalizeCoord(tile_map *TileMap, int32 *Tile, real32 *TileRel) {
   
   real32 RelCoord = *TileRel; // DEBUG
   

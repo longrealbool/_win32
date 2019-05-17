@@ -588,10 +588,10 @@ SetCamera(game_state *GameState, tile_map_position NewCameraP) {
   
   
   // TODO(Egor): if entity is in bound, and not high, we should make it high
-  uint32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
-  uint32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
-  uint32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
-  uint32 MaxTileY = NewCameraP.AbsTileY + TileSpanY/2;
+  int32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
+  int32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
+  int32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
+  int32 MaxTileY = NewCameraP.AbsTileY + TileSpanY/2;
   
   for(uint32 EntityIndex = 1; EntityIndex < GameState->LowEntityCount; ++EntityIndex) {
     
@@ -673,9 +673,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     InitializePlayer(GameState, EntityIndex);
 #endif
     
-    uint32 ScreenBaseX = (INT16_MAX / TilesPerWidth) / 2;
-    uint32 ScreenBaseY = (INT16_MAX / TilesPerHeight) / 2;
-    uint32 ScreenBaseZ = INT16_MAX / 2;
+    uint32 ScreenBaseX = 0;
+    uint32 ScreenBaseY = 0;
+    uint32 ScreenBaseZ = 0;
     uint32 ScreenY = ScreenBaseY;
     uint32 ScreenX = ScreenBaseX;
     uint32 AbsTileZ = ScreenBaseZ;
@@ -929,10 +929,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   
   
-  
-  //DrawRectangle(Buffer, 0.0f, 0.0f, (real32)Buffer->Width, (real32)Buffer->Height,
-  //              1.0f, 0.0f, 1.0f);
+#if NO_ASSETS
+  DrawRectangle(Buffer, V2(0.0f, 0.0f), V2((real32)Buffer->Width, (real32)Buffer->Height),
+                0.5f, 0.5f, 0.5f);
+#else
   DrawBitmap(Buffer, &GameState->Backdrop, 0, 0);
+#endif
+  
   
   real32 CenterX = 0.5f*Buffer->Width;
   real32 CenterY = 0.5f*Buffer->Height;
