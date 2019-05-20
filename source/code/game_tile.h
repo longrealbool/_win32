@@ -27,13 +27,20 @@ struct tile_chunk_position {
   int32 TileY;
 };
 
+struct tile_entity_block {
+  
+  uint32 EntityCount;
+  uint32 LowEntityIndex[16];
+  tile_entity_block *Next;
+};
+
 struct tile_chunk {
   
   int32 TileChunkX;
   int32 TileChunkY;
   int32 TileChunkZ;
   
-  uint32 *Tiles;
+  tile_entity_block FirstBlock;
   
   tile_chunk *NextInHash;
 };

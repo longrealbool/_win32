@@ -1,6 +1,6 @@
 @echo off
 
-SET VC_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community
+SET VC_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community
 REM I don't know why it doesn't work, assume problem with "%LIB%" - syntax
 REM IF NOT DEFINED "%LIB%" (IF EXIST "%VC_PATH%" (call "%VC_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64))
 
@@ -10,7 +10,7 @@ REM OR IMPLIED.  ANY USE IS AT YOUR OWN RISK.
 if "%LIB%"=="" (call chcp 437) 
 if "%LIB%"=="" (IF EXIST "%VC_PATH%" (call "%VC_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64))
 
-set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -DGAME_INTERNAL=1 -DGAME_SLOW=1 -DGAME_WIN32=1 -DNO_ASSETS=1 -FC -Z7
+set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -DGAME_INTERNAL=1 -DGAME_SLOW=1 -DGAME_WIN32=1 -DNO_ASSETS=0 -FC -Z7
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib gdi32.lib winmm.lib
 
 REM TODO - can we just build both with one exe?

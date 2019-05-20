@@ -586,8 +586,6 @@ SetCamera(game_state *GameState, tile_map_position NewCameraP) {
   
   OffsetAndCheckFrequencyByArea(GameState, EntityOffsetForFrame, CameraInBound);
   
-  
-  // TODO(Egor): if entity is in bound, and not high, we should make it high
   int32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
   int32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
   int32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
@@ -689,7 +687,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     uint32 CounterOfTwo = 0;
     
-    for(uint32 ScreenIndex = 0; ScreenIndex < 2; ++ScreenIndex) {
+    for(uint32 ScreenIndex = 0; ScreenIndex < 10; ++ScreenIndex) {
       
       // TODO(Egor, TileMap): get again through logic of creating tilemap
       uint32 RandomChoice;
@@ -766,7 +764,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               TileValue = 5;
           }
           
-          SetTileValue(&GameState->WorldArena, TileMap, AbsTileX, AbsTileY, AbsTileZ, TileValue);
+//          SetTileValue(&GameState->WorldArena, TileMap, AbsTileX, AbsTileY, AbsTileZ, TileValue);
           
           if(TileValue == 2) {
             
@@ -806,6 +804,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
       
     }
+    
+#if 0
+    // NOTE(Egor): spawn dummy walls
+    while(GameState->LowEntityCount < (ArrayCount(GameState->LowEntity) - 16)) {
+      
+      uint32 Coordinate = 1024 + GameState->LowEntityCount;
+      AddWall(GameState, Coordinate, Coordinate, Coordinate);
+    }
+#endif
     
     tile_map_position NewCameraP = {};
     NewCameraP.AbsTileX = ScreenBaseX*TilesPerWidth + 17/2;
@@ -904,20 +911,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
 #else
     
-    NewCameraP.AbsTileZ = CameraFollowingEntity.Low->P.AbsTileZ;
+    NewCameraP = CameraFollowingEntity.Low->P;
     
-    if(CameraFollowingEntity.High->P.X > (1.0f * TileMap->TileSideInMeters)) {
-      NewCameraP.AbsTileX += 1;
-    }
-    if(CameraFollowingEntity.High->P.X < -(1.0f * TileMap->TileSideInMeters)) {
-      NewCameraP.AbsTileX -= 1;
-    }
-    if(CameraFollowingEntity.High->P.Y > (1.0f * TileMap->TileSideInMeters)) {
-      NewCameraP.AbsTileY += 1;
-    }
-    if(CameraFollowingEntity.High->P.Y < -(1.0f * TileMap->TileSideInMeters)) {
-      NewCameraP.AbsTileY -= 1;
-    }
 #endif
     
     SetCamera(GameState, NewCameraP);
