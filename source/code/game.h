@@ -59,10 +59,6 @@ RollTheDice(void) {
 #include "game_intrinsic.h"
 #include "game_world.h"
 
-struct world {
-  
-  tile_map *TileMap;
-};
 
 struct loaded_bitmap {
   int32 Height;
@@ -105,7 +101,7 @@ struct low_entity {
   
   entity_type Type;
   
-  tile_map_position P;  
+  world_position P;  
   real32 Height;
   real32 Width;
   
@@ -135,7 +131,7 @@ struct entity {
 
 struct low_entity_chunk_reference {
   
-  tile_chunk *TileChunk;
+  world_chunk *TileChunk;
   uint32 EntityIndexInChunk;
 };
   
@@ -153,7 +149,7 @@ struct game_state {
   high_entity HighEntity[256];
   
   uint32 CameraFollowingEntityIndex;
-  tile_map_position CameraP;
+  world_position CameraP;
   
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];

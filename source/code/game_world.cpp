@@ -1,66 +1,67 @@
 // TODO(Egor): I need to think about what SAFE_MARGIN is
-#define TILE_CHUNK_SAFE_MARGIN (INT32_MAX / 16) * 4
+#define CHUNK_SAFE_MARGIN (INT32_MAX / 16) * 4
+#define CHUNK_UNITIALIZED INT32_MAX
 
 
 internal void
-InitializeTileMap(tile_map *TileMap, real32 TileSideInMeters) {
+InitializeWorld(world *World, real32 TileSideInMeters) {
   
-  TileMap->ChunkShift = 4;
-  TileMap->ChunkDim = (1 << TileMap->ChunkShift);
-  TileMap->ChunkMask = TileMap->ChunkDim - 1;
+  World->ChunkShift = 4;
+  World->ChunkDim = (1 << World->ChunkShift);
+  World->ChunkMask = World->ChunkDim - 1;
   
-  TileMap->TileSideInMeters = TileSideInMeters;
+  World->TileSideInMeters = TileSideInMeters;
   
-  for(uint32 TileChunkIndex = 0;
-      TileChunkIndex < ArrayCount(TileMap->TileChunkHash); ++TileChunkIndex) {
+  for(uint32 ChunkIndex = 0;
+      ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex) {
     
-    TileMap->TileChunkHash[TileChunkIndex].TileChunkX = 0;
+    World->ChunkHash[ChunkIndex].ChunkX = 0;
     
   }
 }
 
-inline tile_chunk *
-GetTileChunk(tile_map *TileMap, int32 TileChunkX, int32 TileChunkY, int32 TileChunkZ,
+inline world_chunk *
+GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
              memory_arena *Arena = 0) {
   
-  Assert(TileChunkX > -TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkY > -TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkZ > -TILE_CHUNK_SAFE_MARGIN);
+  Assert(ChunkX > -CHUNK_SAFE_MARGIN);
+  Assert(ChunkY > -CHUNK_SAFE_MARGIN);
+  Assert(ChunkZ > -CHUNK_SAFE_MARGIN);
   
-  Assert(TileChunkX < TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkY < TILE_CHUNK_SAFE_MARGIN);
-  Assert(TileChunkZ < TILE_CHUNK_SAFE_MARGIN);
+  Assert(ChunkX < CHUNK_SAFE_MARGIN);
+  Assert(ChunkY < CHUNK_SAFE_MARGIN);
+  Assert(ChunkZ < CHUNK_SAFE_MARGIN);
          
   // TODO(Egor): make a better hash function, lol
-  uint32 HashValue = 19*TileChunkX + 7*TileChunkY + 3*TileChunkZ;
-  uint32 HashSlot = HashValue & (ArrayCount(TileMap->TileChunkHash) - 1);
-  Assert(HashSlot < ArrayCount(TileMap->TileChunkHash));
+  uint32 HashValue = 19*ChunkX + 7*ChunkY + 3*ChunkZ;
+  uint32 HashSlot = HashValue & (ArrayCount(TileMap->ChunkHash) - 1);
+  Assert(HashSlot < ArrayCount(TileMap->ChunkHash));
   
-  tile_chunk *Chunk = TileMap->TileChunkHash + HashSlot;
+  world_chunk *Chunk = TileMap->ChunkHash + HashSlot;
   do {
     
-    if(Chunk->TileChunkX == TileChunkX &&
-       Chunk->TileChunkY == TileChunkY &&
-       Chunk->TileChunkZ == TileChunkZ) {
+    if(Chunk->ChunkX == ChunkX &&
+       Chunk->ChunkY == ChunkY &&
+       Chunk->ChunkZ == ChunkZ) {
       
       break;
     } 
 
     // NOTE(Egor): if our initial slot is initialized, and there isn't chained chunk
-    if(Arena && (Chunk->TileChunkX != 0 && (!Chunk->NextInHash))) {
+    if(Arena && (Chunk->ChunkX != 0 && (!Chunk->NextInHash))) {
       
-      Chunk->NextInHash = PushStruct(Arena, tile_chunk);
+      Chunk->NextInHash = PushStruct(Arena, world_chunk);
       Chunk = Chunk->NextInHash;
-      Chunk->TileChunkX = 0; 
+      Chunk->ChunkX = CHUNK_UNITIALIZED; 
     }
     
-    // TODO(Egor): check if I garanteed that newly allocated tile_chunk will be zeroed
+    // TODO(Egor): check if I garanteed that newly allocated world_chunk will be zeroed
     // NOTE(Egor): initialize initial or newly created chained chunk
-    if(Arena && Chunk->TileChunkX == 0) {
+    if(Arena && Chunk->ChunkX == CHUNK_UNITIALIZED) {
       
-      Chunk->TileChunkX = TileChunkX;
-      Chunk->TileChunkY = TileChunkY;
-      Chunk->TileChunkZ = TileChunkZ;
+      Chunk->ChunkX = ChunkX;
+      Chunk->ChunkY = ChunkY;
+      Chunk->ChunkZ = ChunkZ;
 
       Chunk->NextInHash = 0;
       
@@ -73,14 +74,15 @@ GetTileChunk(tile_map *TileMap, int32 TileChunkX, int32 TileChunkY, int32 TileCh
   return Chunk;
 }
 
-inline tile_chunk_position
-GetTileChunkPos(tile_map *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+#if 0
+inline world_chunk_position
+GetChunkPos(world *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
-  tile_chunk_position Result;
+  world_chunk_position Result;
   
-  Result.TileChunkX = AbsTileX >> TileMap->ChunkShift;
-  Result.TileChunkY = AbsTileY >> TileMap->ChunkShift;
-  Result.TileChunkZ = AbsTileZ;
+  Result.ChunkX = AbsTileX >> TileMap->ChunkShift;
+  Result.ChunkY = AbsTileY >> TileMap->ChunkShift;
+  Result.ChunkZ = AbsTileZ;
   
   Result.TileX = AbsTileX & TileMap->ChunkMask;
   Result.TileY = AbsTileY & TileMap->ChunkMask;
@@ -88,13 +90,14 @@ GetTileChunkPos(tile_map *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsT
   return Result;
   
 }
+#endif
 
 
 ////
 // TODO(Egor): maybe I should transfer this into another file
 
 inline void
-RecanonicalizeCoord(tile_map *TileMap, int32 *Tile, real32 *TileRel) {
+RecanonicalizeCoord(world *TileMap, int32 *Tile, real32 *TileRel) {
   
   real32 RelCoord = *TileRel; // DEBUG
   
@@ -102,7 +105,7 @@ RecanonicalizeCoord(tile_map *TileMap, int32 *Tile, real32 *TileRel) {
   *Tile += Offset;
   *TileRel -= Offset*TileMap->TileSideInMeters;
   
-  // NOTE: (Egor) the tile_map is toroidal, we allow overflow and underflow 
+  // NOTE: (Egor) the world is toroidal, we allow overflow and underflow 
   // in a natural C uint32 way
   Assert(*Tile >= 0);
   
@@ -114,10 +117,10 @@ RecanonicalizeCoord(tile_map *TileMap, int32 *Tile, real32 *TileRel) {
 
 
 // TODO (Egor): we cannot move faster than 1 tile map in on gameLoop
-inline tile_map_position
-MapIntoTileSpace(tile_map *TileMap, tile_map_position BasePos, v2 Offset) {
+inline world_position
+MapIntoTileSpace(world *TileMap, world_position BasePos, v2 Offset) {
   
-  tile_map_position Result = BasePos;
+  world_position Result = BasePos;
   
   Result.Offset_ += Offset;
   RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset_.X);
@@ -128,25 +131,25 @@ MapIntoTileSpace(tile_map *TileMap, tile_map_position BasePos, v2 Offset) {
 
 
 
-inline tile_map_difference 
-Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
+inline world_difference 
+Subtract(world *World, world_position *A, world_position *B) {
   
-  tile_map_difference Result;
+  world_difference Result;
   
   v2 dTileXY = V2((real32)A->AbsTileX - (real32)B->AbsTileX,
                   (real32)A->AbsTileY - (real32)B->AbsTileY);
   
   real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
   
-  Result.dXY = TileMap->TileSideInMeters*dTileXY + (A->Offset_ - B->Offset_);
+  Result.dXY = World->TileSideInMeters*dTileXY + (A->Offset_ - B->Offset_);
   // NOTE(Egor): Z is not a real coordinate right now
-  Result.dZ = TileMap->TileSideInMeters*dTileZ;
+  Result.dZ = World->TileSideInMeters*dTileZ;
   
   return Result;
 }
 
 inline bool32
-AreOnTheSameTile(tile_map_position *A, tile_map_position *B) {
+AreOnTheSameTile(world_position *A, world_position *B) {
   
   bool32 Result = (A->AbsTileX == B->AbsTileX &&
                    A->AbsTileY == B->AbsTileY &&
@@ -156,10 +159,10 @@ AreOnTheSameTile(tile_map_position *A, tile_map_position *B) {
   
 }
 
-inline tile_map_position
+inline world_position
 CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
-  tile_map_position Result = {};
+  world_position Result = {};
   
   Result.AbsTileX = AbsTileX;
   Result.AbsTileY = AbsTileY;
