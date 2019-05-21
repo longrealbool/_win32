@@ -57,7 +57,7 @@ RollTheDice(void) {
 
 #include "game_math.cpp"
 #include "game_intrinsic.h"
-#include "game_tile.h"
+#include "game_world.h"
 
 struct world {
   
