@@ -22,7 +22,7 @@ InitializeWorld(world *World, real32 TileSideInMeters) {
 
 inline world_chunk *
 GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
-             memory_arena *Arena = 0) {
+         memory_arena *Arena = 0) {
   
   Assert(ChunkX > -CHUNK_SAFE_MARGIN);
   Assert(ChunkY > -CHUNK_SAFE_MARGIN);
@@ -31,7 +31,7 @@ GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
   Assert(ChunkX < CHUNK_SAFE_MARGIN);
   Assert(ChunkY < CHUNK_SAFE_MARGIN);
   Assert(ChunkZ < CHUNK_SAFE_MARGIN);
-         
+  
   // TODO(Egor): make a better hash function, lol
   uint32 HashValue = 19*ChunkX + 7*ChunkY + 3*ChunkZ;
   uint32 HashSlot = HashValue & (ArrayCount(TileMap->ChunkHash) - 1);
@@ -46,7 +46,7 @@ GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
       
       break;
     } 
-
+    
     // NOTE(Egor): if our initial slot is initialized, and there isn't chained chunk
     if(Arena && (Chunk->ChunkX != 0 && (!Chunk->NextInHash))) {
       
@@ -62,7 +62,7 @@ GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
       Chunk->ChunkX = ChunkX;
       Chunk->ChunkY = ChunkY;
       Chunk->ChunkZ = ChunkZ;
-
+      
       Chunk->NextInHash = 0;
       
       break;
@@ -172,3 +172,66 @@ CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
   
 }
+
+
+inline void
+ChangeEntityLocation(memory_arena *Arena, game_state *GameState, uint32 LowEntityIndex, 
+                     world_position *OldP, world_position *NewP) {
+  
+  if(OldP && AreInTheSameChunk(OldP, NewP)) {
+    
+  }
+  else {
+    
+    if(OldP) {
+      
+      world_chunk *Chunk = GetChunk(GameState, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ);
+      Assert(Chunk);
+      world_entity_block *FirstBlock = &Chunk->FirstBlock;
+      // TODO(Egor): I don't really sure if I want this IF case be there
+      if(Chunk) {
+        
+        for(world_entity_block *Block = &Chunk->FirstBlock; Block; Block = Block->Next) {
+          
+          for(uint32 Index = 0; Index < Block->EntityCount; ++Index) {
+            
+            if(Block->LowEntityIndex[Index] == LowEntityIndex) {
+              
+              Block->LowEntityIndex[Index] =
+                FirstBlock->LowEntityIndex[--FirstBlock->EntityCount];
+              if(FirstBlock->EntityCount == 0) {
+                
+                if(FirstBlock->Next) {
+                  
+                  world_entity_block *NextBlock = FirstBlock->Next;
+                  *FirstBlock = *NextBlock;
+                  FreeBlock(NextBlock);
+                }
+              }
+              
+              // NOTE(Egor): nasty double break
+              Block = 0;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    world_chunk *Chunk = GetChunk(GameState, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
+    world_entity_block *Block = &Chunk->FirstBlock;
+    if(Block->EntityCount == ArrayCount(Block->LowEntityIndex)) {
+      
+      // NOTE(Egor): we are out of space in entity block, need to create a new one
+      world_entity_block *OldBlock = PushStruct(Arena, world_entity_block);
+      // NOTE(Egor): we just push filled up block deeper into a list
+      *OldBlock = *Block;
+      Block->Next = OldBlock;
+      Block->EntityCount = 0;
+    }
+    
+    Assert(Block->EntityCount < ArrayCount(Block->LowEntityIndex));
+    Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
+  }
+}
+  
