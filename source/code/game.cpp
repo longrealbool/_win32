@@ -404,13 +404,13 @@ AddLowEntity(game_state *GameState, entity_type EntityType, world_position *P) {
   
   uint32 LowEntityIndex = GameState->LowEntityCount++;
   
-  GameState->LowEntity[LowEntityIndex] = {};
-
-  GameState->LowEntity[LowEntityIndex].Type = EntityType;
+  low_entity *LowEntity = GameState->LowEntity + LowEntityIndex;
+  *LowEntity = {};
+  LowEntity->Type = EntityType;
   
   // TODO(Egor): this is awfull
   if(P) {
-    GameState->LowEntity[LowEntityIndex].P = *P;
+    LowEntity->P = *P;
     ChangeEntityLocation(&GameState->WorldArena, GameState->World, LowEntityIndex, 0, P);
   }
   
@@ -425,7 +425,7 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
                                                    AbsTileY, AbsTileZ);
   uint32 EntityIndex = AddLowEntity(GameState, EntityType_Wall, &P);
   low_entity *Entity = GetLowEntity(GameState, EntityIndex);
-
+  
   Entity->Height = GameState->World->TileSideInMeters;
   Entity->Width = GameState->World->TileSideInMeters;
   Entity->Collides = true;
@@ -436,13 +436,13 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
 
 internal uint32
 AddPlayer(game_state *GameState) {
-
+  
   world_position P = GameState->CameraP;
   uint32 EntityIndex = AddLowEntity(GameState, EntityType_Hero, &P);
   
   low_entity *Entity = GetLowEntity(GameState, EntityIndex);
-
-
+  
+  
   Entity->P.Offset_.X = 0.0f;
   Entity->P.Offset_.Y = 0.0f;
   Entity->Collides = true;
@@ -555,7 +555,7 @@ MovePlayer(game_state *GameState, entity Entity, real32 dT, v2 ddP) {
       
       high_entity *HitHigh = GameState->HighEntity + HitHighEntityIndex;
       low_entity *HitLow = GameState->LowEntity + HitHigh->LowEntityIndex;
-//      Entity.High->AbsTileZ += HitLow->dAbsTileZ; 
+      //      Entity.High->AbsTileZ += HitLow->dAbsTileZ; 
     }
     else {
       
@@ -591,8 +591,8 @@ MovePlayer(game_state *GameState, entity Entity, real32 dT, v2 ddP) {
   
   // TODO(Egor): think about should I bundle this, and if so, how
   world_position NewP = MapIntoChunkSpace(World, GameState->CameraP, Entity.High->P);
-    ChangeEntityLocation(&GameState->WorldArena, World,
-                         Entity.LowIndex, &Entity.Low->P, &NewP);
+  ChangeEntityLocation(&GameState->WorldArena, World,
+                       Entity.LowIndex, &Entity.Low->P, &NewP);
   Entity.Low->P = NewP;
   
   
@@ -611,17 +611,9 @@ SetCamera(game_state *GameState, world_position NewCameraP) {
   
   rectangle2 CameraInBound = RectCenterDim(V2(0,0),
                                            World->TileSideInMeters*V2((real32)TileSpanX,
-                                                                        (real32)TileSpanY));
+                                                                      (real32)TileSpanY));
   v2 EntityOffsetForFrame = -dCameraP.dXY;
-  
   OffsetAndCheckFrequencyByArea(GameState, EntityOffsetForFrame, CameraInBound);
-  
-  
-  // TODO(Egor): if entity is in bound, and not high, we should make it high
-  int32 MinTileX = NewCameraP.ChunkX - TileSpanX/2;
-  int32 MinTileY = NewCameraP.ChunkY - TileSpanY/2;
-  int32 MaxTileX = NewCameraP.ChunkX + TileSpanX/2;
-  int32 MaxTileY = NewCameraP.ChunkY + TileSpanY/2;
   
   world_position MinChunk = MapIntoChunkSpace(World, NewCameraP, GetMinCorner(CameraInBound));
   world_position MaxChunk = MapIntoChunkSpace(World, NewCameraP, GetMaxCorner(CameraInBound));
@@ -641,7 +633,8 @@ SetCamera(game_state *GameState, world_position NewCameraP) {
               v2 CameraSpaceP = GetCameraSpaceP(GameState, LowEntity);
               if(IsInRectangle(CameraInBound, CameraSpaceP)) {
                 
-                MakeEntityHighFrequency(GameState, LowEntity, EntityIndex, CameraSpaceP);
+//                MakeEntityHighFrequency(GameState, LowEntity, EntityIndex, CameraSpaceP);
+                MakeEntityHighFrequency(GameState, LowEntity, Block->LowEntityIndex[EntityIndex], CameraSpaceP);
               }
             }
           }
@@ -664,7 +657,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   game_state *GameState = (game_state *)Memory->PermanentStorage;
   if(!Memory->IsInitialized)
   {
-
+    
     AddLowEntity(GameState, EntityType_Null, 0);
     GameState->HighEntityCount = 1;
     // TODO(Egor): This may be more appropriate to do in the platform layer
