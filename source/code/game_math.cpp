@@ -174,13 +174,34 @@ RectMinDim(v2 Min, v2 Dim) {
 
 
 inline bool32
-IsInReactangle(rectangle2 Rect, v2 Test) {
+IsInRectangle(rectangle2 Rect, v2 Test) {
   
   bool32 Result = ((Test.X >= Rect.Min.X) &&
                    (Test.Y >= Rect.Min.Y) &&
                    (Test.X < Rect.Max.X) &&
                    (Test.Y < Rect.Max.Y));
   
+  return Result;
+}
+
+inline v2
+GetMinCorner(rectangle2 Rect) {
+  
+  v2 Result = Rect.Min;
+  return Result;
+}
+
+inline v2
+GetMaxCorner(rectangle2 Rect) {
+  
+  v2 Result = Rect.Max;
+  return Result;
+}
+
+inline v2
+GetCenter(rectangle2 Rect) {
+  
+  v2 Result = 0.5f*(Rect.Min + Rect.Max);
   return Result;
 }
 

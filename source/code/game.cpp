@@ -278,41 +278,60 @@ GetLowEntity(game_state *GameState, uint32 LowIndex) {
   return Result;
 }
 
+inline v2
+GetCameraSpaceP(game_state *GameState, low_entity *LowEntity) {
+  
+  world_difference Diff = Subtract(GameState->World,
+                                   &LowEntity->P, &GameState->CameraP);
+  return Diff.dXY;
+}
+
+internal high_entity *
+MakeEntityHighFrequency(game_state *GameState, low_entity *LowEntity,
+                        uint32 LowIndex, v2 CameraSpaceP) {
+  
+  high_entity *Result = 0;
+  
+  Assert(LowEntity->HighEntityIndex == 0);
+  if(LowEntity->HighEntityIndex == 0) {
+    
+    if(GameState->HighEntityCount < ArrayCount(GameState->HighEntity)) {
+      
+      uint32 HighIndex = GameState->HighEntityCount++;
+      Result = &GameState->HighEntity[HighIndex];
+      
+      Result->P = CameraSpaceP;
+      Result->ChunkZ = LowEntity->P.ChunkZ;
+      Result->dP = V2(0,0);
+      Result->FacingDirection = 0;
+      Result->LowEntityIndex = LowIndex;
+      
+      LowEntity->HighEntityIndex = HighIndex;
+      
+    }
+    else {
+      
+      InvalidCodePath;
+    }
+  }
+  
+  return Result;
+}
+
 inline high_entity *
 MakeEntityHighFrequency(game_state *GameState, uint32 LowIndex) {
   
   high_entity *Result = 0;
   
-  low_entity *LowEntity = &GameState->LowEntity[LowIndex];
-  
+  low_entity *LowEntity = GameState->LowEntity + LowIndex;
   if(LowEntity->HighEntityIndex) {
     
     Result = GameState->HighEntity + LowEntity->HighEntityIndex;
   }
   else {
     
-    if(GameState->HighEntityCount < ArrayCount(GameState->HighEntity)) {
-      
-      uint32 HighIndex = GameState->HighEntityCount++;
-      high_entity *HighEntity = &GameState->HighEntity[HighIndex];
-      
-      world_difference Diff = Subtract(GameState->World,
-                                          &LowEntity->P, &GameState->CameraP);
-      
-      HighEntity->P = Diff.dXY;
-      HighEntity->ChunkZ = LowEntity->P.ChunkZ;
-      HighEntity->dP = V2(0,0);
-      HighEntity->FacingDirection = 0;
-      HighEntity->LowEntityIndex = LowIndex;
-      
-      LowEntity->HighEntityIndex = HighIndex;
-      
-      Result = HighEntity;
-    }
-    else {
-      
-      InvalidCodePath;
-    }
+    v2 CameraSpaceP = GetCameraSpaceP(GameState, LowEntity);
+    Result = MakeEntityHighFrequency(GameState, LowEntity, LowIndex, CameraSpaceP);
   }
   
   return Result;
@@ -367,7 +386,7 @@ OffsetAndCheckFrequencyByArea(game_state *GameState, v2 Offset, rectangle2 Camer
     
     high_entity *High = GameState->HighEntity + EntityIndex;
     High->P += Offset;
-    if(IsInReactangle(CameraInBound, High->P)) {
+    if(IsInRectangle(CameraInBound, High->P)) {
       
       ++EntityIndex;
     }
@@ -379,26 +398,34 @@ OffsetAndCheckFrequencyByArea(game_state *GameState, v2 Offset, rectangle2 Camer
 }
 
 internal uint32
-AddLowEntity(game_state *GameState, entity_type EntityType) {
+AddLowEntity(game_state *GameState, entity_type EntityType, world_position *P) {
   
   Assert(GameState->LowEntityCount < ArrayCount(GameState->LowEntity));
   
-  uint32 EntityIndex = GameState->LowEntityCount++;
+  uint32 LowEntityIndex = GameState->LowEntityCount++;
   
-  GameState->LowEntity[EntityIndex] = {};
-  GameState->LowEntity[EntityIndex].Type = EntityType;
+  GameState->LowEntity[LowEntityIndex] = {};
+
+  GameState->LowEntity[LowEntityIndex].Type = EntityType;
   
-  return EntityIndex;
+  // TODO(Egor): this is awfull
+  if(P) {
+    GameState->LowEntity[LowEntityIndex].P = *P;
+    ChangeEntityLocation(&GameState->WorldArena, GameState->World, LowEntityIndex, 0, P);
+  }
+  
+  return LowEntityIndex;
 }
 
 
 internal uint32
 AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
-  uint32 EntityIndex = AddLowEntity(GameState, EntityType_Wall);
+  world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
+                                                   AbsTileY, AbsTileZ);
+  uint32 EntityIndex = AddLowEntity(GameState, EntityType_Wall, &P);
   low_entity *Entity = GetLowEntity(GameState, EntityIndex);
 
-  Entity->P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
   Entity->Height = GameState->World->TileSideInMeters;
   Entity->Width = GameState->World->TileSideInMeters;
   Entity->Collides = true;
@@ -409,12 +436,13 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
 
 internal uint32
 AddPlayer(game_state *GameState) {
-  
-  uint32 EntityIndex = AddLowEntity(GameState, EntityType_Hero);
+
+  world_position P = GameState->CameraP;
+  uint32 EntityIndex = AddLowEntity(GameState, EntityType_Hero, &P);
   
   low_entity *Entity = GetLowEntity(GameState, EntityIndex);
 
-  Entity->P = GameState->CameraP;
+
   Entity->P.Offset_.X = 0.0f;
   Entity->P.Offset_.Y = 0.0f;
   Entity->Collides = true;
@@ -561,7 +589,11 @@ MovePlayer(game_state *GameState, entity Entity, real32 dT, v2 ddP) {
     }
   }
   
-  Entity.Low->P = MapIntoTileSpace(World, GameState->CameraP, Entity.High->P);
+  // TODO(Egor): think about should I bundle this, and if so, how
+  world_position NewP = MapIntoChunkSpace(World, GameState->CameraP, Entity.High->P);
+    ChangeEntityLocation(&GameState->WorldArena, World,
+                         Entity.LowIndex, &Entity.Low->P, &NewP);
+  Entity.Low->P = NewP;
   
   
 }
@@ -586,30 +618,37 @@ SetCamera(game_state *GameState, world_position NewCameraP) {
   
   
   // TODO(Egor): if entity is in bound, and not high, we should make it high
-  #if 0 
-  int32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
-  int32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
-  int32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
-  int32 MaxTileY = NewCameraP.AbsTileY + TileSpanY/2;
+  int32 MinTileX = NewCameraP.ChunkX - TileSpanX/2;
+  int32 MinTileY = NewCameraP.ChunkY - TileSpanY/2;
+  int32 MaxTileX = NewCameraP.ChunkX + TileSpanX/2;
+  int32 MaxTileY = NewCameraP.ChunkY + TileSpanY/2;
   
-  for(uint32 EntityIndex = 1; EntityIndex < GameState->LowEntityCount; ++EntityIndex) {
-    
-    low_entity *LowEntity = GameState->LowEntity + EntityIndex;
-    if(LowEntity->HighEntityIndex == 0) {
+  world_position MinChunk = MapIntoChunkSpace(World, NewCameraP, GetMinCorner(CameraInBound));
+  world_position MaxChunk = MapIntoChunkSpace(World, NewCameraP, GetMaxCorner(CameraInBound));
+  
+  for(int32 ChunkY = MinChunk.ChunkY; ChunkY <= MaxChunk.ChunkY; ++ChunkY) {
+    for(int32 ChunkX = MinChunk.ChunkX; ChunkX <= MaxChunk.ChunkX; ++ChunkX) {
       
-      
-      
-      if((NewCameraP.AbsTileZ == LowEntity->P.AbsTileZ) &&
-         (LowEntity->P.AbsTileX >= MinTileX) &&
-         (LowEntity->P.AbsTileY >= MinTileY) &&
-         (LowEntity->P.AbsTileX <= MaxTileX) &&
-         (LowEntity->P.AbsTileY <= MaxTileY))   {
+      world_chunk *Chunk = GetChunk(World, ChunkX, ChunkY, NewCameraP.ChunkZ);
+      if(Chunk) {
         
-        MakeEntityHighFrequency(GameState, EntityIndex);
+        for(world_entity_block *Block = &Chunk->FirstBlock; Block; Block = Block->Next) { 
+          for(uint32 EntityIndex = 0; EntityIndex < Block->EntityCount; ++EntityIndex) {
+            
+            low_entity *LowEntity = GameState->LowEntity + Block->LowEntityIndex[EntityIndex];
+            if(LowEntity->HighEntityIndex == 0) {
+              
+              v2 CameraSpaceP = GetCameraSpaceP(GameState, LowEntity);
+              if(IsInRectangle(CameraInBound, CameraSpaceP)) {
+                
+                MakeEntityHighFrequency(GameState, LowEntity, EntityIndex, CameraSpaceP);
+              }
+            }
+          }
+        }
       }
     }
   }
-  #endif
 }
 
 
@@ -625,8 +664,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   game_state *GameState = (game_state *)Memory->PermanentStorage;
   if(!Memory->IsInitialized)
   {
-    
-    AddLowEntity(GameState, EntityType_Null);
+
+    AddLowEntity(GameState, EntityType_Null, 0);
     GameState->HighEntityCount = 1;
     // TODO(Egor): This may be more appropriate to do in the platform layer
     

@@ -113,7 +113,7 @@ RecanonicalizeCoord(world *World, int32 *Tile, real32 *TileRel) {
 
 // TODO (Egor): we cannot move faster than 1 tile map in on gameLoop
 inline world_position
-MapIntoTileSpace(world *World, world_position BasePos, v2 Offset) {
+MapIntoChunkSpace(world *World, world_position BasePos, v2 Offset) {
   
   world_position Result = BasePos;
   
@@ -180,7 +180,7 @@ InitializeWorld(world *World, real32 TileSideInMeters) {
   for(uint32 ChunkIndex = 0;
       ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex) {
     
-    World->ChunkHash[ChunkIndex].ChunkX = 0;
+    World->ChunkHash[ChunkIndex].ChunkX = CHUNK_UNITIALIZED;
     World->ChunkHash[ChunkIndex].FirstBlock.EntityCount = 0;
     
   }
