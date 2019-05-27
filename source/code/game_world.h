@@ -39,6 +39,8 @@ struct world {
   real32 TileSideInMeters;
   real32 ChunkSideInMeters;
   
+  world_entity_block *FirstFree;
+  
   world_chunk ChunkHash[4096];
 };
 

@@ -3,22 +3,21 @@
 #define CHUNK_UNITIALIZED INT32_MAX
 
 
-internal void
-InitializeWorld(world *World, real32 TileSideInMeters) {
+inline bool32 
+IsCanonical(world *World, real32 TileRel) {
   
-  World->ChunkShift = 4;
-  World->ChunkDim = (1 << World->ChunkShift);
-  World->ChunkMask = World->ChunkDim - 1;
-  
-  World->TileSideInMeters = TileSideInMeters;
-  
-  for(uint32 ChunkIndex = 0;
-      ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex) {
-    
-    World->ChunkHash[ChunkIndex].ChunkX = 0;
-    
-  }
+  bool32 Result = (TileRel >= -World->ChunkSideInMeters*0.5f &&
+                   TileRel <= World->ChunkSideInMeters*0.5f);
+  return Result;
 }
+
+inline bool32 
+IsCanonical(world *World, v2 Offset) {
+  
+  bool32 Result = IsCanonical(World, Offset.X) && IsCanonical(World, Offset.Y);
+  return Result;
+}
+
 
 inline world_chunk *
 GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
@@ -96,35 +95,31 @@ GetChunkPos(world *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
 ////
 // TODO(Egor): maybe I should transfer this into another file
 
+
+
 inline void
-RecanonicalizeCoord(world *TileMap, int32 *Tile, real32 *TileRel) {
+RecanonicalizeCoord(world *World, int32 *Tile, real32 *TileRel) {
   
   real32 RelCoord = *TileRel; // DEBUG
   
-  int32 Offset = RoundReal32ToInt32(*TileRel /TileMap->TileSideInMeters);
+  int32 Offset = RoundReal32ToInt32(*TileRel /World->ChunkSideInMeters);
   *Tile += Offset;
-  *TileRel -= Offset*TileMap->TileSideInMeters;
+  *TileRel -= Offset*World->ChunkSideInMeters;
   
-  // NOTE: (Egor) the world is toroidal, we allow overflow and underflow 
-  // in a natural C uint32 way
-  Assert(*Tile >= 0);
-  
-  Assert(*TileRel >= -TileMap->TileSideInMeters*0.5f);
-  Assert(*TileRel <= TileMap->TileSideInMeters*0.5f);
-  
+  Assert(IsCanonical(World, *TileRel));
 }
 
 
 
 // TODO (Egor): we cannot move faster than 1 tile map in on gameLoop
 inline world_position
-MapIntoTileSpace(world *TileMap, world_position BasePos, v2 Offset) {
+MapIntoTileSpace(world *World, world_position BasePos, v2 Offset) {
   
   world_position Result = BasePos;
   
   Result.Offset_ += Offset;
-  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset_.X);
-  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset_.Y);
+  RecanonicalizeCoord(World, &Result.ChunkX, &Result.Offset_.X);
+  RecanonicalizeCoord(World, &Result.ChunkY, &Result.Offset_.Y);
   
   return Result;
 }
@@ -136,18 +131,19 @@ Subtract(world *World, world_position *A, world_position *B) {
   
   world_difference Result;
   
-  v2 dTileXY = V2((real32)A->AbsTileX - (real32)B->AbsTileX,
-                  (real32)A->AbsTileY - (real32)B->AbsTileY);
+  v2 dTileXY = V2((real32)A->ChunkX - (real32)B->ChunkX,
+                  (real32)A->ChunkY - (real32)B->ChunkY);
   
-  real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
+  real32 dTileZ = (real32)A->ChunkZ - (real32)B->ChunkZ;
   
-  Result.dXY = World->TileSideInMeters*dTileXY + (A->Offset_ - B->Offset_);
+  Result.dXY = World->ChunkSideInMeters*dTileXY + (A->Offset_ - B->Offset_);
   // NOTE(Egor): Z is not a real coordinate right now
-  Result.dZ = World->TileSideInMeters*dTileZ;
+  Result.dZ = World->ChunkSideInMeters*dTileZ;
   
   return Result;
 }
 
+#if 0
 inline bool32
 AreOnTheSameTile(world_position *A, world_position *B) {
   
@@ -156,17 +152,48 @@ AreOnTheSameTile(world_position *A, world_position *B) {
                    A->AbsTileZ == B->AbsTileZ);
   
   return Result;
+}
+#endif
+
+inline bool32
+AreInTheSameChunk(world *World, world_position *A, world_position *B) {
   
+  Assert(IsCanonical(World, A->Offset_));
+  Assert(IsCanonical(World, B->Offset_));
+  
+  
+  bool32 Result = (A->ChunkX == B->ChunkX &&
+                   A->ChunkY == B->ChunkY &&
+                   A->ChunkZ == B->ChunkZ);
+  
+  return Result;
+}
+
+#define TILES_PER_CHUNK 16
+internal void
+InitializeWorld(world *World, real32 TileSideInMeters) {
+  
+  World->TileSideInMeters = TileSideInMeters;
+  World->ChunkSideInMeters = (real32)TILES_PER_CHUNK*TileSideInMeters;
+  World->FirstFree = 0;
+  
+  for(uint32 ChunkIndex = 0;
+      ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex) {
+    
+    World->ChunkHash[ChunkIndex].ChunkX = 0;
+    World->ChunkHash[ChunkIndex].FirstBlock.EntityCount = 0;
+    
+  }
 }
 
 inline world_position
-CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
   
   world_position Result = {};
   
-  Result.AbsTileX = AbsTileX;
-  Result.AbsTileY = AbsTileY;
-  Result.AbsTileZ = AbsTileZ;
+  Result.ChunkX = ChunkX;
+  Result.ChunkY = ChunkY;
+  Result.ChunkZ = ChunkZ;
   
   return Result;
   
@@ -175,20 +202,20 @@ CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
 
 
 inline void
-ChangeEntityLocation(memory_arena *Arena, game_state *GameState, uint32 LowEntityIndex, 
+ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex, 
                      world_position *OldP, world_position *NewP) {
   
-  if(OldP && AreInTheSameChunk(OldP, NewP)) {
+  if(OldP && AreInTheSameChunk(World, OldP, NewP)) {
     
   }
   else {
     
     if(OldP) {
       
-      world_chunk *Chunk = GetChunk(GameState, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ);
+      world_chunk *Chunk = GetChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ);
       Assert(Chunk);
       world_entity_block *FirstBlock = &Chunk->FirstBlock;
-      // TODO(Egor): I don't really sure if I want this IF case be there
+      // TODO(Egor): I'm not really sure if I want this IF case be there
       if(Chunk) {
         
         for(world_entity_block *Block = &Chunk->FirstBlock; Block; Block = Block->Next) {
@@ -205,7 +232,9 @@ ChangeEntityLocation(memory_arena *Arena, game_state *GameState, uint32 LowEntit
                   
                   world_entity_block *NextBlock = FirstBlock->Next;
                   *FirstBlock = *NextBlock;
-                  FreeBlock(NextBlock);
+                  // NOTE(Egor): freeing the memory
+                  NextBlock->Next = World->FirstFree;
+                  World->FirstFree = NextBlock;
                 }
               }
               
@@ -218,12 +247,22 @@ ChangeEntityLocation(memory_arena *Arena, game_state *GameState, uint32 LowEntit
       }
     }
     
-    world_chunk *Chunk = GetChunk(GameState, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
+    world_chunk *Chunk = GetChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
     world_entity_block *Block = &Chunk->FirstBlock;
     if(Block->EntityCount == ArrayCount(Block->LowEntityIndex)) {
       
-      // NOTE(Egor): we are out of space in entity block, need to create a new one
-      world_entity_block *OldBlock = PushStruct(Arena, world_entity_block);
+      // NOTE(Egor): we are out of space in entity block, need a new one
+      world_entity_block *OldBlock = World->FirstFree;
+      if(OldBlock) {
+        
+        // NOTE(Egor): we pop the frist one, rise the next one to top
+        World->FirstFree = World->FirstFree->Next;
+      }
+      else {
+        
+        // NOTE(Egor): there are no free blocks, use memory arena to create new one
+        OldBlock = PushStruct(Arena, world_entity_block);
+      }
       // NOTE(Egor): we just push filled up block deeper into a list
       *OldBlock = *Block;
       Block->Next = OldBlock;
@@ -234,4 +273,21 @@ ChangeEntityLocation(memory_arena *Arena, game_state *GameState, uint32 LowEntit
     Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
   }
 }
+
+inline world_position
+ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
   
+  world_position Result = {};
+  
+  Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
+  Result.ChunkY = AbsTileY / TILES_PER_CHUNK;
+  Result.ChunkZ = AbsTileZ / TILES_PER_CHUNK;
+  
+  Result.Offset_.X = (real32)(AbsTileX - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
+  Result.Offset_.Y = (real32)(AbsTileY - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
+  
+  
+  
+  return Result;
+}
+

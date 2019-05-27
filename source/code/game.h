@@ -92,7 +92,7 @@ struct high_entity {
   uint32 FacingDirection;
   real32 Z;
   real32 dZ;
-  uint32 AbsTileZ;
+  uint32 ChunkZ;
   
   uint32 LowEntityIndex;
 };

@@ -300,7 +300,7 @@ MakeEntityHighFrequency(game_state *GameState, uint32 LowIndex) {
                                           &LowEntity->P, &GameState->CameraP);
       
       HighEntity->P = Diff.dXY;
-      HighEntity->AbsTileZ = LowEntity->P.AbsTileZ;
+      HighEntity->ChunkZ = LowEntity->P.ChunkZ;
       HighEntity->dP = V2(0,0);
       HighEntity->FacingDirection = 0;
       HighEntity->LowEntityIndex = LowIndex;
@@ -397,10 +397,8 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
   
   uint32 EntityIndex = AddLowEntity(GameState, EntityType_Wall);
   low_entity *Entity = GetLowEntity(GameState, EntityIndex);
-  
-  Entity->P.AbsTileX = AbsTileX;
-  Entity->P.AbsTileY = AbsTileY;
-  Entity->P.AbsTileZ = AbsTileZ;
+
+  Entity->P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
   Entity->Height = GameState->World->TileSideInMeters;
   Entity->Width = GameState->World->TileSideInMeters;
   Entity->Collides = true;
@@ -529,7 +527,7 @@ MovePlayer(game_state *GameState, entity Entity, real32 dT, v2 ddP) {
       
       high_entity *HitHigh = GameState->HighEntity + HitHighEntityIndex;
       low_entity *HitLow = GameState->LowEntity + HitHigh->LowEntityIndex;
-      Entity.High->AbsTileZ += HitLow->dAbsTileZ; 
+//      Entity.High->AbsTileZ += HitLow->dAbsTileZ; 
     }
     else {
       
@@ -588,6 +586,7 @@ SetCamera(game_state *GameState, world_position NewCameraP) {
   
   
   // TODO(Egor): if entity is in bound, and not high, we should make it high
+  #if 0 
   int32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
   int32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
   int32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
@@ -610,6 +609,7 @@ SetCamera(game_state *GameState, world_position NewCameraP) {
       }
     }
   }
+  #endif
 }
 
 
@@ -803,9 +803,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     
     world_position NewCameraP = {};
-    NewCameraP.AbsTileX = ScreenBaseX*TilesPerWidth + 17/2;
-    NewCameraP.AbsTileY = ScreenBaseY*TilesPerHeight + 9/2;
-    NewCameraP.AbsTileZ = ScreenBaseZ;
+    NewCameraP = ChunkPositionFromTilePosition(GameState->World, ScreenBaseX*TilesPerWidth + 17/2, 
+                                               ScreenBaseY*TilesPerHeight + 9/2,
+                                               ScreenBaseZ);
     SetCamera(GameState, NewCameraP);
     
     Memory->IsInitialized = true;
@@ -878,7 +878,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     world_position NewCameraP = GameState->CameraP;
     
-#if 1
+#if 0
     
     NewCameraP.AbsTileZ = CameraFollowingEntity.Low->P.AbsTileZ;
     
@@ -897,20 +897,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
 #else
     
-    NewCameraP.AbsTileZ = CameraFollowingEntity.Low->P.AbsTileZ;
-    
-    if(CameraFollowingEntity.High->P.X > (1.0f * World->TileSideInMeters)) {
-      NewCameraP.AbsTileX += 1;
-    }
-    if(CameraFollowingEntity.High->P.X < -(1.0f * World->TileSideInMeters)) {
-      NewCameraP.AbsTileX -= 1;
-    }
-    if(CameraFollowingEntity.High->P.Y > (1.0f * World->TileSideInMeters)) {
-      NewCameraP.AbsTileY += 1;
-    }
-    if(CameraFollowingEntity.High->P.Y < -(1.0f * World->TileSideInMeters)) {
-      NewCameraP.AbsTileY -= 1;
-    }
+    NewCameraP = CameraFollowingEntity.Low->P;
+
 #endif
     
     SetCamera(GameState, NewCameraP);
