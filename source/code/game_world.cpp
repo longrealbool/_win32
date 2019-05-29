@@ -20,7 +20,7 @@ IsCanonical(world *World, v2 Offset) {
 
 
 inline world_chunk *
-GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
+GetChunk(world *World, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
          memory_arena *Arena = 0) {
   
   Assert(ChunkX > -CHUNK_SAFE_MARGIN);
@@ -33,10 +33,10 @@ GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
   
   // TODO(Egor): make a better hash function, lol
   uint32 HashValue = 19*ChunkX + 7*ChunkY + 3*ChunkZ;
-  uint32 HashSlot = HashValue & (ArrayCount(TileMap->ChunkHash) - 1);
-  Assert(HashSlot < ArrayCount(TileMap->ChunkHash));
+  uint32 HashSlot = HashValue & (ArrayCount(World->ChunkHash) - 1);
+  Assert(HashSlot < ArrayCount(World->ChunkHash));
   
-  world_chunk *Chunk = TileMap->ChunkHash + HashSlot;
+  world_chunk *Chunk = World->ChunkHash + HashSlot;
   do {
     
     if(Chunk->ChunkX == ChunkX &&
@@ -47,7 +47,7 @@ GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
     } 
     
     // NOTE(Egor): if our initial slot is initialized, and there isn't chained chunk
-    if(Arena && (Chunk->ChunkX != 0 && (!Chunk->NextInHash))) {
+    if(Arena && (Chunk->ChunkX != CHUNK_UNITIALIZED && (!Chunk->NextInHash))) {
       
       Chunk->NextInHash = PushStruct(Arena, world_chunk);
       Chunk = Chunk->NextInHash;
@@ -75,7 +75,7 @@ GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
 
 #if 0
 inline world_chunk_position
-GetChunkPos(world *TileMap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+GetChunkPos(world *World, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
   world_chunk_position Result;
   
@@ -218,9 +218,10 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
       // TODO(Egor): I'm not really sure if I want this IF case be there
       if(Chunk) {
         
-        for(world_entity_block *Block = &Chunk->FirstBlock; Block; Block = Block->Next) {
+        bool32 NotFound = true;
+        for(world_entity_block *Block = &Chunk->FirstBlock; Block && NotFound; Block = Block->Next) {
           
-          for(uint32 Index = 0; Index < Block->EntityCount; ++Index) {
+          for(uint32 Index = 0; Index < Block->EntityCount && NotFound; ++Index) {
             
             if(Block->LowEntityIndex[Index] == LowEntityIndex) {
               
@@ -239,8 +240,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
               }
               
               // NOTE(Egor): nasty double break
-              Block = 0;
-              break;
+              NotFound = false;
             }
           }
         }
@@ -271,6 +271,8 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
     
     Assert(Block->EntityCount < ArrayCount(Block->LowEntityIndex));
     Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
+    
+    int a = 3;
   }
 }
 
