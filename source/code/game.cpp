@@ -485,11 +485,25 @@ AddMonster(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTi
   
   world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
                                                    AbsTileY, AbsTileZ);
-  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Wall, &P);
+  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Monster, &P);
   
   Entity.Low->Height = 0.5f;
   Entity.Low->Width = 1.0f;
   Entity.Low->Collides = true;
+  
+  return Entity;
+}
+
+internal add_low_entity_result
+AddFamiliar(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+  
+  world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
+                                                   AbsTileY, AbsTileZ);
+  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Familiar, &P);
+  
+  Entity.Low->Height = 0.5f;
+  Entity.Low->Width = 1.0f;
+  Entity.Low->Collides = false;
   
   return Entity;
 }
@@ -885,6 +899,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                CameraTileZ);
                                                
     AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
+    AddFamiliar(GameState, CameraTileX + 3, CameraTileY + 3, CameraTileZ);
     SetCamera(GameState, NewCameraP);
     
 
@@ -1083,7 +1098,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       PlayerGroundPointY - 0.5f*LowEntity->Height*MetersToPixels};
     
     v2 EntityWidthHeight = {LowEntity->Width, LowEntity->Height};
-    
+    hero_bitmaps *Hero = &GameState->Hero[HighEntity->FacingDirection];    
     switch(LowEntity->Type) {
       
       case EntityType_Hero: {
@@ -1091,7 +1106,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DrawRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MetersToPixels*EntityWidthHeight,
                       PlayerR, PlayerG, PlayerB); 
         
-        hero_bitmaps *Hero = &GameState->Hero[HighEntity->FacingDirection];
         DrawBitmap(Buffer, &Hero->HeroTorso, PlayerGroundPointX, PlayerGroundPointY + Z, Hero->AlignX, Hero->AlignY);
         DrawBitmap(Buffer, &Hero->HeroHead, PlayerGroundPointX, PlayerGroundPointY + Z, Hero->AlignX, Hero->AlignY);
         DrawBitmap(Buffer, &Hero->HeroCape, PlayerGroundPointX, PlayerGroundPointY + Z, Hero->AlignX, Hero->AlignY);
@@ -1102,7 +1116,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         //              PlayerR, PlayerG, PlayerB); 
         DrawBitmap(Buffer, &GameState->Tree, PlayerGroundPointX, PlayerGroundPointY + Z, 30, 60);
       } break;
-      
+      case EntityType_Monster: {
+        
+        DrawBitmap(Buffer, &Hero->HeroHead, PlayerGroundPointX, PlayerGroundPointY + Z, Hero->AlignX, Hero->AlignY);
+      } break;
+      case EntityType_Familiar: {
+        
+        DrawBitmap(Buffer, &Hero->HeroHead, PlayerGroundPointX, PlayerGroundPointY + Z, Hero->AlignX, Hero->AlignY);
+      } break;
+      default: {
+        InvalidCodePath;
+      }
     }  
   }
 }

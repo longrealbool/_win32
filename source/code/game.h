@@ -80,6 +80,8 @@ enum entity_type {
   
   EntityType_Null,
   EntityType_Hero,
+  EntityType_Monster,
+  EntityType_Familiar,
   EntityType_Wall
 };
 
