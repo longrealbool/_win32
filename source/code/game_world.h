@@ -9,9 +9,9 @@ struct world_difference {
 
 struct world_position {
   
-  int32 AbsTileX;
-  int32 AbsTileY;
-  int32 AbsTileZ;
+  int32 ChunkX;
+  int32 ChunkY;
+  int32 ChunkZ;
   
   // NOTE(Egor): origin is at the center of a tile
   v2 Offset_;
@@ -37,10 +37,10 @@ struct world_chunk {
 struct world {
   
   real32 TileSideInMeters;
+  real32 ChunkSideInMeters;
   
-  uint32 ChunkShift;
-  uint32 ChunkMask;
-  uint32 ChunkDim;
+  world_entity_block *FirstFree;
+  
   world_chunk ChunkHash[4096];
 };
 

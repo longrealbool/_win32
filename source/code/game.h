@@ -80,6 +80,8 @@ enum entity_type {
   
   EntityType_Null,
   EntityType_Hero,
+  EntityType_Monster,
+  EntityType_Familiar,
   EntityType_Wall
 };
 
@@ -92,7 +94,7 @@ struct high_entity {
   uint32 FacingDirection;
   real32 Z;
   real32 dZ;
-  uint32 AbsTileZ;
+  uint32 ChunkZ;
   
   uint32 LowEntityIndex;
 };
@@ -111,6 +113,20 @@ struct low_entity {
   
   uint32 HighEntityIndex;
   
+};
+
+struct entity_visible_piece {
+  
+  loaded_bitmap *Bitmap;
+  v2 Offset;
+  real32 Z;
+  real32 Alpha;
+};
+
+struct entity_visible_piece_group {
+  
+  uint32 Count;
+  entity_visible_piece Pieces[8];
 };
 
 
@@ -153,6 +169,8 @@ struct game_state {
   
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];
+  
+  loaded_bitmap Tree;
 };
 
 #define GAME_H
