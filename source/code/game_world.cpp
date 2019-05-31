@@ -33,7 +33,7 @@ GetChunk(world *TileMap, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
   Assert(ChunkZ < CHUNK_SAFE_MARGIN);
          
   // TODO(Egor): make a better hash function, lol
-  uint32 HashValue = 19*ChunkX + 7*ChunkY + 3*ChunkZ;
+  uint32 HashValue = 113*ChunkX + 7*ChunkY + 3*ChunkZ;
   uint32 HashSlot = HashValue & (ArrayCount(TileMap->ChunkHash) - 1);
   Assert(HashSlot < ArrayCount(TileMap->ChunkHash));
   
