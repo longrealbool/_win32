@@ -115,6 +115,20 @@ struct low_entity {
   
 };
 
+struct entity_visible_piece {
+  
+  loaded_bitmap *Bitmap;
+  v2 Offset;
+  real32 Z;
+  real32 Alpha;
+};
+
+struct entity_visible_piece_group {
+  
+  uint32 Count;
+  entity_visible_piece Pieces[8];
+};
+
 
 
 enum entity_residence {
