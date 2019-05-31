@@ -72,8 +72,7 @@ struct hero_bitmaps {
   loaded_bitmap HeroHead;
   loaded_bitmap HeroCape;
   loaded_bitmap HeroTorso;
-  uint32 AlignX;
-  uint32 AlignY;
+  v2 Align;
 };
 
 enum entity_type {
@@ -119,7 +118,7 @@ struct entity_visible_piece {
   
   loaded_bitmap *Bitmap;
   v2 Offset;
-  real32 Z;
+  real32 OffsetZ;
   real32 Alpha;
 };
 
