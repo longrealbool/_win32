@@ -98,6 +98,15 @@ struct high_entity {
   uint32 LowEntityIndex;
 };
 
+
+#define SUB_HIT_POINT 4
+struct hit_point {
+
+  uint8 Flags;
+  uint8 FilledAmount;
+};
+
+
 struct low_entity {
   
   entity_type Type;
@@ -112,6 +121,9 @@ struct low_entity {
   
   uint32 HighEntityIndex;
   
+  uint32 HitPointMax;
+  hit_point HitPoint[16];
+  
 };
 
 struct entity_visible_piece {
@@ -119,16 +131,9 @@ struct entity_visible_piece {
   loaded_bitmap *Bitmap;
   v2 Offset;
   real32 OffsetZ;
-  real32 Alpha;
+  real32 R, G, B, A;
+  v2 Dim;
 };
-
-struct entity_visible_piece_group {
-  
-  uint32 Count;
-  entity_visible_piece Pieces[8];
-};
-
-
 
 enum entity_residence {
 
@@ -169,7 +174,16 @@ struct game_state {
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];
   
+  real32 MetersToPixels;
+  
   loaded_bitmap Tree;
+};
+
+struct entity_visible_piece_group {
+  
+  game_state *GameState;
+  uint32 Count;
+  entity_visible_piece Pieces[32];
 };
 
 #define GAME_H
