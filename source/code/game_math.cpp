@@ -3,10 +3,37 @@
 
 union v2 {
   struct {
-  real32 X,Y;
+    
+  real32 X, Y;
   };
-  real32 E[2];
   
+  real32 E[2];
+};
+
+union v3 {
+  struct {
+    
+    real32 X, Y, Z;
+  };
+  struct {
+    
+    real32 R, G, B;
+  };
+  
+  real32 E[3];
+};
+
+union v4 {
+  struct {
+    
+    real32 X, Y, Z, W;
+  };
+  struct {
+    
+    real32 R, G, B, A;
+  };
+  
+  real32 E[4];
 };
 
 
@@ -18,7 +45,29 @@ V2(real32 X, real32 Y) {
   Result.Y = Y;
   
   return Result;
+}
+
+inline v3
+V3(real32 X, real32 Y, real32 Z) {
   
+  v3 Result;
+  Result.X = X;
+  Result.Y = Y;
+  Result.Z = Z;
+  
+  return Result;
+}
+
+inline v4
+V4(real32 X, real32 Y, real32 Z, real32 W) {
+  
+  v4 Result;
+  Result.X = X;
+  Result.Y = Y;
+  Result.Z = Z;
+  Result.W = W;
+  
+  return Result;
 }
 
 inline v2
@@ -121,9 +170,15 @@ inline real32
 LengthSq(v2 A) {
   
   real32 Result;
-  
   Result = Inner(A, A);
-  
+  return Result;
+}
+
+inline real32
+Length(v2 A) {
+ 
+  real32 Result;
+  Result = SquareRoot(LengthSq(A));
   return Result;
 }
 

@@ -55,8 +55,8 @@ RollTheDice(void) {
   return (unsigned int)(next/65536) % (MINE_RAND_MAX + 1);
 }
 
-#include "game_math.cpp"
 #include "game_intrinsic.h"
+#include "game_math.cpp"
 #include "game_world.h"
 
 
@@ -81,7 +81,8 @@ enum entity_type {
   EntityType_Hero,
   EntityType_Monster,
   EntityType_Familiar,
-  EntityType_Wall
+  EntityType_Wall,
+  EntityType_Sword
 };
 
 struct high_entity {
@@ -124,6 +125,9 @@ struct low_entity {
   uint32 HitPointMax;
   hit_point HitPoint[16];
   
+  uint32 SwordLowIndex;
+  real32 DistanceRemaining;
+  
 };
 
 struct entity_visible_piece {
@@ -131,6 +135,7 @@ struct entity_visible_piece {
   loaded_bitmap *Bitmap;
   v2 Offset;
   real32 OffsetZ;
+  real32 OffsetZC;
   real32 R, G, B, A;
   v2 Dim;
 };
@@ -177,6 +182,7 @@ struct game_state {
   real32 MetersToPixels;
   
   loaded_bitmap Tree;
+  loaded_bitmap Sword;
 };
 
 struct entity_visible_piece_group {

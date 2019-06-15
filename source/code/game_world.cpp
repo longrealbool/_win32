@@ -2,6 +2,25 @@
 #define CHUNK_SAFE_MARGIN (INT32_MAX / 16) * 4
 #define CHUNK_UNITIALIZED INT32_MAX
 
+inline world_position
+NullPosition() {
+ 
+  world_position Result = {};
+
+  Result.ChunkX = CHUNK_UNITIALIZED;
+  
+  return Result;
+}
+
+inline bool32
+IsValid(world_position P) {
+  
+ 
+  bool32 Result = (P.ChunkX != CHUNK_UNITIALIZED);
+  
+  return Result;
+}
+
 
 inline bool32 
 IsCanonical(world *World, real32 TileRel) {
@@ -205,7 +224,10 @@ inline void
 ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex, 
                      world_position *OldP, world_position *NewP) {
   
-  if(OldP && AreInTheSameChunk(World, OldP, NewP)) {
+  Assert(!OldP || IsValid(*OldP));
+  Assert(!NewP || IsValid(*NewP));
+  
+  if(OldP && NewP && AreInTheSameChunk(World, OldP, NewP)) {
     
   }
   else {
@@ -247,32 +269,50 @@ ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex,
       }
     }
     
-    world_chunk *Chunk = GetChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
-    world_entity_block *Block = &Chunk->FirstBlock;
-    if(Block->EntityCount == ArrayCount(Block->LowEntityIndex)) {
+    if(NewP) {
+      world_chunk *Chunk = GetChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
+      world_entity_block *Block = &Chunk->FirstBlock;
+      if(Block->EntityCount == ArrayCount(Block->LowEntityIndex)) {
+        
+        // NOTE(Egor): we are out of space in entity block, need a new one
+        world_entity_block *OldBlock = World->FirstFree;
+        if(OldBlock) {
+          
+          // NOTE(Egor): we pop the frist one, rise the next one to top
+          World->FirstFree = World->FirstFree->Next;
+        }
+        else {
+          
+          // NOTE(Egor): there are no free blocks, use memory arena to create new one
+          OldBlock = PushStruct(Arena, world_entity_block);
+        }
+        // NOTE(Egor): we just push filled up block deeper into a list
+        *OldBlock = *Block;
+        Block->Next = OldBlock;
+        Block->EntityCount = 0;
+      }
       
-      // NOTE(Egor): we are out of space in entity block, need a new one
-      world_entity_block *OldBlock = World->FirstFree;
-      if(OldBlock) {
-        
-        // NOTE(Egor): we pop the frist one, rise the next one to top
-        World->FirstFree = World->FirstFree->Next;
-      }
-      else {
-        
-        // NOTE(Egor): there are no free blocks, use memory arena to create new one
-        OldBlock = PushStruct(Arena, world_entity_block);
-      }
-      // NOTE(Egor): we just push filled up block deeper into a list
-      *OldBlock = *Block;
-      Block->Next = OldBlock;
-      Block->EntityCount = 0;
+      Assert(Block->EntityCount < ArrayCount(Block->LowEntityIndex));
+      Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
+      
+      int a = 3;
     }
-    
-    Assert(Block->EntityCount < ArrayCount(Block->LowEntityIndex));
-    Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
-    
-    int a = 3;
+  }
+}
+
+inline void
+ChangeEntityLocation(memory_arena *Arena, world *World,
+                     uint32 LowEntityIndex, low_entity *LowEntity, 
+                     world_position *OldP, world_position *NewP) {
+  
+  ChangeEntityLocation(Arena, World,
+                       LowEntityIndex, OldP, NewP);
+  
+  if(NewP) {
+    LowEntity->P = *NewP;
+  }
+  else {
+    LowEntity->P = NullPosition();
   }
 }
 
