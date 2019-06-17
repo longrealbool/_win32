@@ -58,6 +58,7 @@ RollTheDice(void) {
 #include "game_intrinsic.h"
 #include "game_math.cpp"
 #include "game_world.h"
+#include "game_sim_region.h"
 
 
 struct loaded_bitmap {
@@ -75,60 +76,15 @@ struct hero_bitmaps {
   v2 Align;
 };
 
-enum entity_type {
-  
-  EntityType_Null,
-  EntityType_Hero,
-  EntityType_Monster,
-  EntityType_Familiar,
-  EntityType_Wall,
-  EntityType_Sword
-};
-
-struct high_entity {
-  
-  bool32 Exists;
-
-  v2 P; // NOTE(Egor): already relative to the camera
-  v2 dP;
-  uint32 FacingDirection;
-  real32 Z;
-  real32 dZ;
-  uint32 ChunkZ;
-  
-  uint32 LowEntityIndex;
-};
-
-
-#define SUB_HIT_POINT 4
-struct hit_point {
-
-  uint8 Flags;
-  uint8 FilledAmount;
-};
-
 
 struct low_entity {
   
-  entity_type Type;
-  
   world_position P;  
-  real32 Height;
-  real32 Width;
-  
-  bool32 Collides;
-  // NOTE(Egor): stairs implementation
-  int32 dAbsTileZ;
-  
-  uint32 HighEntityIndex;
-  
-  uint32 HitPointMax;
-  hit_point HitPoint[16];
-  
-  uint32 SwordLowIndex;
-  real32 DistanceRemaining;
+  sim_entity Sim;
   
 };
+
+
 
 struct entity_visible_piece {
   
@@ -147,12 +103,6 @@ enum entity_residence {
   EntityResidence_High
 };
 
-struct entity {
-  
-  uint32 LowIndex;
-  high_entity *High;
-  low_entity *Low;
-};
 
 struct low_entity_chunk_reference {
   
@@ -170,8 +120,8 @@ struct game_state {
   uint32 LowEntityCount;
   low_entity LowEntity[10000];
   
-  uint32 HighEntityCount;
-  high_entity HighEntity[256];
+//  uint32 HighEntityCount;
+//  high_entity HighEntity[256];
   
   uint32 CameraFollowingEntityIndex;
   world_position CameraP;
@@ -191,6 +141,19 @@ struct entity_visible_piece_group {
   uint32 Count;
   entity_visible_piece Pieces[32];
 };
+
+inline low_entity *
+GetLowEntity(game_state *GameState, uint32 LowIndex) {
+  
+  low_entity *Result = 0;
+  
+  if((LowIndex > 0) && (LowIndex < GameState->LowEntityCount)) {
+    
+    Result = GameState->LowEntity + LowIndex;
+  }
+  
+  return Result;
+}
 
 #define GAME_H
 #endif
