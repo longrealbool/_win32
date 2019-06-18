@@ -20,8 +20,9 @@ GetHashFromStorageIndex(sim_region *SimRegion, uint32 StorageIndex) {
   uint32 HashValue = StorageIndex;
   for(uint32 Offset = 0; Offset < ArrayCount(SimRegion->Hash); ++Offset) {
     
-    sim_entity_hash *Entry = SimRegion->Hash + 
-      ((HashValue + Offset) & (ArrayCount(SimRegion->Hash) - 1));
+    uint32 HashMask = ArrayCount(SimRegion->Hash) - 1;
+    uint32 HashIndex = (HashValue + Offset) & HashMask;
+    sim_entity_hash *Entry = SimRegion->Hash + HashIndex;
     
     if((Entry->Index == StorageIndex) || 
        (Entry->Index == 0)) {
