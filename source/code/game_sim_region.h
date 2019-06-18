@@ -56,12 +56,7 @@ struct sim_entity {
   real32 DistanceRemaining;
 };
 
-struct move_spec {
-  
-  bool32 UnitMaxAccelVector;
-  real32 Speed;
-  real32 Drag;
-};
+
 
 struct sim_entity_hash {
  

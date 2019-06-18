@@ -1,7 +1,7 @@
 #include "game.h"
 #include "game_world.cpp"
-
 #include "game_sim_region.cpp"
+#include "game_entity.cpp"
 
 
 
@@ -111,7 +111,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
       for(int32 X = 0; X < Header->Width; ++X) {
         
         uint32 C = *SourceDest;
-
+        
         *SourceDest = (RotateLeft(C & AlphaMask, AlphaShift) |
                        RotateLeft(C & RedMask, RedShift) |
                        RotateLeft(C & GreenMask, GreenShift) |
@@ -273,7 +273,7 @@ AddLowEntity(game_state *GameState, entity_type EntityType, world_position *P) {
     ChangeEntityLocation(&GameState->WorldArena, GameState->World, LowEntityIndex, 0, P);
   }
   else {
-   
+    
     LowEntity->P = NullPosition();
   }
   
@@ -311,7 +311,7 @@ InitHitPoints(low_entity *LowEntity, uint32 HitPointCount) {
     HitPoint->Flags = 0;
     HitPoint->FilledAmount = SUB_HIT_POINT;
   }
-
+  
 }
 
 internal add_low_entity_result
@@ -382,19 +382,7 @@ AddFamiliar(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsT
   return Entity;
 }
 
-
-
-inline move_spec
-DefaultMoveSpec() {
-  
-  move_spec Result;
-  Result.Speed = 1.0f;
-  Result.Drag = 0.0f;
-  Result.UnitMaxAccelVector = false;
-  
-  return Result;
-}
-
+#if 0
 internal void 
 SimCameraRegion(game_state *GameState) {
   
@@ -404,12 +392,13 @@ SimCameraRegion(game_state *GameState) {
   uint32 TileSpanY = 9*3;
   
   rectangle2 CameraBounds = RectCenterDim(V2(0,0),
-                                           World->TileSideInMeters*V2((real32)TileSpanX,
-                                                                      (real32)TileSpanY));
-  sim_region *Regon = BeginSim(SimArena, GameState->World, GameState->CameraP, CameraBounds);
+                                          World->TileSideInMeters*V2((real32)TileSpanX,
+                                                                     (real32)TileSpanY));
+  sim_region *SimRegion = BeginSim(SimArena, GameState->World, GameState->CameraP, CameraBounds);
   EndSim(SimRegion, GameState);
   
 }
+#endif
 
 
 inline void
@@ -452,19 +441,19 @@ PushRect(entity_visible_piece_group *Group,
 
 
 internal void
-DrawHitpoints(low_entity *EntityLow, entity_visible_piece_group *PieceGroup) {
+DrawHitpoints(sim_entity *Entity, entity_visible_piece_group *PieceGroup) {
   
-  if(EntityLow->Sim.HitPointMax) {
+  if(Entity->HitPointMax) {
     
     v2 HitPointDim = {0.2f , 0.2f};
     real32 SpacingX = 2.0f * HitPointDim.X;
-    real32 FirstX = (EntityLow->Sim.HitPointMax - 1)*0.5f*SpacingX;
-    v2 HitP = {(EntityLow->Sim.HitPointMax - 1)*-0.5f*SpacingX, -0.4f};
+    real32 FirstX = (Entity->HitPointMax - 1)*0.5f*SpacingX;
+    v2 HitP = {(Entity->HitPointMax - 1)*-0.5f*SpacingX, -0.4f};
     v2 dHitP = {SpacingX, 0};
     
-    for(uint32 HPIndex = 0; HPIndex < EntityLow->Sim.HitPointMax; ++HPIndex) {
+    for(uint32 HPIndex = 0; HPIndex < Entity->HitPointMax; ++HPIndex) {
       
-      hit_point *HitPoint = EntityLow->Sim.HitPoint + HPIndex;
+      hit_point *HitPoint = Entity->HitPoint + HPIndex;
       
       v4 Color = {1.0f , 0.0f, 0.0f, 1.0f};
       if(HitPoint->FilledAmount == 0) {
@@ -494,7 +483,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   {
     
     AddLowEntity(GameState, EntityType_Null, 0);
-    GameState->HighEntityCount = 1;
     // TODO(Egor): This may be more appropriate to do in the platform layer
     
     
@@ -681,7 +669,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
     AddFamiliar(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
-    SetCamera(GameState, NewCameraP);
     
     
     
@@ -699,87 +686,61 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   {
     
     game_controller_input *Controller = GetController(Input, ControllerIndex);
-    uint32 LowIndex = GameState->PlayerIndexForController[ControllerIndex];
+    controlled_entity *Controlled = GameState->ControlledEntities + ControllerIndex;
     
-    if(LowIndex == 0) {
+    if(Controlled->EntityIndex == 0) {
       
       if(Controller->Back.EndedDown) {
         
-        uint32 EntityIndex = AddPlayer(GameState).Index;
-        GameState->PlayerIndexForController[ControllerIndex] = EntityIndex;
+        Controlled = {};
+        Controlled->EntityIndex = AddPlayer(GameState).Index;
       }
     }
     else {
       
-      entity ControllingEntity = ForceEntityToHigh(GameState, LowIndex);
-      v2 ddPlayer = {};
+      Controlled->ddP = {};
       if(Controller->IsAnalog)
       {
         // analog movement
-        ddPlayer = v2{Controller->StickAverageX, Controller->StickAverageY};
+        Controlled->ddP = v2{Controller->StickAverageX, Controller->StickAverageY};
       }
       else
       {
         
         if(Controller->MoveUp.EndedDown) {
-          ddPlayer.Y = 1.0f;
+          Controlled->ddP.Y = 1.0f;
         }
         if(Controller->MoveRight.EndedDown) {
-          ddPlayer.X = 1.0f;
+          Controlled->ddP.X = 1.0f;
         }
         if(Controller->MoveDown.EndedDown) {
-          ddPlayer.Y = -1.0f;
+          Controlled->ddP.Y = -1.0f;
         }
         if(Controller->MoveLeft.EndedDown) {
-          ddPlayer.X = -1.0f;
+          Controlled->ddP.X = -1.0f;
         }
       }
       
       if(Controller->Start.EndedDown) {
-        ControllingEntity.High->dZ = 5.0f;
+        Controlled->dZ = 5.0f;
       }
       
-      v2 dSword = {};
+      Controlled->dSword = {};
       if(Controller->ActionUp.EndedDown) {
         
-        dSword = V2(0.0f, 1.0f);
+        Controlled->dSword = V2(0.0f, 1.0f);
       }
       if(Controller->ActionDown.EndedDown) {
         
-        dSword = V2(0.0f, -1.0f);
+        Controlled->dSword = V2(0.0f, -1.0f);
       }
       if(Controller->ActionLeft.EndedDown) {
         
-        dSword = V2(-1.0f, 0.0f);
+        Controlled->dSword = V2(-1.0f, 0.0f);
       }
       if(Controller->ActionRight.EndedDown) {
         
-        dSword = V2(1.0f, 0.0f);
-      }
-      
-      move_spec MoveSpec;
-      MoveSpec.Speed = 50.0f;
-      MoveSpec.Drag = 8.0f;
-      MoveSpec.UnitMaxAccelVector = true;
-      
-      
-      MoveEntity(GameState, ControllingEntity, Input->dtForFrame, &MoveSpec, ddPlayer);
-      
-      if((dSword.X != 0.0f) || (dSword.Y != 0.0f)) {
-        
-        low_entity *LowSword = GetLowEntity(GameState, ControllingEntity.Low->Sim.SwordLowIndex);
-        
-        if(LowSword && !IsValid(LowSword->P)) {
-          
-          world_position SwordP = ControllingEntity.Low->Sim.P;
-          ChangeEntityLocation(&GameState->WorldArena, GameState->World,
-                               ControllingEntity.Low->Sim.SwordLowIndex, LowSword, 0, &SwordP);
-          entity Sword = ForceEntityToHigh(GameState, ControllingEntity.Low->Sim.SwordLowIndex);
-          LowSword->DistanceRemaining = 5.0f;
-          Sword.High->dP = dSword * 5.0f;
-          
-          
-        }
+        Controlled->dSword = V2(1.0f, 0.0f);
       }
     }
   }
@@ -791,8 +752,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   rectangle2 CameraBounds = RectCenterDim(V2(0,0),
                                           World->TileSideInMeters*V2((real32)TileSpanX,
                                                                      (real32)TileSpanY));
-  sim_region *Regon = BeginSim(SimArena, GameState->World, GameState->CameraP, CameraBounds);
-
+  
+  
+  memory_arena SimArena;
+  InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
+  
+  sim_region *SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds);
+  
   
   //
   // NOTE(Egor): rudimentary render starts below
@@ -809,7 +775,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   real32 CenterX = 0.5f*Buffer->Width;
   real32 CenterY = 0.5f*Buffer->Height;
-
+  
   entity_visible_piece_group PieceGroup;
   PieceGroup.GameState = GameState;
   
@@ -818,26 +784,53 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     PieceGroup.Count = 0;
     
-    low_entity *LowEntity = GameState->LowEntity + HighEntity->StorageIndex;
-    
     real32 dt = Input->dtForFrame;
-
-    hero_bitmaps *Hero = &GameState->Hero[LowEntity->FacingDirection];    
-    switch(LowEntity->Type) {
+    
+    hero_bitmaps *Hero = &GameState->Hero[Entity->FacingDirection];    
+    switch(Entity->Type) {
       
       case EntityType_Sword: {
         
-        UpdateSword(GameState, Entity, dt);
+        UpdateSword(SimRegion, Entity, dt);
         PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0), 0, 1.0f, V2(26, 37));
         
       } break;
       case EntityType_Hero: {
         
+        for(uint32 Index = 0; Index < ArrayCount(GameState->ControlledEntities); ++Index) {
+        
+          controlled_entity *Controlled = GameState->ControlledEntities + Index;
+          
+          if(Controlled->EntityIndex == Entity->StorageIndex) {
+            
+            Entity->dZ = Controlled->dZ;
+            
+            move_spec MoveSpec = DefaultMoveSpec();
+            MoveSpec.Speed = 50.0f;
+            MoveSpec.Drag = 8.0f;
+            MoveSpec.UnitMaxAccelVector = true;
+            
+            MoveEntity(SimRegion, Entity, Input->dtForFrame,
+                       &MoveSpec, Controlled->ddP);
+            
+            if((Controlled->dSword.X != 0.0f) || (Controlled->dSword.Y != 0.0f)) {
+              
+              sim_entity *Sword = Entity->Sword.Ptr;
+              if(Sword) {
+                
+                Sword->P = Entity->P;
+                Sword->DistanceRemaining = 5.0f;
+                Sword->dP = Controlled->dSword * 5.0f;
+              }
+            }
+          }
+        }
+        
         PushBitmap(&PieceGroup, &Hero->HeroTorso, V2(0, 0), 0, 1.0f, Hero->Align);
         PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 0, 1.0f, Hero->Align);
         PushBitmap(&PieceGroup, &Hero->HeroCape, V2(0, 0), 0, 1.0f, Hero->Align);
         
-        DrawHitpoints(LowEntity, &PieceGroup);
+        DrawHitpoints(Entity, &PieceGroup);
       } break;
       case EntityType_Wall: {
         
@@ -845,14 +838,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       } break;
       case EntityType_Monster: {
         
-        UpdateMonster(GameState, Entity, dt);
+        UpdateMonster(SimRegion, Entity, dt);
         PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 0, 1.0f, Hero->Align);
-        DrawHitpoints(LowEntity, &PieceGroup);
+        DrawHitpoints(Entity, &PieceGroup);
       } break;
       case EntityType_Familiar: {
         
         
-        UpdateFamiliar(GameState, Entity, dt);
+        UpdateFamiliar(SimRegion, Entity, dt);
         PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 1.0f, 0, Hero->Align);
       } break;
       default: {
@@ -905,6 +898,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
     }
   }
+  // NOTE(Egor): Ending the simulation
   EndSim(SimRegion, GameState);
 }
   

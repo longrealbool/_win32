@@ -27,10 +27,10 @@ struct memory_arena {
 
 
 internal void 
-InitializeArena(memory_arena *Arena, size_t Size, uint8 *Base) {
+InitializeArena(memory_arena *Arena, size_t Size, void *Base) {
   
   Arena->Size = Size;
-  Arena->Base = Base;
+  Arena->Base = (uint8 *)Base;
   Arena->Used = 0;
 }
 
@@ -43,6 +43,18 @@ PushSize_(memory_arena *Arena, size_t Size) {
   void *Result = Arena->Base + Arena->Used;
   Arena->Used += Size;
   return(Result);
+}
+
+
+#define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
+inline void
+ZeroSize(size_t Size, void *Ptr) {
+  
+  uint8 *Byte = (uint8 *)Ptr;
+  while(Size--) {
+    
+    *Byte++ = 0;
+  }
 }
 
 #define MINE_RAND_MAX 32767
@@ -59,6 +71,7 @@ RollTheDice(void) {
 #include "game_math.cpp"
 #include "game_world.h"
 #include "game_sim_region.h"
+#include "game_entity.h"
 
 
 struct loaded_bitmap {
@@ -109,19 +122,25 @@ struct low_entity_chunk_reference {
   world_chunk *TileChunk;
   uint32 EntityIndexInChunk;
 };
+
+
+struct controlled_entity {
+ 
+  uint32 EntityIndex;
+  v2 ddP;
+  v2 dSword;
+  real32 dZ;
+};
   
 struct game_state {
   
   memory_arena WorldArena;
   world* World;
 
-  uint32 PlayerIndexForController[ArrayCount(((game_input *)0)->Controllers)];
+  controlled_entity ControlledEntities[ArrayCount(((game_input *)0)->Controllers)];
   
   uint32 LowEntityCount;
   low_entity LowEntity[10000];
-  
-//  uint32 HighEntityCount;
-//  high_entity HighEntity[256];
   
   uint32 CameraFollowingEntityIndex;
   world_position CameraP;

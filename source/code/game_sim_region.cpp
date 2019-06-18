@@ -118,6 +118,8 @@ AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low
     }
   }
   
+  return Dest;
+  
 }
 
 
@@ -130,6 +132,7 @@ internal sim_region *
 BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_position Origin, rectangle2 Bounds) {
   
   sim_region *SimRegion = PushStruct(SimArena, sim_region);
+  ZeroStruct(SimRegion->Hash);
   
   SimRegion->World = World;
   SimRegion->Origin = Origin;
@@ -168,6 +171,8 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
       }
     }
   }
+  
+  return SimRegion;
 }
 
 inline sim_entity *
