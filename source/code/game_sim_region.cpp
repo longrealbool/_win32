@@ -1,13 +1,18 @@
 internal sim_entity *
-AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low_entity *Source);
-
+AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low_entity *Source, v2 *SimP);
 
 inline v2
 GetSimSpaceP(sim_region *SimRegion, low_entity *Stored) {
   
-  world_difference Diff = Subtract(SimRegion->World,
-                                   &Stored->P, &SimRegion->Origin);
-  return Diff.dXY;
+  v2 Result = INVALID_P;
+  if(!IsSet(&Stored->Sim, EntityFlag_NonSpatial)) {
+    
+    world_difference Diff = Subtract(SimRegion->World,
+                                     &Stored->P, &SimRegion->Origin);
+    Result = Diff.dXY;
+  }
+  
+  return Result;
 }
 
 
@@ -55,7 +60,7 @@ LoadEntityReference(game_state *GameState, sim_region *SimRegion, entity_referen
      
       Entry->Index = Ref->Index;
       low_entity *Low = GetLowEntity(GameState, Ref->Index);
-      Entry->Ptr = AddEntity(GameState, SimRegion, Ref->Index, Low);
+      Entry->Ptr = AddEntity(GameState, SimRegion, Ref->Index, Low, 0);
     }
     Ref->Ptr = Entry->Ptr;
   }
@@ -74,7 +79,7 @@ StoreEntityReference(entity_reference *Ref) {
 
 
 internal sim_entity *
-AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low_entity *Source ) {
+AddEntityRaw(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low_entity *Source ) {
 
   Assert(StorageIndex);
   sim_entity *Entity = 0;
@@ -87,6 +92,8 @@ AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low
     if(Source) {
       
       *Entity = Source->Sim;
+      // NOTE(Egor): when we walk here, we have Index in Reference Union from LowEntity
+      // but when we leave the scope, we already have pointer in sim_entity Reference
       LoadEntityReference(GameState, SimRegion, &Entity->Sword);
     }
     
@@ -105,10 +112,9 @@ AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low
 internal sim_entity *
 AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low_entity *Source, v2 *SimP) {
   
-  sim_entity *Dest = AddEntity(GameState, SimRegion, StorageIndex, Source);
+  sim_entity *Dest = AddEntityRaw(GameState, SimRegion, StorageIndex, Source);
   
   if(Dest) {
-    
     
     if(SimP) {
       
@@ -161,11 +167,14 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
             
             uint32 LowEntityIndex = Block->LowEntityIndex[EntityIndex];
             low_entity *Low = GameState->LowEntity + LowEntityIndex;
-            v2 SimSpaceP = GetSimSpaceP(SimRegion, Low);
-            
-            if(IsInRectangle(SimRegion->Bounds, SimSpaceP)) {
+            // NOTE(Egor): if entity is nonspatial we don't need to load it in sim region
+            if(!IsSet(&Low->Sim, EntityFlag_NonSpatial)) {
               
-              AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
+              v2 SimSpaceP = GetSimSpaceP(SimRegion, Low);
+              if(IsInRectangle(SimRegion->Bounds, SimSpaceP)) {
+                
+                AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
+              }
             }
           }
         }
@@ -197,7 +206,11 @@ EndSim(sim_region *Region, game_state *GameState) {
     Stored->Sim = *Entity;
     StoreEntityReference(&Stored->Sim.Sword);
     
-    world_position NewP = MapIntoChunkSpace(Region->World, Region->Origin, Entity->P);
+    
+    world_position NewP = (IsSet(Entity, EntityFlag_NonSpatial) ? 
+                           NullPosition() :
+                           MapIntoChunkSpace(Region->World, Region->Origin, Entity->P));
+    
     
     ChangeEntityLocation(&GameState->WorldArena, GameState->World,
                          Entity->StorageIndex, Stored, 
@@ -209,7 +222,7 @@ EndSim(sim_region *Region, game_state *GameState) {
       world_position NewCameraP = GameState->CameraP;
       NewCameraP.ChunkZ = Stored->P.ChunkZ;
 #if 0
-
+      
       
       if(CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters)) {
         NewCameraP.AbsTileX += 17;
@@ -263,6 +276,8 @@ TestWall(real32 *tMin, real32 WallC, real32 RelX, real32 RelY,
 internal void
 MoveEntity(sim_region *SimRegion, sim_entity *Entity, real32 dT, move_spec *MoveSpec, v2 ddP) {
   
+  // NOTE(Egor): if entity is nonspatial we shouldn't move it, have no meaning
+  Assert(!IsSet(Entity, EntityFlag_NonSpatial));
   
   world *World = SimRegion->World;
   
@@ -297,8 +312,9 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity, real32 dT, move_spec *Move
     
     v2 DesiredPosition = Entity->P + PlayerDelta;
     
-    if(Entity->Collides) {
-      
+    // NOTE(Egor): check if Entity Collides and Spatial
+    if(IsSet(Entity, EntityFlag_Collides) &&
+       !IsSet(Entity, EntityFlag_NonSpatial)) {
       
       for(uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex) {
         
@@ -306,10 +322,9 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity, real32 dT, move_spec *Move
         
         if(Entity != TestEntity) {
           
-          // TODO(Egor): I should decide once and for all, if I want to keep this type 
-          // of entity bundle
-          
-          if(TestEntity->Collides) {
+          // NOTE(Egor): check if Entity Collides and Spatial
+          if(IsSet(TestEntity, EntityFlag_Collides) &&
+             !IsSet(TestEntity, EntityFlag_NonSpatial)) {
             
             real32 DiameterW = TestEntity->Width + Entity->Width;
             real32 DiameterH = TestEntity->Height + Entity->Height;

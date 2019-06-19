@@ -270,7 +270,8 @@ AddLowEntity(game_state *GameState, entity_type EntityType, world_position *P) {
   // TODO(Egor): this is awfull
   if(P) {
     LowEntity->P = *P;
-    ChangeEntityLocation(&GameState->WorldArena, GameState->World, LowEntityIndex, 0, P);
+    // NOTE(Egor): maybe I should refactor this and not use Raw version
+    ChangeEntityLocationRaw(&GameState->WorldArena, GameState->World, LowEntityIndex, 0, P);
   }
   else {
     
@@ -293,7 +294,7 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
   
   Entity.Low->Sim.Height = GameState->World->TileSideInMeters;
   Entity.Low->Sim.Width = GameState->World->TileSideInMeters;
-  Entity.Low->Sim.Collides = true;
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
 }
@@ -321,7 +322,7 @@ AddSword(game_state *GameState) {
   
   Entity.Low->Sim.Height = 0.5f;
   Entity.Low->Sim.Width = 1.0f;
-  Entity.Low->Sim.Collides = false;
+  AddFlag(&Entity.Low->Sim, EntityFlag_NonSpatial);
   
   return Entity;
 }
@@ -331,8 +332,8 @@ AddPlayer(game_state *GameState) {
   
   world_position P = GameState->CameraP;
   add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, &P);
-  
-  Entity.Low->Sim.Collides = true;
+
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   Entity.Low->Sim.Height = 0.5f;
   Entity.Low->Sim.Width = 1.0f;
   InitHitPoints(Entity.Low, 3);
@@ -360,7 +361,7 @@ AddMonster(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTi
   
   Entity.Low->Sim.Height = 0.5f;
   Entity.Low->Sim.Width = 1.0f;
-  Entity.Low->Sim.Collides = true;
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   InitHitPoints(Entity.Low, 3);
   
   return Entity;
@@ -377,7 +378,7 @@ AddFamiliar(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsT
   
   Entity.Low->Sim.Height = 0.5f;
   Entity.Low->Sim.Width = 1.0f;
-  Entity.Low->Sim.Collides = false;
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
 }

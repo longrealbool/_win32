@@ -18,7 +18,6 @@ struct hit_point {
   uint8 FilledAmount;
 };
 
-
 struct sim_entity;
 union entity_reference {
   
@@ -26,32 +25,35 @@ union entity_reference {
   uint32 Index;
 };
 
+enum sim_entity_flags {
+
+  EntityFlag_Collides = (1 << 1),
+  EntityFlag_NonSpatial = (1 << 2)
+};
+
+
 struct sim_entity {
   
   uint32 StorageIndex;
   
-  v2 P; // NOTE(Egor): already relative to the camera
-
-  uint32 FacingDirection;
-  uint32 ChunkZ;
+  entity_type Type;
+  uint32 Flags;
   
+  v2 P; // NOTE(Egor): already relative to the camera
+  v2 dP;
   real32 Z;
   real32 dZ;
-  
-  entity_type Type;
-  
+  // NOTE(Egor): stairs implementation
+  int32 dAbsTileZ;
+  uint32 ChunkZ;
 
-  v2 dP;
+  uint32 FacingDirection;
+  
   real32 Height;
   real32 Width;
   
-  bool32 Collides;
-  // NOTE(Egor): stairs implementation
-  int32 dAbsTileZ;
-  
   uint32 HitPointMax;
   hit_point HitPoint[16];
-  
   entity_reference Sword;
   real32 DistanceRemaining;
 };

@@ -1,3 +1,4 @@
+
 inline move_spec
 DefaultMoveSpec() {
   
@@ -49,29 +50,35 @@ inline void UpdateFamiliar(sim_region *SimRegion, sim_entity *Entity, real32 dt)
 
 inline void 
 UpdateMonster(sim_region *SimRegion, sim_entity *Entity, real32 dt) {
-  
 }
+
+
+
 
 inline void
 UpdateSword(sim_region *SimRegion, sim_entity *Entity, real32 dt) {
   
-  move_spec MoveSpec;
-  MoveSpec.Speed = 0.0f;
-  MoveSpec.Drag = 0.0f;
-  MoveSpec.UnitMaxAccelVector = true;
-  
-  v2 OldP = Entity->P;
-  MoveEntity(SimRegion, Entity, dt, &MoveSpec, V2(0, 0));
-  real32 DistanceTravelled = Length(Entity->P - OldP);
-  
-  Entity->DistanceRemaining -= DistanceTravelled;
-  if(Entity->DistanceRemaining <= 0.0f) {
+  if(IsSet(Entity, EntityFlag_NonSpatial)) {
     
-    //Assert(!"Need to make entities not to be there");
-    
+    // NOTE(Egor): do nothing
   }
-  
-  
+  else {
+    
+    move_spec MoveSpec;
+    MoveSpec.Speed = 0.0f;
+    MoveSpec.Drag = 0.0f;
+    MoveSpec.UnitMaxAccelVector = true;
+    
+    v2 OldP = Entity->P;
+    MoveEntity(SimRegion, Entity, dt, &MoveSpec, V2(0, 0));
+    real32 DistanceTravelled = Length(Entity->P - OldP);
+    
+    Entity->DistanceRemaining -= DistanceTravelled;
+    if(Entity->DistanceRemaining <= 0.0f) {
+      
+      MakeEntityNonSpatial(Entity);
+    }
+  }
 }
 
 

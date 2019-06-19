@@ -222,7 +222,7 @@ CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
 
 
 inline void
-ChangeEntityLocation(memory_arena *Arena, world *World, uint32 LowEntityIndex, 
+ChangeEntityLocationRaw(memory_arena *Arena, world *World, uint32 LowEntityIndex, 
                      world_position *OldP, world_position *NewP) {
   
   Assert(!OldP || IsValid(*OldP));
@@ -306,14 +306,17 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
                      uint32 LowEntityIndex, low_entity *LowEntity, 
                      world_position *OldP, world_position *NewP) {
   
-  ChangeEntityLocation(Arena, World,
+  
+  ChangeEntityLocationRaw(Arena, World,
                        LowEntityIndex, OldP, NewP);
   
   if(NewP) {
     LowEntity->P = *NewP;
+    ClearFlag(&LowEntity->Sim, EntityFlag_NonSpatial);
   }
   else {
     LowEntity->P = NullPosition();
+    AddFlag(&LowEntity->Sim, EntityFlag_NonSpatial);
   }
 }
 
