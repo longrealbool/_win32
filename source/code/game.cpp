@@ -692,7 +692,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       if(Controller->Back.EndedDown) {
         
-        Controlled = {};
+        *Controlled = {};
         Controlled->EntityIndex = AddPlayer(GameState).Index;
       }
     }
@@ -780,7 +780,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   PieceGroup.GameState = GameState;
   
   sim_entity *Entity = SimRegion->Entities;
-  for(uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
+  for(uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
     
     PieceGroup.Count = 0;
     
@@ -898,6 +898,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
     }
   }
+  
+  world_position WorldOrigin = {};
+  world_difference Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
+  DrawRectangle(Buffer, Diff.dXY, V2(10.0f, 10.0f), 1.0f, 1.0f, 0.0f);
+  
+  
   // NOTE(Egor): Ending the simulation
   EndSim(SimRegion, GameState);
 }

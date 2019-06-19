@@ -67,7 +67,7 @@ UpdateSword(sim_region *SimRegion, sim_entity *Entity, real32 dt) {
   Entity->DistanceRemaining -= DistanceTravelled;
   if(Entity->DistanceRemaining <= 0.0f) {
     
-    Assert(!"Need to make entities not to be there");
+    //Assert(!"Need to make entities not to be there");
     
   }
   
