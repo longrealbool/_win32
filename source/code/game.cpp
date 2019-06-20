@@ -796,7 +796,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       case EntityType_Sword: {
         
         UpdateSword(SimRegion, Entity, dt);
-        PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0.1f * EntityIndex), 0, 1.0f, V2(26, 37));
+        PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0), 0, 1.0f, V2(26, 37));
         
       } break;
       case EntityType_Hero: {
@@ -822,7 +822,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             if((Controlled->dSword.X != 0.0f) || (Controlled->dSword.Y != 0.0f)) {
               
               sim_entity *Sword = Entity->Sword.Ptr;
-              if(Sword) {
+              if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
                 
                 Sword->P = Entity->P;
                 Sword->DistanceRemaining = 5.0f;

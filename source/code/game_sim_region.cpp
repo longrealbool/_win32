@@ -41,14 +41,7 @@ GetHashFromStorageIndex(sim_region *SimRegion, uint32 StorageIndex) {
 }
 
 
-internal void 
-MapStorageIndexToEntity(sim_region *SimRegion, uint32 StorageIndex, sim_entity *Entity) {
-  
-  sim_entity_hash *Entry = GetHashFromStorageIndex(SimRegion, StorageIndex);
-  Assert(Entry->Index == StorageIndex || Entry->Index == 0);
-  Entry->Index = StorageIndex;
-  Entry->Ptr = Entity;
-}
+
 
 inline void
 LoadEntityReference(game_state *GameState, sim_region *SimRegion, entity_reference *Ref) {
@@ -93,13 +86,18 @@ AddEntityRaw(game_state *GameState, sim_region *SimRegion,
     if(SimRegion->EntityCount < SimRegion->MaxEntityCount) {
       
       Entity = SimRegion->Entities + SimRegion->EntityCount++;
-      MapStorageIndexToEntity(SimRegion, StorageIndex, Entity);
-      AddFlag(&Source->Sim, EntityFlag_Simulated);
       
+      Assert(Entry->Index == StorageIndex || Entry->Index == 0);
+      Entry->Index = StorageIndex;
+      Entry->Ptr = Entity;
       
       if(Source) {
         
         *Entity = Source->Sim;
+        
+        // This storage entity already simmed
+        AddFlag(&Source->Sim, EntityFlag_Simulated);
+        
         // NOTE(Egor): when we walk here, we have Index in Reference Union from LowEntity
         // but when we leave the scope, we already have pointer in sim_entity Reference
         LoadEntityReference(GameState, SimRegion, &Entity->Sword);
@@ -211,12 +209,12 @@ EndSim(sim_region *Region, game_state *GameState) {
     
     
     low_entity *Stored = GameState->LowEntity + Entity->StorageIndex;
+    
     Assert(IsSet(&Stored->Sim, EntityFlag_Simulated));
-    
     Stored->Sim = *Entity;
-    ClearFlag(&Stored->Sim, EntityFlag_Simulated);
-    StoreEntityReference(&Stored->Sim.Sword);
+    Assert(!IsSet(&Stored->Sim, EntityFlag_Simulated));
     
+    StoreEntityReference(&Stored->Sim.Sword);
     
     world_position NewP = (IsSet(Entity, EntityFlag_NonSpatial) ? 
                            NullPosition() :
