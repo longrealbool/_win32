@@ -93,6 +93,7 @@ struct hero_bitmaps {
 struct low_entity {
   
   world_position P;  
+  world_position OldP;
   sim_entity Sim;
   
 };

@@ -79,31 +79,39 @@ StoreEntityReference(entity_reference *Ref) {
 
 
 internal sim_entity *
-AddEntityRaw(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low_entity *Source ) {
+AddEntityRaw(game_state *GameState, sim_region *SimRegion,
+             uint32 StorageIndex, low_entity *Source ) {
 
   Assert(StorageIndex);
   sim_entity *Entity = 0;
   
-  if(SimRegion->EntityCount < SimRegion->MaxEntityCount) {
+  
+  // NOTE(Egor): check for preventing multiple adding 
+  sim_entity_hash *Entry = GetHashFromStorageIndex(SimRegion, StorageIndex);
+  if(!Entry->Ptr) {
     
-    Entity = SimRegion->Entities + SimRegion->EntityCount++;
-    MapStorageIndexToEntity(SimRegion, StorageIndex, Entity);
-    
-    if(Source) {
+    if(SimRegion->EntityCount < SimRegion->MaxEntityCount) {
       
-      *Entity = Source->Sim;
-      // NOTE(Egor): when we walk here, we have Index in Reference Union from LowEntity
-      // but when we leave the scope, we already have pointer in sim_entity Reference
-      LoadEntityReference(GameState, SimRegion, &Entity->Sword);
+      Entity = SimRegion->Entities + SimRegion->EntityCount++;
+      MapStorageIndexToEntity(SimRegion, StorageIndex, Entity);
+      AddFlag(&Source->Sim, EntityFlag_Simulated);
+      
+      
+      if(Source) {
+        
+        *Entity = Source->Sim;
+        // NOTE(Egor): when we walk here, we have Index in Reference Union from LowEntity
+        // but when we leave the scope, we already have pointer in sim_entity Reference
+        LoadEntityReference(GameState, SimRegion, &Entity->Sword);
+      }
+      
+      Entity->StorageIndex = StorageIndex;
     }
-    
-    Entity->StorageIndex = StorageIndex;
-
-  }
-  else {
-    
-    InvalidCodePath;
-    
+    else {
+      
+      InvalidCodePath;
+      
+    }
   }
   
   return Entity;
@@ -201,9 +209,12 @@ EndSim(sim_region *Region, game_state *GameState) {
   sim_entity *Entity = Region->Entities;
   for(uint32 EntityIndex = 0; EntityIndex < Region->EntityCount; ++EntityIndex, ++Entity) {
     
+    
     low_entity *Stored = GameState->LowEntity + Entity->StorageIndex;
+    Assert(IsSet(&Stored->Sim, EntityFlag_Simulated));
     
     Stored->Sim = *Entity;
+    ClearFlag(&Stored->Sim, EntityFlag_Simulated);
     StoreEntityReference(&Stored->Sim.Sword);
     
     
@@ -211,10 +222,12 @@ EndSim(sim_region *Region, game_state *GameState) {
                            NullPosition() :
                            MapIntoChunkSpace(Region->World, Region->Origin, Entity->P));
     
-    
+    if(Entity->StorageIndex == 189) {
+      int a = 3;
+    }
     ChangeEntityLocation(&GameState->WorldArena, GameState->World,
                          Entity->StorageIndex, Stored, 
-                         &Stored->P, &NewP);
+                         NewP);
     
     
     if(Entity->StorageIndex == GameState->CameraFollowingEntityIndex) {
@@ -241,6 +254,8 @@ EndSim(sim_region *Region, game_state *GameState) {
       NewCameraP = Stored->P;
       
 #endif
+      
+      GameState->CameraP = NewCameraP;
     }
   }
 }

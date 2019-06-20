@@ -4,9 +4,9 @@
 
 inline world_position
 NullPosition() {
- 
+  
   world_position Result = {};
-
+  
   Result.ChunkX = CHUNK_UNITIALIZED;
   
   return Result;
@@ -15,7 +15,7 @@ NullPosition() {
 inline bool32
 IsValid(world_position P) {
   
- 
+  
   bool32 Result = (P.ChunkX != CHUNK_UNITIALIZED);
   
   return Result;
@@ -24,7 +24,7 @@ IsValid(world_position P) {
 
 inline bool32 
 IsCanonical(world *World, real32 TileRel) {
-
+  
   real32 Epsilon = 0.0001f;
   bool32 Result = (TileRel >= -(World->ChunkSideInMeters*0.5f + Epsilon) &&
                    TileRel <= (World->ChunkSideInMeters*0.5f + Epsilon));
@@ -223,7 +223,8 @@ CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
 
 inline void
 ChangeEntityLocationRaw(memory_arena *Arena, world *World, uint32 LowEntityIndex, 
-                     world_position *OldP, world_position *NewP) {
+                        world_position *OldP, world_position *NewP) {
+  
   
   Assert(!OldP || IsValid(*OldP));
   Assert(!NewP || IsValid(*NewP));
@@ -233,7 +234,7 @@ ChangeEntityLocationRaw(memory_arena *Arena, world *World, uint32 LowEntityIndex
   }
   else {
     
-    if(OldP) {
+    if(OldP ) {
       
       world_chunk *Chunk = GetChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ);
       Assert(Chunk);
@@ -304,7 +305,34 @@ ChangeEntityLocationRaw(memory_arena *Arena, world *World, uint32 LowEntityIndex
 inline void
 ChangeEntityLocation(memory_arena *Arena, world *World,
                      uint32 LowEntityIndex, low_entity *LowEntity, 
-                     world_position *OldP, world_position *NewP) {
+                     world_position NewPInit) {
+  
+  
+  
+//  world_position *OldP = 0;
+  world_position *OldP = &LowEntity->OldP;
+  world_position *NewP = 0;
+  
+  if(IsValid(NewPInit)) {
+    
+    if(LowEntityIndex == 189) {
+      
+      int a = 3;
+    }
+  }
+  
+  
+  
+  
+  if(!IsSet(&LowEntity->Sim, EntityFlag_NonSpatial) && IsValid(LowEntity->P)) {
+   
+    OldP = &LowEntity->P;
+  }
+  
+  if(IsValid(NewPInit)) {
+    
+    NewP = &NewPInit; 
+  }
   
   
   ChangeEntityLocationRaw(Arena, World,
@@ -312,6 +340,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
   
   if(NewP) {
     LowEntity->P = *NewP;
+    LowEntity->OldP = *NewP;
     ClearFlag(&LowEntity->Sim, EntityFlag_NonSpatial);
   }
   else {

@@ -667,6 +667,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     uint32 CameraTileZ = ScreenBaseZ;
     NewCameraP = ChunkPositionFromTilePosition(GameState->World, CameraTileX, CameraTileY,
                                                CameraTileZ);
+    GameState->CameraP = NewCameraP;
     
     AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
     AddFamiliar(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
@@ -699,7 +700,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     else {
       
+      Controlled->dZ = 0;
       Controlled->ddP = {};
+      Controlled->dSword = {};
       if(Controller->IsAnalog)
       {
         // analog movement
@@ -793,7 +796,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       case EntityType_Sword: {
         
         UpdateSword(SimRegion, Entity, dt);
-        PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0), 0, 1.0f, V2(26, 37));
+        PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0.1f * EntityIndex), 0, 1.0f, V2(26, 37));
         
       } break;
       case EntityType_Hero: {
@@ -804,7 +807,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           if(Controlled->EntityIndex == Entity->StorageIndex) {
             
-            Entity->dZ = Controlled->dZ;
+            if(Controlled->dZ) {
+              Entity->dZ = Controlled->dZ;
+            }
             
             move_spec MoveSpec = DefaultMoveSpec();
             MoveSpec.Speed = 50.0f;
@@ -822,6 +827,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 Sword->P = Entity->P;
                 Sword->DistanceRemaining = 5.0f;
                 Sword->dP = Controlled->dSword * 5.0f;
+                MakeEntitySpatial(Sword, Entity->P, Sword->dP);
               }
             }
           }
