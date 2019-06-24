@@ -332,7 +332,7 @@ AddPlayer(game_state *GameState) {
   
   world_position P = GameState->CameraP;
   add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, &P);
-
+  
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   Entity.Low->Sim.Height = 0.5f;
   Entity.Low->Sim.Width = 1.0f;
@@ -786,123 +786,158 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   sim_entity *Entity = SimRegion->Entities;
   for(uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
     
-    PieceGroup.Count = 0;
-    
-    real32 dt = Input->dtForFrame;
-    
-    hero_bitmaps *Hero = &GameState->Hero[Entity->FacingDirection];    
-    switch(Entity->Type) {
+    if(Entity->Updatable) {
       
-      case EntityType_Sword: {
+      move_spec MoveSpec = DefaultMoveSpec();
+      v2 ddP = {};
+      
+      PieceGroup.Count = 0;
+      real32 dt = Input->dtForFrame;
+      
+      hero_bitmaps *Hero = &GameState->Hero[Entity->FacingDirection];    
+      switch(Entity->Type) {
         
-        UpdateSword(SimRegion, Entity, dt);
-        PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0), 0, 1.0f, V2(26, 37));
-        
-      } break;
-      case EntityType_Hero: {
-        
-        for(uint32 Index = 0; Index < ArrayCount(GameState->ControlledEntities); ++Index) {
-        
-          controlled_entity *Controlled = GameState->ControlledEntities + Index;
+        case EntityType_Sword: {
           
-          if(Controlled->EntityIndex == Entity->StorageIndex) {
+          MoveSpec.Speed = 0.0f;
+          MoveSpec.Drag = 0.0f;
+          MoveSpec.UnitMaxAccelVector = true;
+          
+          v2 OldP = Entity->P;
+          real32 DistanceTravelled = Length(Entity->P - OldP);
+          
+          Entity->DistanceRemaining -= DistanceTravelled;
+          if(Entity->DistanceRemaining <= 0.0f) {
             
-            if(Controlled->dZ) {
-              Entity->dZ = Controlled->dZ;
-            }
+            MakeEntityNonSpatial(Entity);
+          }
+          
+          PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0), 0, 1.0f, V2(26, 37));
+          
+        } break;
+        case EntityType_Hero: {
+          
+          for(uint32 Index = 0; Index < ArrayCount(GameState->ControlledEntities); ++Index) {
             
-            move_spec MoveSpec = DefaultMoveSpec();
-            MoveSpec.Speed = 50.0f;
-            MoveSpec.Drag = 8.0f;
-            MoveSpec.UnitMaxAccelVector = true;
+            controlled_entity *Controlled = GameState->ControlledEntities + Index;
             
-            MoveEntity(SimRegion, Entity, Input->dtForFrame,
-                       &MoveSpec, Controlled->ddP);
-            
-            if((Controlled->dSword.X != 0.0f) || (Controlled->dSword.Y != 0.0f)) {
+            if(Controlled->EntityIndex == Entity->StorageIndex) {
               
-              sim_entity *Sword = Entity->Sword.Ptr;
-              if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
+              if(Controlled->dZ) {
+                Entity->dZ = Controlled->dZ;
+              }
+              
+              MoveSpec.Speed = 50.0f;
+              MoveSpec.Drag = 8.0f;
+              MoveSpec.UnitMaxAccelVector = true;
+              ddP = Controlled->ddP;
+              
+              if((Controlled->dSword.X != 0.0f) || (Controlled->dSword.Y != 0.0f)) {
                 
-                Sword->P = Entity->P;
-                Sword->DistanceRemaining = 5.0f;
-                Sword->dP = Controlled->dSword * 5.0f;
-                MakeEntitySpatial(Sword, Entity->P, Sword->dP);
+                sim_entity *Sword = Entity->Sword.Ptr;
+                if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
+                  
+                  Sword->DistanceRemaining = 5.0f;
+                  MakeEntitySpatial(Sword, Entity->P, 5.0f*Controlled->dSword);
+                }
               }
             }
           }
+          
+          PushBitmap(&PieceGroup, &Hero->HeroTorso, V2(0, 0), 0, 1.0f, Hero->Align);
+          PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 0, 1.0f, Hero->Align);
+          PushBitmap(&PieceGroup, &Hero->HeroCape, V2(0, 0), 0, 1.0f, Hero->Align);
+          
+          DrawHitpoints(Entity, &PieceGroup);
+        } break;
+        case EntityType_Wall: {
+          
+          PushBitmap(&PieceGroup, &GameState->Tree, V2(0, 0), 0, 1.0f, V2(30, 60));
+        } break;
+        case EntityType_Monster: {
+          
+          PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 0, 1.0f, Hero->Align);
+          DrawHitpoints(Entity, &PieceGroup);
+        } break;
+        case EntityType_Familiar: {
+          
+          sim_entity *ClosestHero = 0;
+          real32 ClosestHeroDSq = Square(10.0f);
+          for(uint32 Index = 1; Index < SimRegion->EntityCount; ++Index) {
+            
+            sim_entity *TestEntity = SimRegion->Entities + Index;
+            if(TestEntity->Type == EntityType_Hero) {
+              
+              real32 TestDSq = LengthSq(TestEntity->P - Entity->P);
+              
+              if(ClosestHeroDSq > TestDSq && TestDSq > Square(3.0f)) {
+                
+                ClosestHero = TestEntity;
+                ClosestHeroDSq = TestDSq;
+              }
+              
+            }
+            
+          }
+          if(ClosestHero) {
+            
+            real32 Acceleration = 0.5f;
+            real32 OneOverLength = Acceleration / SquareRoot(ClosestHeroDSq);
+            ddP = (ClosestHero->P - Entity->P) * OneOverLength;
+          }
+          
+          MoveSpec.Speed = 50.0f;
+          MoveSpec.Drag = 8.0f;
+          MoveSpec.UnitMaxAccelVector = true;
+          
+          PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 1.0f, 0, Hero->Align);
+        } break;
+        default: {
+          InvalidCodePath;
+        }
+      }
+      
+      if(!IsSet(Entity, EntityFlag_NonSpatial)) {
+        
+        MoveEntity(SimRegion, Entity, Input->dtForFrame,
+                 &MoveSpec, ddP);
+      }
+      
+      real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels;
+      real32 EntityGroundPointY = CenterY - Entity->P.Y*MetersToPixels;
+      real32 EntityZ = -Entity->Z*MetersToPixels;
+      
+#if 0
+      v2 PlayerLeftTop = 
+      { PlayerGroundPointX - 0.5f*LowEntity->Width*MetersToPixels ,
+        PlayerGroundPointY - 0.5f*LowEntity->Height*MetersToPixels}
+      ;
+      v2 EntityWidthHeight = {LowEntity->Width, LowEntity->Height};
+      
+      
+#endif
+      
+      for(uint32 PieceIndex = 0; PieceIndex < PieceGroup.Count; ++PieceIndex) {
+        
+        entity_visible_piece *Piece = PieceGroup.Pieces + PieceIndex;
+        
+        v2 Cen = {
+          EntityGroundPointX + Piece->Offset.X,
+          EntityGroundPointY + Piece->Offset.Y + Piece->OffsetZ + EntityZ*Piece->OffsetZC
+        };
+        
+        if(Piece->Bitmap) {
+          
+          DrawBitmap(Buffer, Piece->Bitmap, Cen.X, Cen.Y);
+        }
+        else {
+          
+          v2 HalfDim = Piece->Dim*MetersToPixels*0.5f;
+          DrawRectangle(Buffer, Cen - HalfDim, Cen + HalfDim,
+                        Piece->R, Piece->G, Piece->B); 
         }
         
-        PushBitmap(&PieceGroup, &Hero->HeroTorso, V2(0, 0), 0, 1.0f, Hero->Align);
-        PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 0, 1.0f, Hero->Align);
-        PushBitmap(&PieceGroup, &Hero->HeroCape, V2(0, 0), 0, 1.0f, Hero->Align);
-        
-        DrawHitpoints(Entity, &PieceGroup);
-      } break;
-      case EntityType_Wall: {
-        
-        PushBitmap(&PieceGroup, &GameState->Tree, V2(0, 0), 0, 1.0f, V2(30, 60));
-      } break;
-      case EntityType_Monster: {
-        
-        UpdateMonster(SimRegion, Entity, dt);
-        PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 0, 1.0f, Hero->Align);
-        DrawHitpoints(Entity, &PieceGroup);
-      } break;
-      case EntityType_Familiar: {
-        
-        
-        UpdateFamiliar(SimRegion, Entity, dt);
-        PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 1.0f, 0, Hero->Align);
-      } break;
-      default: {
-        InvalidCodePath;
       }
-    }  
-    
-    
-    real32 ddZ = -9.8f;
-    Entity->Z = 0.5f * ddZ * Square(dt) + Entity->dZ*dt + Entity->Z;
-    Entity->dZ = ddZ*dt + Entity->dZ;
-    
-    if(Entity->Z < 0) {
-      Entity->Z = 0;
-    }
-    real32 EntityZ = -Entity->Z*MetersToPixels;
-    
-    real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels;
-    real32 EntityGroundPointY = CenterY - Entity->P.Y*MetersToPixels;
-    
-#if 0
-    v2 PlayerLeftTop = 
-    { PlayerGroundPointX - 0.5f*LowEntity->Width*MetersToPixels ,
-      PlayerGroundPointY - 0.5f*LowEntity->Height*MetersToPixels}
-    ;
-    v2 EntityWidthHeight = {LowEntity->Width, LowEntity->Height};
-    
-    
-#endif
-    
-    for(uint32 PieceIndex = 0; PieceIndex < PieceGroup.Count; ++PieceIndex) {
-      
-      entity_visible_piece *Piece = PieceGroup.Pieces + PieceIndex;
-      
-      v2 Cen = {
-        EntityGroundPointX + Piece->Offset.X,
-        EntityGroundPointY + Piece->Offset.Y + Piece->OffsetZ + EntityZ*Piece->OffsetZC
-      };
-      
-      if(Piece->Bitmap) {
-        
-        DrawBitmap(Buffer, Piece->Bitmap, Cen.X, Cen.Y);
-      }
-      else {
-        
-        v2 HalfDim = Piece->Dim*MetersToPixels*0.5f;
-        DrawRectangle(Buffer, Cen - HalfDim, Cen + HalfDim,
-                      Piece->R, Piece->G, Piece->B); 
-      }
-      
     }
   }
   

@@ -53,7 +53,8 @@ LoadEntityReference(game_state *GameState, sim_region *SimRegion, entity_referen
      
       Entry->Index = Ref->Index;
       low_entity *Low = GetLowEntity(GameState, Ref->Index);
-      Entry->Ptr = AddEntity(GameState, SimRegion, Ref->Index, Low, 0);
+      v2 SimP = GetSimSpaceP(SimRegion, Low);
+      Entry->Ptr = AddEntity(GameState, SimRegion, Ref->Index, Low, &SimP);
     }
     Ref->Ptr = Entry->Ptr;
   }
@@ -104,6 +105,7 @@ AddEntityRaw(game_state *GameState, sim_region *SimRegion,
       }
       
       Entity->StorageIndex = StorageIndex;
+      Entity->Updatable = false;
     }
     else {
       
@@ -125,6 +127,7 @@ AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low
     if(SimP) {
       
       Dest->P = *SimP;
+      Dest->Updatable = IsInRectangle(SimRegion->UpdateBounds, Dest->P);
     }
     else {
       Dest->P = GetSimSpaceP(SimRegion, Source);
@@ -136,20 +139,19 @@ AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low
 }
 
 
-
-
-
-
-
 internal sim_region *
 BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_position Origin, rectangle2 Bounds) {
   
   sim_region *SimRegion = PushStruct(SimArena, sim_region);
   ZeroStruct(SimRegion->Hash);
   
+  real32 UpdateSafetyMargin = 1.0f;
+  
   SimRegion->World = World;
   SimRegion->Origin = Origin;
-  SimRegion->Bounds = Bounds;
+  SimRegion->UpdateBounds = Bounds;
+  SimRegion->Bounds = AddRadiusTo(SimRegion->UpdateBounds,
+                                  UpdateSafetyMargin, UpdateSafetyMargin);
   
   SimRegion->MaxEntityCount = 4096;
   SimRegion->EntityCount = 0;
@@ -316,6 +318,14 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity, real32 dT, move_spec *Move
   Entity->dP = ddP*dT + Entity->dP;
   
   v2 NewPlayerP = OldPlayerP + PlayerDelta;
+  
+  real32 ddZ = -9.8f;
+  Entity->Z = 0.5f * ddZ * Square(dT) + Entity->dZ*dT + Entity->Z;
+  Entity->dZ = ddZ*dT + Entity->dZ;
+  
+  if(Entity->Z < 0) {
+    Entity->Z = 0;
+  }
   
   for(uint32 Iteration = 0; (Iteration < 4); ++Iteration) {
     

@@ -239,6 +239,16 @@ IsInRectangle(rectangle2 Rect, v2 Test) {
   return Result;
 }
 
+inline rectangle2 
+AddRadiusTo(rectangle2 Source, real32 RadiusW, real32 RadiusH) {
+  
+  rectangle2 Result;
+  Result.Min = Source.Min - V2(RadiusW, RadiusH);
+  Result.Max = Source.Max + V2(RadiusW, RadiusH);
+  
+  return Result;
+}
+
 inline v2
 GetMinCorner(rectangle2 Rect) {
   

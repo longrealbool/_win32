@@ -58,12 +58,6 @@ UpdateMonster(sim_region *SimRegion, sim_entity *Entity, real32 dt) {
 inline void
 UpdateSword(sim_region *SimRegion, sim_entity *Entity, real32 dt) {
   
-  if(IsSet(Entity, EntityFlag_NonSpatial)) {
-    
-    // NOTE(Egor): do nothing
-  }
-  else {
-    
     move_spec MoveSpec;
     MoveSpec.Speed = 0.0f;
     MoveSpec.Drag = 0.0f;
@@ -78,7 +72,6 @@ UpdateSword(sim_region *SimRegion, sim_entity *Entity, real32 dt) {
       
       MakeEntityNonSpatial(Entity);
     }
-  }
 }
 
 
