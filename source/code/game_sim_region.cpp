@@ -289,7 +289,8 @@ TestWall(real32 *tMin, real32 WallC, real32 RelX, real32 RelY,
 
 
 internal void
-MoveEntity(sim_region *SimRegion, sim_entity *Entity, real32 dT, move_spec *MoveSpec, v2 ddP) {
+MoveEntity(sim_region *SimRegion, sim_entity *Entity,
+           real32 dT, move_spec *MoveSpec, v2 ddP) {
   
   // NOTE(Egor): if entity is nonspatial we shouldn't move it, have no meaning
   Assert(!IsSet(Entity, EntityFlag_NonSpatial));
@@ -327,81 +328,111 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity, real32 dT, move_spec *Move
     Entity->Z = 0;
   }
   
+  real32 DistanceRemaining = Entity->DistanceLimit;
+  if(DistanceRemaining == 0.0f) {
+    
+    DistanceRemaining = 10000.0f;
+  }
+  
+  // NOTE(Egor): collision test iterations
   for(uint32 Iteration = 0; (Iteration < 4); ++Iteration) {
     
-    v2 WallNormal = {};
+    real32 PlayerDeltaLength = Length(PlayerDelta);
     real32 tMin = 1.0f;
-    sim_entity *HitEntity = 0;
     
-    v2 DesiredPosition = Entity->P + PlayerDelta;
-    
-    // NOTE(Egor): check if Entity Collides and Spatial
-    if(IsSet(Entity, EntityFlag_Collides) &&
-       !IsSet(Entity, EntityFlag_NonSpatial)) {
+    // TODO(Egor): What do we want to do for epsilon
+    if(PlayerDeltaLength > 0.0f ) {
+      if(PlayerDeltaLength > DistanceRemaining) {
+        
+        // NOTE(Egor): if we not having enough moving resource, we cap our
+        // movement distance
+        tMin = DistanceRemaining/ PlayerDeltaLength;
+      }
       
-      for(uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex) {
+      v2 WallNormal = {};
+      sim_entity *HitEntity = 0;
+      
+      v2 DesiredPosition = Entity->P + PlayerDelta;
+      
+      // NOTE(Egor): check if Entity Collides and Spatial
+      if(IsSet(Entity, EntityFlag_Collides) &&
+         !IsSet(Entity, EntityFlag_NonSpatial)) {
         
-        sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
-        
-        if(Entity != TestEntity) {
+        for(uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex) {
           
-          // NOTE(Egor): check if Entity Collides and Spatial
-          if(IsSet(TestEntity, EntityFlag_Collides) &&
-             !IsSet(TestEntity, EntityFlag_NonSpatial)) {
+          sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
+          
+          if(Entity != TestEntity) {
             
-            real32 DiameterW = TestEntity->Width + Entity->Width;
-            real32 DiameterH = TestEntity->Height + Entity->Height;
-            
-            v2 MinCorner = -0.5f*v2{DiameterW, DiameterH};
-            v2 MaxCorner = 0.5f*v2{DiameterW, DiameterH};
-            
-            v2 Rel = Entity->P - TestEntity->P;
-            
-            if(TestWall(&tMin, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                        MinCorner.Y, MaxCorner.Y)) {
+            // NOTE(Egor): check if Entity Collides and Spatial
+            if(IsSet(TestEntity, EntityFlag_Collides) &&
+               !IsSet(TestEntity, EntityFlag_NonSpatial)) {
               
-              WallNormal = v2{1.0f, 0.0f};
-              HitEntity = TestEntity;
-            }
-            if(TestWall(&tMin, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                        MinCorner.Y, MaxCorner.Y)) {
+              real32 DiameterW = TestEntity->Width + Entity->Width;
+              real32 DiameterH = TestEntity->Height + Entity->Height;
               
-              WallNormal = v2{-1.0f, 0.0f};
-              HitEntity = TestEntity;
-            }
-            if(TestWall(&tMin, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                        MinCorner.X, MaxCorner.X)) {
+              v2 MinCorner = -0.5f*v2{DiameterW, DiameterH};
+              v2 MaxCorner = 0.5f*v2{DiameterW, DiameterH};
               
-              WallNormal = v2{0.0f, 1.0f};
-              HitEntity = TestEntity;
-            }
-            if(TestWall(&tMin, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                        MinCorner.X, MaxCorner.X)) {
+              v2 Rel = Entity->P - TestEntity->P;
               
-              WallNormal = v2{0.0f, -1.0f};
-              HitEntity = TestEntity;
+              if(TestWall(&tMin, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                          MinCorner.Y, MaxCorner.Y)) {
+                
+                WallNormal = v2{1.0f, 0.0f};
+                HitEntity = TestEntity;
+              }
+              if(TestWall(&tMin, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                          MinCorner.Y, MaxCorner.Y)) {
+                
+                WallNormal = v2{-1.0f, 0.0f};
+                HitEntity = TestEntity;
+              }
+              if(TestWall(&tMin, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                          MinCorner.X, MaxCorner.X)) {
+                
+                WallNormal = v2{0.0f, 1.0f};
+                HitEntity = TestEntity;
+              }
+              if(TestWall(&tMin, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                          MinCorner.X, MaxCorner.X)) {
+                
+                WallNormal = v2{0.0f, -1.0f};
+                HitEntity = TestEntity;
+              }
             }
           }
         }
       }
-    }
-    
-    
-    Entity->P += tMin*PlayerDelta;    
-    if(HitEntity) {
       
-      // NOTE(Egor): reflecting vector calculation
-      PlayerDelta = DesiredPosition - Entity->P; 
-      PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
-      Entity->dP = Entity->dP - 1*Inner(Entity->dP, WallNormal)*WallNormal;
       
-      //      Entity->AbsTileZ += HitLow->dAbsTileZ; 
+      Entity->P += tMin*PlayerDelta;   
+      // NOTE(Egor): update our movement resource
+      DistanceRemaining -= tMin*PlayerDeltaLength;
+      
+      if(HitEntity) {
+        
+        // NOTE(Egor): reflecting vector calculation
+        PlayerDelta = DesiredPosition - Entity->P; 
+        PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
+        Entity->dP = Entity->dP - 1*Inner(Entity->dP, WallNormal)*WallNormal;
+        
+        //      Entity->AbsTileZ += HitLow->dAbsTileZ; 
+      }
+      else {
+        
+        break;
+      }
     }
     else {
       
       break;
     }
+  }
+  
+  if(Entity->DistanceLimit != 0.0f) {
     
+    Entity->DistanceLimit = DistanceRemaining;
   }
   
   // NOTE(Egor): updating facing directions

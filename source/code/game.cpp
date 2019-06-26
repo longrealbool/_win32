@@ -804,12 +804,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           MoveSpec.UnitMaxAccelVector = true;
           
           v2 OldP = Entity->P;
-          real32 DistanceTravelled = Length(Entity->P - OldP);
-          
-          Entity->DistanceRemaining -= DistanceTravelled;
-          if(Entity->DistanceRemaining <= 0.0f) {
+          if(Entity->DistanceLimit == 0.0f) {
             
             MakeEntityNonSpatial(Entity);
+            
           }
           
           PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0), 0, 1.0f, V2(26, 37));
@@ -837,7 +835,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 sim_entity *Sword = Entity->Sword.Ptr;
                 if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
                   
-                  Sword->DistanceRemaining = 5.0f;
+                  Sword->DistanceLimit = 5.0f;
                   MakeEntitySpatial(Sword, Entity->P, 5.0f*Controlled->dSword);
                 }
               }
@@ -899,8 +897,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       if(!IsSet(Entity, EntityFlag_NonSpatial)) {
         
-        MoveEntity(SimRegion, Entity, Input->dtForFrame,
-                 &MoveSpec, ddP);
+        MoveEntity(SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
       }
       
       real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels;
