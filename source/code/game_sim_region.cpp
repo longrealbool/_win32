@@ -287,6 +287,17 @@ TestWall(real32 *tMin, real32 WallC, real32 RelX, real32 RelY,
   return Hit;
 }
 
+internal void
+HandleCollision(sim_entity *A, sim_entity* B) {
+  
+  if((A->Type == EntityType_Monster)   &&
+     (B->Type == EntityType_Sword)) {
+    
+    --A->HitPointMax;
+    MakeEntityNonSpatial(B);
+  }
+}
+
 
 internal void
 MoveEntity(sim_region *SimRegion, sim_entity *Entity,
@@ -354,9 +365,10 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity,
       
       v2 DesiredPosition = Entity->P + PlayerDelta;
       
+      bool32 StopsOnCollision = IsSet(Entity, EntityFlag_Collides);
+      
       // NOTE(Egor): check if Entity Collides and Spatial
-      if(IsSet(Entity, EntityFlag_Collides) &&
-         !IsSet(Entity, EntityFlag_NonSpatial)) {
+      if(!IsSet(Entity, EntityFlag_NonSpatial)) {
         
         for(uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex) {
           
@@ -414,10 +426,24 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity,
         
         // NOTE(Egor): reflecting vector calculation
         PlayerDelta = DesiredPosition - Entity->P; 
+        if(StopsOnCollision) {
+          
         PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
         Entity->dP = Entity->dP - 1*Inner(Entity->dP, WallNormal)*WallNormal;
+        }
         
-        //      Entity->AbsTileZ += HitLow->dAbsTileZ; 
+        sim_entity *A = Entity;
+        sim_entity *B = HitEntity;
+        
+        if(A->Type > B->Type) {
+          
+          sim_entity *Temp = A;
+          A = B;
+          B = Temp;
+        }
+        
+        HandleCollision(A, B);
+        
       }
       else {
         
