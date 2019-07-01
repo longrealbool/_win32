@@ -805,9 +805,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           v2 OldP = Entity->P;
           if(Entity->DistanceLimit == 0.0f) {
-            
+
+            ClearCollisionRulesFor(GameState, Entity->StorageIndex);
             MakeEntityNonSpatial(Entity);
-            
           }
           
           PushBitmap(&PieceGroup, &GameState->Sword, V2(0, 0), 0, 1.0f, V2(26, 37));
@@ -837,6 +837,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                   
                   Sword->DistanceLimit = 5.0f;
                   MakeEntitySpatial(Sword, Entity->P, 5.0f*Controlled->dSword);
+                  AddCollisionRule(GameState, Entity->StorageIndex, Sword->StorageIndex, false);
                 }
               }
             }
@@ -897,7 +898,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       if(!IsSet(Entity, EntityFlag_NonSpatial)) {
         
-        MoveEntity(SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
+        MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
       }
       
       real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels;

@@ -111,7 +111,7 @@ struct entity_visible_piece {
 };
 
 enum entity_residence {
-
+  
   EntityResidence_NoneExistant,
   EntityResidence_Low,
   EntityResidence_High
@@ -126,11 +126,19 @@ struct low_entity_chunk_reference {
 
 
 struct controlled_entity {
- 
+  
   uint32 EntityIndex;
   v2 ddP;
   v2 dSword;
   real32 dZ;
+};
+
+struct pairwise_collision_rule {
+  
+  bool32 ShouldCollide;
+  uint32 StorageIndexA;
+  uint32 StorageIndexB;
+  pairwise_collision_rule *NextInHash;
 };
   
 struct game_state {
@@ -153,6 +161,10 @@ struct game_state {
   
   loaded_bitmap Tree;
   loaded_bitmap Sword;
+  
+  // TODO(Egor): must be a power of two
+  pairwise_collision_rule *CollisionRuleHash[256];
+  pairwise_collision_rule *FirstFreeCollisionRule;
 };
 
 struct entity_visible_piece_group {

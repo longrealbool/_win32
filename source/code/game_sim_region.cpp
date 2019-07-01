@@ -287,10 +287,131 @@ TestWall(real32 *tMin, real32 WallC, real32 RelX, real32 RelY,
   return Hit;
 }
 
+
+internal void
+ClearCollisionRulesFor(game_state *GameState, uint32 StorageIndex) {
+  
+  for(uint32 HashBucket = 0;
+      HashBucket < ArrayCount(GameState->CollisionRuleHash); ++HashBucket) {
+    
+    for(pairwise_collision_rule **Rule = &GameState->CollisionRuleHash[HashBucket];
+        *Rule;) {
+      
+      if((*Rule)->StorageIndexA == StorageIndex ||
+         (*Rule)->StorageIndexB == StorageIndex) {
+        
+        pairwise_collision_rule *Removed = *Rule;
+        *Rule = (*Rule)->NextInHash;
+        
+        // Put thing on a free list
+        Removed->NextInHash = GameState->FirstFreeCollisionRule;
+        GameState->FirstFreeCollisionRule = Removed;
+      }
+      else {
+        Rule = &(*Rule)->NextInHash;
+      }
+    }
+  }
+}
+
+internal void
+AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide) {
+  
+  if(StorageIndexA > StorageIndexB) {
+    
+    uint32 Temp = StorageIndexA;
+    StorageIndexA = StorageIndexB;
+    StorageIndexB = Temp;
+  }
+  
+  pairwise_collision_rule *Found = 0;
+  uint32 HashBucket = StorageIndexA & (ArrayCount(GameState->CollisionRuleHash) - 1);
+  for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket];
+      Rule;
+      Rule = Rule->NextInHash) {
+    
+    if((Rule->StorageIndexA == StorageIndexA) &&
+       (Rule->StorageIndexB == StorageIndexB)) {
+      
+      Found = Rule;
+      break;
+    }
+  }
+  
+  if(!Found) {
+    
+    Found = GameState->FirstFreeCollisionRule;
+    
+    if(Found) {
+      
+      GameState->FirstFreeCollisionRule = Found->NextInHash;
+    }
+    else {
+      
+      Found = PushStruct(&GameState->WorldArena, pairwise_collision_rule);
+    }
+    
+    Found->NextInHash = GameState->CollisionRuleHash[HashBucket];
+    GameState->CollisionRuleHash[HashBucket] = Found;
+  }
+  
+  if(Found) {
+    
+    Found->StorageIndexA = StorageIndexA;
+    Found->StorageIndexB = StorageIndexB;
+    Found->ShouldCollide = ShouldCollide;
+  }
+}
+
+internal bool32
+ShouldCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
+  
+  bool32 Result = false;
+  
+  if(A->StorageIndex > B->StorageIndex) {
+    
+    sim_entity *Temp = A;
+    A = B;
+    B = Temp;
+  }
+  
+  if(!IsSet(A, EntityFlag_NonSpatial) &&
+     !IsSet(B , EntityFlag_NonSpatial)) {
+    
+    // TODO(Egor): property-based logic should be here
+    Result = true;
+  }
+  
+  uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
+  for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket];
+      Rule;
+      Rule = Rule->NextInHash) {
+    
+    if((Rule->StorageIndexA == A->StorageIndex) &&
+       (Rule->StorageIndexB == B->StorageIndex)) {
+      
+      Result = Rule->ShouldCollide;
+      break;
+    }
+  }
+  
+  return Result;
+}
+
+
 internal bool32
 HandleCollision(sim_entity *A, sim_entity* B) {
   
   bool32 StopsOnCollision = false;
+  
+  if(A->Type == EntityType_Sword) {
+    
+    StopsOnCollision = false;
+  }
+  else {
+    
+    StopsOnCollision = true;
+  }
   
   if(A->Type > B->Type) {
     
@@ -303,28 +424,16 @@ HandleCollision(sim_entity *A, sim_entity* B) {
      (B->Type == EntityType_Sword)) {
     
     --A->HitPointMax;
-    MakeEntityNonSpatial(B);
+    //MakeEntityNonSpatial(B);
+    //StopsOnCollision = true;
   }
   
   return StopsOnCollision;
 }
 
-internal bool32
-ShouldCollide(sim_entity *A, sim_entity *B) {
-  
-  bool32 Result = false;
-  if(!IsSet(A, EntityFlag_NonSpatial) &&
-     !IsSet(B , EntityFlag_NonSpatial)) {
-    
-    Result = true;
-  }
-  
-  return Result;
-}
-
 
 internal void
-MoveEntity(sim_region *SimRegion, sim_entity *Entity,
+MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
            real32 dT, move_spec *MoveSpec, v2 ddP) {
   
   // NOTE(Egor): if entity is nonspatial we shouldn't move it, have no meaning
@@ -394,7 +503,7 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity,
         for(uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex) {
           
           sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
-          if(ShouldCollide(Entity, TestEntity)) {
+          if(ShouldCollide(GameState, Entity, TestEntity)) {
             
             real32 DiameterW = TestEntity->Width + Entity->Width;
             real32 DiameterH = TestEntity->Height + Entity->Height;
@@ -443,13 +552,17 @@ MoveEntity(sim_region *SimRegion, sim_entity *Entity,
         // NOTE(Egor): reflecting vector calculation
         PlayerDelta = DesiredPosition - Entity->P; 
         
-
+        
         
         bool32 StopsOnCollision = HandleCollision(Entity, HitEntity);
         if(StopsOnCollision) {
           
           PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
           Entity->dP = Entity->dP - 1*Inner(Entity->dP, WallNormal)*WallNormal;
+        }
+        else {
+          
+          AddCollisionRule(GameState, Entity->StorageIndex, HitEntity->StorageIndex, false);
         }
       }
       else {
