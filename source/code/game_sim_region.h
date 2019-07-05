@@ -42,13 +42,11 @@ struct sim_entity {
   entity_type Type;
   uint32 Flags;
   
-  v2 P; // NOTE(Egor): already relative to the camera
-  v2 dP;
-  real32 Z;
-  real32 dZ;
+  v3 P; // NOTE(Egor): already relative to the camera
+  v3 dP;
+  
   // NOTE(Egor): stairs implementation
   int32 dAbsTileZ;
-  uint32 ChunkZ;
 
   uint32 FacingDirection;
   
@@ -77,8 +75,8 @@ struct sim_region {
   
   world_position Origin;
   
-  rectangle2 UpdateBounds;
-  rectangle2 Bounds;
+  rectangle3 UpdateBounds;
+  rectangle3 Bounds;
   
   uint32 MaxEntityCount;
   uint32 EntityCount;

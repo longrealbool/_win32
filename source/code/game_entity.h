@@ -1,6 +1,6 @@
 #if !defined(GAME_ENTITY_H)
 
-#define INVALID_P V2(100000.0f, 100000.0f)
+#define INVALID_P V3(100000.0f, 100000.0f, 100000.0f)
 
 struct move_spec {
   
@@ -36,7 +36,7 @@ MakeEntityNonSpatial(sim_entity *Entity) {
 }
 
 inline void
-MakeEntitySpatial(sim_entity *Entity, v2 P, v2 dP) {
+MakeEntitySpatial(sim_entity *Entity, v3 P, v3 dP) {
   
   Entity->P = P;
   Entity->dP = dP;

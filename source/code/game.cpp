@@ -238,18 +238,6 @@ DrawRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax,
 }
 
 
-
-
-inline v2
-GetCameraSpaceP(game_state *GameState, low_entity *LowEntity) {
-  
-  world_difference Diff = Subtract(GameState->World,
-                                   &LowEntity->P, &GameState->CameraP);
-  return Diff.dXY;
-}
-
-
-
 struct add_low_entity_result {
   
   low_entity *Low;
@@ -752,11 +740,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   uint32 TileSpanX = 17*3;
   uint32 TileSpanY = 9*3;
+  uint32 TileSpanZ = 1;
   
-  rectangle2 CameraBounds = RectCenterDim(V2(0,0),
-                                          World->TileSideInMeters*V2((real32)TileSpanX,
-                                                                     (real32)TileSpanY));
-  
+  rectangle3 CameraBounds = RectCenterDim(V3(0,0,0),
+                                          World->TileSideInMeters*V3((real32)TileSpanX,
+                                                                     (real32)TileSpanY,
+                                                                     (real32)TileSpanZ));
   
   memory_arena SimArena;
   InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
@@ -789,7 +778,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if(Entity->Updatable) {
       
       move_spec MoveSpec = DefaultMoveSpec();
-      v2 ddP = {};
+      v3 ddP = {};
       
       PieceGroup.Count = 0;
       real32 dt = Input->dtForFrame;
@@ -803,7 +792,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           MoveSpec.Drag = 0.0f;
           MoveSpec.UnitMaxAccelVector = true;
           
-          v2 OldP = Entity->P;
           if(Entity->DistanceLimit == 0.0f) {
 
             ClearCollisionRulesFor(GameState, Entity->StorageIndex);
@@ -822,13 +810,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             if(Controlled->EntityIndex == Entity->StorageIndex) {
               
               if(Controlled->dZ) {
-                Entity->dZ = Controlled->dZ;
+                
+                Entity->dP.Z = Controlled->dZ;
               }
               
               MoveSpec.Speed = 50.0f;
               MoveSpec.Drag = 8.0f;
               MoveSpec.UnitMaxAccelVector = true;
-              ddP = Controlled->ddP;
+              ddP = V3(Controlled->ddP, 0);
               
               if((Controlled->dSword.X != 0.0f) || (Controlled->dSword.Y != 0.0f)) {
                 
@@ -836,7 +825,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
                   
                   Sword->DistanceLimit = 5.0f;
-                  MakeEntitySpatial(Sword, Entity->P, 5.0f*Controlled->dSword);
+                  MakeEntitySpatial(Sword, Entity->P, 5.0f*V3(Controlled->dSword, 0));
                   AddCollisionRule(GameState, Entity->StorageIndex, Sword->StorageIndex, false);
                 }
               }
@@ -903,7 +892,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels;
       real32 EntityGroundPointY = CenterY - Entity->P.Y*MetersToPixels;
-      real32 EntityZ = -Entity->Z*MetersToPixels;
+      real32 EntityZ = -Entity->P.Z*MetersToPixels;
       
 #if 0
       v2 PlayerLeftTop = 
@@ -940,8 +929,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   }
   
   world_position WorldOrigin = {};
-  world_difference Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
-  DrawRectangle(Buffer, Diff.dXY, V2(10.0f, 10.0f), 1.0f, 1.0f, 0.0f);
+  v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
+  DrawRectangle(Buffer, Diff.XY, V2(10.0f, 10.0f), 1.0f, 1.0f, 0.0f);
   
   
   // NOTE(Egor): Ending the simulation

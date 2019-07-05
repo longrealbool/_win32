@@ -1,12 +1,6 @@
 #if !defined(GAME_WORLD_H)
 
 
-struct world_difference {
-  
-  v2 dXY;
-  real32 dZ;
-};
-
 struct world_position {
   
   int32 ChunkX;
@@ -14,7 +8,7 @@ struct world_position {
   int32 ChunkZ;
   
   // NOTE(Egor): origin is at the center of a tile
-  v2 Offset_;
+  v3 Offset_;
 };
 
 
@@ -37,7 +31,9 @@ struct world_chunk {
 struct world {
   
   real32 TileSideInMeters;
-  real32 ChunkSideInMeters;
+  real32 TileDepthInMeters;
+//  real32 ChunkSideInMeters;
+  v3 ChunkDimInMeters;
   
   world_entity_block *FirstFree;
   
