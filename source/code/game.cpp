@@ -280,8 +280,8 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
                                                    AbsTileY, AbsTileZ);
   add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Wall, &P);
   
-  Entity.Low->Sim.Height = GameState->World->TileSideInMeters;
-  Entity.Low->Sim.Width = GameState->World->TileSideInMeters;
+  Entity.Low->Sim.Dim.X = GameState->World->TileSideInMeters;
+  Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
@@ -308,8 +308,8 @@ AddSword(game_state *GameState) {
   
   add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Sword, 0);
   
-  Entity.Low->Sim.Height = 0.5f;
-  Entity.Low->Sim.Width = 1.0f;
+  Entity.Low->Sim.Dim.Y = 0.5f;
+  Entity.Low->Sim.Dim.X = 1.0f;
   AddFlag(&Entity.Low->Sim, EntityFlag_NonSpatial);
   
   return Entity;
@@ -322,8 +322,8 @@ AddPlayer(game_state *GameState) {
   add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, &P);
   
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
-  Entity.Low->Sim.Height = 0.5f;
-  Entity.Low->Sim.Width = 1.0f;
+  Entity.Low->Sim.Dim.Y = 0.5f;
+  Entity.Low->Sim.Dim.X = 1.0f;
   InitHitPoints(Entity.Low, 3);
   
   add_low_entity_result Sword = AddSword(GameState);
@@ -347,8 +347,8 @@ AddMonster(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTi
                                                    AbsTileY, AbsTileZ);
   add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Monster, &P);
   
-  Entity.Low->Sim.Height = 0.5f;
-  Entity.Low->Sim.Width = 1.0f;
+  Entity.Low->Sim.Dim.Y = 0.5f;
+  Entity.Low->Sim.Dim.X = 1.0f;
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   InitHitPoints(Entity.Low, 3);
   
@@ -364,8 +364,8 @@ AddFamiliar(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsT
                                                    AbsTileY, AbsTileZ);
   add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Familiar, &P);
   
-  Entity.Low->Sim.Height = 0.5f;
-  Entity.Low->Sim.Width = 1.0f;
+  Entity.Low->Sim.Dim.Y = 0.5f;
+  Entity.Low->Sim.Dim.X = 1.0f;
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
@@ -533,7 +533,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     uint32 CounterOfTwo = 0;
     
-    for(uint32 ScreenIndex = 0; ScreenIndex < 4; ++ScreenIndex) {
+    for(uint32 ScreenIndex = 0; ScreenIndex < 100; ++ScreenIndex) {
       
       // TODO(Egor, TileMap): get again through logic of creating tilemap
       uint32 RandomChoice;
@@ -714,7 +714,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
       
       if(Controller->Start.EndedDown) {
-        Controlled->dZ = 5.0f;
+        Controlled->dZ = 2.0f;
       }
       
       Controlled->dSword = {};
@@ -750,7 +750,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   memory_arena SimArena;
   InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
   
-  sim_region *SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds);
+  sim_region *SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds, Input->dtForFrame);
   
   
   //

@@ -36,6 +36,7 @@ enum sim_entity_flags {
 
 struct sim_entity {
   
+  world_chunk *OldChunk;
   uint32 StorageIndex;
   bool32 Updatable;
   
@@ -47,11 +48,10 @@ struct sim_entity {
   
   // NOTE(Egor): stairs implementation
   int32 dAbsTileZ;
-
+  
   uint32 FacingDirection;
   
-  real32 Height;
-  real32 Width;
+  v3 Dim;
   
   uint32 HitPointMax;
   hit_point HitPoint[16];
@@ -72,8 +72,10 @@ struct sim_entity_hash {
 struct sim_region {
   
   world *World;
-  
   world_position Origin;
+  
+  real32 MaxEntityRadius;
+  real32 MaxEntityVelocity;
   
   rectangle3 UpdateBounds;
   rectangle3 Bounds;

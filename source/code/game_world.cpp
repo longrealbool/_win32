@@ -25,7 +25,7 @@ IsValid(world_position P) {
 inline bool32 
 IsCanonical(real32 ChunkDim, real32 TileRel) {
   
-  real32 Epsilon = 0.0001f;
+  real32 Epsilon = 0.01f;
   bool32 Result = (TileRel >= -(ChunkDim*0.5f + Epsilon) &&
                    TileRel <= (ChunkDim*0.5f + Epsilon));
   return Result;
@@ -354,12 +354,9 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
 inline world_position
 ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
   
-  v3 TileDimInMeters = V3(World->TileSideInMeters,
-                           World->TileSideInMeters,
-                           World->TileSideInMeters); 
   
-  v3 Offset = Hadamard(TileDimInMeters,
-                       V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ));
+  v3 Offset = World->TileSideInMeters *
+    V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ);
 
   world_position BasePos = {};
   
