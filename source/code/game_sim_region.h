@@ -7,7 +7,8 @@ enum entity_type {
   EntityType_Monster,
   EntityType_Familiar,
   EntityType_Wall,
-  EntityType_Sword
+  EntityType_Sword,
+  EntityType_Stairwell
 };
 
 

@@ -496,6 +496,34 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
     DistanceRemaining = 10000.0f;
   }
   
+  uint32 OverlappingCount = 0;
+  sim_entity *OverlappingEntities[16];
+  // NOTE(Egor): testing if entities overlaps
+  {
+    rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
+    for(uint32 TestEntityIndex = 0;
+        TestEntityIndex < SimRegion->EntityCount;
+        ++TestEntityIndex) {
+      
+      sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
+      if(ShouldCollide(GameState, Entity, TestEntity)) {
+        
+        rectangle3 TestEntityRect = RectCenterDim(TestEntity->P, TestEntity->Dim);
+        if(RectIntersect(EntityRect, TestEntityRect)) {
+          if(OverlappingCount < ArrayCount(OverlappingEntities)) {
+            
+            OverlappingEntities[OverlappingCount++] = TestEntity;
+          }
+          else {
+            
+            InvalidCodePath;
+          }
+        }
+      }
+    }
+  }
+  
+  
   // NOTE(Egor): collision test iterations
   for(uint32 Iteration = 0; (Iteration < 4); ++Iteration) {
     
@@ -572,12 +600,28 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
       
       if(HitEntity) {
         
+        uint32 OverlapIndex = OverlappingCount;
+        for(uint32 TestOverlapIndex = 0;
+            TestOverlapIndex < OverlappingCount;
+            ++TestOverlapIndex) {
+          
+          if(HitEntity == OverlappingEntities[TestOverlapIndex]) {
+            
+            OverlapIndex = TestOverlapIndex;
+            break;
+          }
+          else {
+            
+            ++OverlapIndex;
+          }
+        }
+        
         // NOTE(Egor): reflecting vector calculation
         PlayerDelta = DesiredPosition - Entity->P; 
         
+        bool32 WasOverlapping = OverlapIndex != OverlappingCount;
+        bool32 StopsOnCollision = HandleCollision(Entity, HitEntity, WasOverlapping);
         
-        
-        bool32 StopsOnCollision = HandleCollision(Entity, HitEntity);
         if(StopsOnCollision) {
           
           PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
@@ -587,6 +631,8 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
           
           AddCollisionRule(GameState, Entity->StorageIndex, HitEntity->StorageIndex, false);
         }
+        
+
       }
       else {
         
