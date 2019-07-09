@@ -855,8 +855,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           PushBitmap(&PieceGroup, &GameState->Tree, V2(0, 0), 0, 1.0f, V2(30, 60));
         } break;
         case EntityType_Stairwell: {
-          
-          PushBitmap(&PieceGroup, &GameState->Stairwell, V2(0, 0), 0, 1.0f, V2(30, 60));
+
+          PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Dim.XY, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Monster: {
           

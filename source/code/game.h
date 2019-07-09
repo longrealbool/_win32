@@ -132,16 +132,11 @@ struct controlled_entity {
   v2 dSword;
   real32 dZ;
 };
-enum pairwise_collision_rule_flag {
-  
-  PairCollisionFlag_ShouldCollid = (0x1 << 0),
-  PairCollisionFlag_Temporary = (0x1 << 1),
-  PairCollisionFlag_Undefined = (0x1 << 2),
-};
+
 
 struct pairwise_collision_rule {
   
-  bool32 ShouldCollide;
+  bool32 CanCollide;
   uint32 StorageIndexA;
   uint32 StorageIndexB;
   pairwise_collision_rule *NextInHash;

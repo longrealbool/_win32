@@ -344,7 +344,7 @@ ClearCollisionRulesFor(game_state *GameState, uint32 StorageIndex) {
 
 
 internal void
-AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide) {
+AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 CanCollide) {
   
   if(StorageIndexA > StorageIndexB) {
     
@@ -389,7 +389,7 @@ AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint32 StorageInde
     
     Found->StorageIndexA = StorageIndexA;
     Found->StorageIndexB = StorageIndexB;
-    Found->ShouldCollide = ShouldCollide;
+    Found->CanCollide = CanCollide;
   }
 }
 
@@ -420,7 +420,7 @@ ShouldCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
     if((Rule->StorageIndexA == A->StorageIndex) &&
        (Rule->StorageIndexB == B->StorageIndex)) {
       
-      Result = Rule->ShouldCollide;
+      Result = Rule->CanCollide;
       break;
     }
   }
@@ -469,6 +469,29 @@ HandleCollision(game_state *GameState, sim_entity *A, sim_entity* B) {
   return StopsOnCollision;
 }
 
+internal bool32 
+CanOverlap(game_state *GameState, sim_entity *Mover, sim_entity *Region) {
+  
+  bool32 Result = false;
+  if(Region->Type == EntityType_Stairwell) {
+    
+    Result = true;
+  }
+  
+  return Result;
+}
+
+
+internal void
+HandleOverlap(game_state *GameState, sim_entity *Mover,
+              sim_entity *Region, real32 dt, real32 *Ground) {
+  
+  if(Region->Type == EntityType_Stairwell) {
+    
+    
+  }
+}
+
 
 internal void
 MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
@@ -509,32 +532,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
     DistanceRemaining = 10000.0f;
   }
   
-  uint32 OverlappingCount = 0;
-  sim_entity *OverlappingEntities[16];
-  // NOTE(Egor): testing if entities overlaps
-  {
-    rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
-    for(uint32 TestEntityIndex = 0;
-        TestEntityIndex < SimRegion->EntityCount;
-        ++TestEntityIndex) {
-      
-      sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
-      if(ShouldCollide(GameState, Entity, TestEntity)) {
-        
-        rectangle3 TestEntityRect = RectCenterDim(TestEntity->P, TestEntity->Dim);
-        if(RectIntersect(EntityRect, TestEntityRect)) {
-          if(OverlappingCount < ArrayCount(OverlappingEntities)) {
-            
-              OverlappingEntities[OverlappingCount++] = TestEntity;              
-          }
-          else {
-            
-            InvalidCodePath;
-          }
-        }
-      }
-    }
-  }
+  
   
   
   // NOTE(Egor): collision test iterations
@@ -566,7 +564,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
             
             if(TestEntity->Type == EntityType_Stairwell &&
                Entity->Type == EntityType_Hero) {
-             
+              
               int a = 3;
             }
             
@@ -619,22 +617,8 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
       
       if(HitEntity) {
         
-        // NOTE(Egor): check if we was in entity which boundaries we going in
-        uint32 OverlapIndex = OverlappingCount;
-        for(uint32 TestOverlapIndex = 0;
-            TestOverlapIndex < OverlappingCount;
-            ++TestOverlapIndex) {
-          
-          if(HitEntity == OverlappingEntities[TestOverlapIndex]) {
-            
-            OverlapIndex = TestOverlapIndex;
-            break;
-          }
-        }
-        
-        bool32 WasOverlapping = OverlapIndex != OverlappingCount;
         bool32 StopsOnCollision = HandleCollision(GameState, Entity, HitEntity);
-
+        
         // NOTE(Egor): reflecting vector calculation
         PlayerDelta = DesiredPosition - Entity->P; 
         if(StopsOnCollision) {
@@ -654,7 +638,33 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
     }
   }
   
-  // TODO(Egor): this is not good, should handle the groun properly
+  real32 Ground = 0.0f;
+  
+#if 1
+  // NOTE(Egor): testing if entities overlaps
+  {
+    rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
+    for(uint32 TestEntityIndex = 0;
+        TestEntityIndex < SimRegion->EntityCount;
+        ++TestEntityIndex) {
+      
+      sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
+      if(CanOverlap(GameState, Entity, TestEntity)) {
+        
+        rectangle3 TestEntityRect = RectCenterDim(TestEntity->P, TestEntity->Dim);
+        if(RectIntersect(EntityRect, TestEntityRect)) {
+          
+          HandleOverlap(GameState, Entity, TestEntity, dT, &Ground);
+        }
+      }
+    }
+  }
+#endif
+  
+  // ---------------------------------------------------
+  
+  
+  // TODO(Egor): this is no-good, should handle the ground properly
   if(Entity->P.Z < 0) {
    
     Entity->P.Z = 0;
