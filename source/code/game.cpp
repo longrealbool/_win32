@@ -671,10 +671,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                CameraTileZ);
     GameState->CameraP = NewCameraP;
     
-    //AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
+    AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
     //AddFamiliar(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
-    
-    
     
     Memory->IsInitialized = true;
   }

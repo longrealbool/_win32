@@ -1,9 +1,12 @@
 internal sim_entity *
 AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low_entity *Source, v3 *SimP);
 
+
+
+
 inline bool32 
 EntityOverlapsRectangle(v3 P, v3 Dim, rectangle3 Rect) {
- 
+  
   rectangle3 GrownRectange = AddRadiusTo(Rect, 0.5f*Dim);
   bool32 Result = IsInRectangle(GrownRectange, P);
   
@@ -204,7 +207,7 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
               
               v3 SimSpaceP = GetSimSpaceP(SimRegion, Low);
               if(EntityOverlapsRectangle(SimSpaceP, Low->Sim.Dim, SimRegion->Bounds)) {
-                
+  
                 AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
               }
             }
@@ -339,6 +342,7 @@ ClearCollisionRulesFor(game_state *GameState, uint32 StorageIndex) {
   }
 }
 
+
 internal void
 AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide) {
   
@@ -378,6 +382,7 @@ AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint32 StorageInde
     
     Found->NextInHash = GameState->CollisionRuleHash[HashBucket];
     GameState->CollisionRuleHash[HashBucket] = Found;
+    
   }
   
   if(Found) {
@@ -425,12 +430,13 @@ ShouldCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
 
 
 internal bool32
-HandleCollision(sim_entity *A, sim_entity* B) {
+HandleCollision(game_state *GameState, sim_entity *A, sim_entity* B) {
   
   bool32 StopsOnCollision = false;
   
   if(A->Type == EntityType_Sword) {
     
+    AddCollisionRule(GameState, A->StorageIndex, B->StorageIndex, false);
     StopsOnCollision = false;
   }
   else {
@@ -451,6 +457,13 @@ HandleCollision(sim_entity *A, sim_entity* B) {
     --A->HitPointMax;
     //MakeEntityNonSpatial(B);
     //StopsOnCollision = true;
+  }
+  
+  if((A->Type == EntityType_Hero) &&
+     (B->Type == EntityType_Stairwell)) {
+    
+    AddCollisionRule(GameState, A->StorageIndex, B->StorageIndex, false);
+    StopsOnCollision = false;
   }
   
   return StopsOnCollision;
@@ -512,7 +525,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
         if(RectIntersect(EntityRect, TestEntityRect)) {
           if(OverlappingCount < ArrayCount(OverlappingEntities)) {
             
-            OverlappingEntities[OverlappingCount++] = TestEntity;
+              OverlappingEntities[OverlappingCount++] = TestEntity;              
           }
           else {
             
@@ -550,6 +563,13 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
           
           sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
           if(TestEntity != Entity) {
+            
+            if(TestEntity->Type == EntityType_Stairwell &&
+               Entity->Type == EntityType_Hero) {
+             
+              int a = 3;
+            }
+            
             if(ShouldCollide(GameState, Entity, TestEntity)) {
               
               // TODO(Egor): idk how much it will impair perfomance, but maybe
@@ -590,7 +610,6 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
             }
           }
         }
-        
       }
       
       
@@ -600,6 +619,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
       
       if(HitEntity) {
         
+        // NOTE(Egor): check if we was in entity which boundaries we going in
         uint32 OverlapIndex = OverlappingCount;
         for(uint32 TestOverlapIndex = 0;
             TestOverlapIndex < OverlappingCount;
@@ -610,29 +630,18 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
             OverlapIndex = TestOverlapIndex;
             break;
           }
-          else {
-            
-            ++OverlapIndex;
-          }
         }
         
+        bool32 WasOverlapping = OverlapIndex != OverlappingCount;
+        bool32 StopsOnCollision = HandleCollision(GameState, Entity, HitEntity);
+
         // NOTE(Egor): reflecting vector calculation
         PlayerDelta = DesiredPosition - Entity->P; 
-        
-        bool32 WasOverlapping = OverlapIndex != OverlappingCount;
-        bool32 StopsOnCollision = HandleCollision(Entity, HitEntity, WasOverlapping);
-        
         if(StopsOnCollision) {
           
           PlayerDelta = PlayerDelta - 1*Inner(PlayerDelta, WallNormal)*WallNormal;
           Entity->dP = Entity->dP - 1*Inner(Entity->dP, WallNormal)*WallNormal;
         }
-        else {
-          
-          AddCollisionRule(GameState, Entity->StorageIndex, HitEntity->StorageIndex, false);
-        }
-        
-
       }
       else {
         
