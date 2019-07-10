@@ -351,17 +351,17 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
   }
 }
 
+
 inline world_position
-ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
-  
+ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY,
+                              int32 AbsTileZ, v3 AdditionalOffset = V3(0,0,0)) {
   
   v3 Offset = World->TileSideInMeters *
     V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ);
 
   world_position BasePos = {};
-  
   // TODO(Egor): could produce floating point precision problems in future
-  world_position Result = MapIntoChunkSpace(World, BasePos, Offset);
+  world_position Result = MapIntoChunkSpace(World, BasePos, Offset + AdditionalOffset);
   
   Assert(IsCanonical(World, Result.Offset_));
   return Result;

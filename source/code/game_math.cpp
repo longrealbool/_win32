@@ -97,9 +97,74 @@ struct rectangle3 {
   v3 Max;
 };
 
+///
+///////////////////////////////////////////////
+///
+
+inline real32
+Square(real32 A) {
+  
+  real32 Result = A*A;
+  return Result;
+  
+}
+
+inline real32
+Lerp(real32 A, real32 B, real32 t) {
+  
+  real32 Result = (1.0f - t)*A + t*B;
+  return Result;
+}
+
+inline real32
+SafeRatio(real32 Numerator, real32 Divisor, real32 N) {
+  
+  real32 Result = N;
+  
+  if (Divisor != 0.0f) {
+    Result = Numerator / Divisor;
+  }
+  
+  return Result;
+}
+
+inline real32
+SafeRatio0(real32 Numerator, real32 Divisor) {
+  
+  real32 Result = SafeRatio(Numerator, Divisor, 0.0f);
+  return Result;
+}
+
+inline real32
+SafeRatio1(real32 Numerator, real32 Divisor) {
+  
+  real32 Result = SafeRatio(Numerator, Divisor, 1.0f);
+  return Result;
+}
+
+
+inline real32 
+Clamp(real32 Min, real32 Value, real32 Max) {
+  
+  real32 Result = Value;
+  
+  if(Result < Min) Result = Min;
+  if(Result > Max) Result = Max;
+  
+  return Result;
+}
+
+inline real32
+Clamp01(real32 Value) {
+  
+  real32 Result = Clamp(0.0f, Value, 1.0f);
+  return Result;
+}
+
+
 
 ///
-///////////////////////////////////
+///////////////////////////////////////////////
 ///
 
 inline v2
@@ -308,19 +373,38 @@ Length(v3 A) {
   return Result;
 }
 
+
+inline v3
+GetBarycentric(rectangle3 A, v3 P) {
+  
+  v3 Result;
+  
+  Result.X = SafeRatio0((P.X - A.Min.X), (A.Max.X - A.Min.X));
+  Result.Y = SafeRatio0((P.Y - A.Min.Y), (A.Max.Y - A.Min.Y));
+  Result.Z = SafeRatio0((P.Z - A.Min.Z), (A.Max.Z - A.Min.Z));
+  
+  return Result;
+}
+
+inline v3
+Clamp01(v3 Value) {
+  
+  v3 Result;
+  
+  Result.X = Clamp01(Value.X);
+  Result.Y = Clamp01(Value.Y);
+  Result.Z = Clamp01(Value.Z);
+  return Result;
+}
+
+
 ///
 ////////////////////////////////////////////////
 ///
 
 
 
-inline real32
-Square(real32 A) {
-  
-  real32 Result = A*A;
-  return Result;
-  
-}
+
 
 
 

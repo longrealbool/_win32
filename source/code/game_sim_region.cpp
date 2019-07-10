@@ -157,7 +157,7 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
   ZeroStruct(SimRegion->Hash);
   
   SimRegion->MaxEntityRadius = 5.0f;
-  SimRegion->MaxEntityVelocity = 30.0f;
+  SimRegion->MaxEntityVelocity = 100.0f;
   
   real32 MaxEntityVelocity = SimRegion->MaxEntityVelocity;
   real32 MaxEntityRadius = SimRegion->MaxEntityRadius;
@@ -191,24 +191,26 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
                                               SimRegion->Origin,
                                               GetMaxCorner(SimRegion->Bounds));
   
-  for(int32 ChunkY = MinChunk.ChunkY; ChunkY <= MaxChunk.ChunkY; ++ChunkY) {
-    for(int32 ChunkX = MinChunk.ChunkX; ChunkX <= MaxChunk.ChunkX; ++ChunkX) {
-      
-      world_chunk *Chunk = GetChunk(World, ChunkX, ChunkY, SimRegion->Origin.ChunkZ);
-      if(Chunk) {
+  for(int32 ChunkZ = MinChunk.ChunkZ; ChunkZ <= MaxChunk.ChunkZ; ++ChunkZ) {
+    for(int32 ChunkY = MinChunk.ChunkY; ChunkY <= MaxChunk.ChunkY; ++ChunkY) {
+      for(int32 ChunkX = MinChunk.ChunkX; ChunkX <= MaxChunk.ChunkX; ++ChunkX) {
         
-        for(world_entity_block *Block = &Chunk->FirstBlock; Block; Block = Block->Next) { 
-          for(uint32 EntityIndex = 0; EntityIndex < Block->EntityCount; ++EntityIndex) {
-            
-            uint32 LowEntityIndex = Block->LowEntityIndex[EntityIndex];
-            low_entity *Low = GameState->LowEntity + LowEntityIndex;
-            // NOTE(Egor): if entity is nonspatial we don't need to load it in sim region
-            if(!IsSet(&Low->Sim, EntityFlag_NonSpatial)) {
+        world_chunk *Chunk = GetChunk(World, ChunkX, ChunkY, ChunkZ);
+        if(Chunk) {
+          
+          for(world_entity_block *Block = &Chunk->FirstBlock; Block; Block = Block->Next) { 
+            for(uint32 EntityIndex = 0; EntityIndex < Block->EntityCount; ++EntityIndex) {
               
-              v3 SimSpaceP = GetSimSpaceP(SimRegion, Low);
-              if(EntityOverlapsRectangle(SimSpaceP, Low->Sim.Dim, SimRegion->Bounds)) {
-  
-                AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
+              uint32 LowEntityIndex = Block->LowEntityIndex[EntityIndex];
+              low_entity *Low = GameState->LowEntity + LowEntityIndex;
+              // NOTE(Egor): if entity is nonspatial we don't need to load it in sim region
+              if(!IsSet(&Low->Sim, EntityFlag_NonSpatial)) {
+                
+                v3 SimSpaceP = GetSimSpaceP(SimRegion, Low);
+                if(EntityOverlapsRectangle(SimSpaceP, Low->Sim.Dim, SimRegion->Bounds)) {
+                  
+                  AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
+                }
               }
             }
           }
@@ -394,7 +396,7 @@ AddCollisionRule(game_state *GameState, uint32 StorageIndexA, uint32 StorageInde
 }
 
 internal bool32
-ShouldCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
+CanCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
   
   bool32 Result = false;
   
@@ -410,6 +412,18 @@ ShouldCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
     
     // TODO(Egor): property-based logic should be here
     Result = true;
+  }
+  
+  if((A->Type == EntityType_Hero) &&
+     (B->Type == EntityType_Stairwell)) {
+    
+    Result = false;
+  }
+  
+  if((B->Type == EntityType_Hero) &&
+     (A->Type == EntityType_Stairwell)) {
+    
+    Result = false;
   }
   
   uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
@@ -455,14 +469,12 @@ HandleCollision(game_state *GameState, sim_entity *A, sim_entity* B) {
      (B->Type == EntityType_Sword)) {
     
     --A->HitPointMax;
-    //MakeEntityNonSpatial(B);
-    //StopsOnCollision = true;
   }
   
   if((A->Type == EntityType_Hero) &&
      (B->Type == EntityType_Stairwell)) {
     
-    AddCollisionRule(GameState, A->StorageIndex, B->StorageIndex, false);
+    //AddCollisionRule(GameState, A->StorageIndex, B->StorageIndex, false);
     StopsOnCollision = false;
   }
   
@@ -473,9 +485,11 @@ internal bool32
 CanOverlap(game_state *GameState, sim_entity *Mover, sim_entity *Region) {
   
   bool32 Result = false;
-  if(Region->Type == EntityType_Stairwell) {
-    
-    Result = true;
+  if(Mover != Region) {
+    if(Region->Type == EntityType_Stairwell) {
+      
+      Result = true;
+    }
   }
   
   return Result;
@@ -488,7 +502,13 @@ HandleOverlap(game_state *GameState, sim_entity *Mover,
   
   if(Region->Type == EntityType_Stairwell) {
     
+    // NOTE(Egor): get local normalized over axis coordinates inside AABB
+    rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
+    v3 Bary = Clamp01(GetBarycentric(RegionRect, Mover->P));
+    *Ground = Lerp(RegionRect.Min.Z, RegionRect.Max.Z, Bary.Y);
     
+    if(*Ground > 0.65f)
+      int a = 3;
   }
 }
 
@@ -568,7 +588,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
               int a = 3;
             }
             
-            if(ShouldCollide(GameState, Entity, TestEntity)) {
+            if(CanCollide(GameState, Entity, TestEntity)) {
               
               // TODO(Egor): idk how much it will impair perfomance, but maybe
               // I should fix my indentation module, and using generic { }
@@ -665,9 +685,9 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   
   
   // TODO(Egor): this is no-good, should handle the ground properly
-  if(Entity->P.Z < 0) {
+  if(Entity->P.Z < Ground) {
    
-    Entity->P.Z = 0;
+    Entity->P.Z = Ground;
     Entity->dP.Z = 0;
   }
   
