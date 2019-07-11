@@ -43,7 +43,5 @@ MakeEntitySpatial(sim_entity *Entity, v3 P, v3 dP) {
   ClearFlag(Entity, EntityFlag_NonSpatial);
 }
 
-
-
 #define GAME_ENTITY_H
 #endif

@@ -28,10 +28,11 @@ union entity_reference {
 
 enum sim_entity_flags {
   
-  EntityFlag_Collides = (1 << 1),
-  EntityFlag_NonSpatial = (1 << 2),
-  EntityFlag_Moveable = (1 << 3),
-  EntityFlag_Simulated = (1 << 30),
+  EntityFlag_Collides = (0x1 << 1),
+  EntityFlag_NonSpatial = (0x1 << 2),
+  EntityFlag_Moveable = (0x1 << 3),
+  EntityFlag_ZSupported = (0x1 << 4),
+  EntityFlag_Simulated = (0x1 << 30),
 };
 
 

@@ -414,17 +414,17 @@ CanCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
     Result = true;
   }
   
-  if((A->Type == EntityType_Hero) &&
+ /* if((A->Type == EntityType_Hero) &&
      (B->Type == EntityType_Stairwell)) {
     
     Result = false;
-  }
+  }*/
   
-  if((B->Type == EntityType_Hero) &&
+  /*if((B->Type == EntityType_Hero) &&
      (A->Type == EntityType_Stairwell)) {
     
     Result = false;
-  }
+  }*/
   
   uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
   for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket];
@@ -474,8 +474,8 @@ HandleCollision(game_state *GameState, sim_entity *A, sim_entity* B) {
   if((A->Type == EntityType_Hero) &&
      (B->Type == EntityType_Stairwell)) {
     
-    //AddCollisionRule(GameState, A->StorageIndex, B->StorageIndex, false);
-    StopsOnCollision = false;
+    // AddCollisionRule(GameState, A->StorageIndex, B->StorageIndex, false);
+    // StopsOnCollision = false;
   }
   
   return StopsOnCollision;
@@ -506,10 +506,26 @@ HandleOverlap(game_state *GameState, sim_entity *Mover,
     rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
     v3 Bary = Clamp01(GetBarycentric(RegionRect, Mover->P));
     *Ground = Lerp(RegionRect.Min.Z, RegionRect.Max.Z, Bary.Y);
-    
-    if(*Ground > 0.65f)
-      int a = 3;
   }
+}
+
+
+internal bool32
+SpeculativeCollide(sim_entity *Mover, sim_entity *Region) {
+  
+  bool32 Result = true;
+  if(Region->Type == EntityType_Stairwell) {
+    
+    // NOTE(Egor): get local normalized over axis coordinates inside AABB
+    rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
+    v3 Bary = Clamp01(GetBarycentric(RegionRect, Mover->P));
+    real32 Ground = Lerp(RegionRect.Min.Z, RegionRect.Max.Z, Bary.Y);
+    
+    real32 StepHeight = 0.1f;
+    Result = (AbsoluteValue(Mover->P.Z - Ground) > StepHeight);
+  }
+  
+  return Result;
 }
 
 
@@ -537,8 +553,11 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   ddP *= PlayerSpeed;
   
   ddP += -Entity->dP*MoveSpec->Drag;
-  // NOTE(Egor): this is gravity
-  ddP += V3(0,0, -9.8f);
+  
+  if(!IsSet(Entity, EntityFlag_ZSupported)) {
+    // NOTE(Egor): this is gravity
+    ddP += V3(0,0, -9.8f);
+  }
   
   v3 OldPlayerP = Entity->P;
   v3 PlayerDelta = (0.5f * ddP * Square(dT) + Entity->dP*dT);
@@ -551,8 +570,6 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
     
     DistanceRemaining = 10000.0f;
   }
-  
-  
   
   
   // NOTE(Egor): collision test iterations
@@ -582,16 +599,10 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
           sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
           if(TestEntity != Entity) {
             
-            if(TestEntity->Type == EntityType_Stairwell &&
-               Entity->Type == EntityType_Hero) {
-              
-              int a = 3;
-            }
-            
             if(CanCollide(GameState, Entity, TestEntity)) {
               
               // TODO(Egor): idk how much it will impair perfomance, but maybe
-              // I should fix my indentation module, and using generic { }
+              // I should fix my indentation module, and use generic { }
               v3 MinkowskiDiameter = V3(TestEntity->Dim.X + Entity->Dim.X,
                                         TestEntity->Dim.Y + Entity->Dim.Y,
                                         TestEntity->Dim.Z + Entity->Dim.Z);
@@ -601,29 +612,51 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
               
               v3 Rel = Entity->P - TestEntity->P;
               
-              if(TestWall(&tMin, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+              // TODO(Egor): this is junky, get rid of this or make sane speculative
+              // collision check
+              v3 TestWallNormal = {};
+              real32 tMinTest = tMin;
+              sim_entity *TestHitEntity = 0;
+              
+              if(TestWall(&tMinTest, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
                           MinCorner.Y, MaxCorner.Y)) {
                 
-                WallNormal = v3{1.0f, 0.0f, 0.0f};
-                HitEntity = TestEntity;
+                TestWallNormal = v3{1.0f, 0.0f, 0.0f};
+                TestHitEntity = TestEntity;
               }
-              if(TestWall(&tMin, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+              if(TestWall(&tMinTest, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
                           MinCorner.Y, MaxCorner.Y)) {
                 
-                WallNormal = v3{-1.0f, 0.0f, 0.0f};
-                HitEntity = TestEntity;
+                TestWallNormal = v3{-1.0f, 0.0f, 0.0f};
+                TestHitEntity = TestEntity;
               }
-              if(TestWall(&tMin, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+              if(TestWall(&tMinTest, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
                           MinCorner.X, MaxCorner.X)) {
                 
-                WallNormal = v3{0.0f, 1.0f, 0.0f};
-                HitEntity = TestEntity;
+                TestWallNormal = v3{0.0f, 1.0f, 0.0f};
+                TestHitEntity = TestEntity;
               }
-              if(TestWall(&tMin, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+              if(TestWall(&tMinTest, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
                           MinCorner.X, MaxCorner.X)) {
                 
-                WallNormal = v3{0.0f, -1.0f, 0.0f};
-                HitEntity = TestEntity;
+                TestWallNormal = v3{0.0f, -1.0f, 0.0f};
+                TestHitEntity = TestEntity;
+              }
+              
+              if(TestEntity->Type == EntityType_Stairwell) {
+                
+                int a = 3; 
+              }
+              
+              if(TestHitEntity) {
+                
+                v3 TestP = Entity->P + PlayerDelta*tMinTest;
+                if(SpeculativeCollide(Entity, TestEntity)) {
+                  
+                  WallNormal = TestWallNormal;
+                  tMin = tMinTest;
+                  HitEntity = TestHitEntity; 
+                }
               }
             }
           }
@@ -685,10 +718,16 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   
   
   // TODO(Egor): this is no-good, should handle the ground properly
-  if(Entity->P.Z < Ground) {
+  if((Entity->P.Z <= Ground) || 
+     (IsSet(Entity, EntityFlag_ZSupported) && Entity->dP.Z == 0.0f)) {
    
     Entity->P.Z = Ground;
     Entity->dP.Z = 0;
+    AddFlag(Entity, EntityFlag_ZSupported);
+  }
+  else {
+    
+    ClearFlag(Entity, EntityFlag_ZSupported);
   }
   
   if(Entity->DistanceLimit != 0.0f) {
