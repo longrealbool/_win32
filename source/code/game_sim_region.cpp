@@ -20,7 +20,7 @@ GetSimSpaceP(sim_region *SimRegion, low_entity *Stored) {
   if(!IsSet(&Stored->Sim, EntityFlag_NonSpatial)) {
     
     Result = Subtract(SimRegion->World,
-                                     &Stored->P, &SimRegion->Origin);
+                      &Stored->P, &SimRegion->Origin);
   }
   
   return Result;
@@ -61,7 +61,7 @@ LoadEntityReference(game_state *GameState, sim_region *SimRegion, entity_referen
     
     sim_entity_hash *Entry = GetHashFromStorageIndex(SimRegion, Ref->Index);
     if(Entry->Ptr == 0) {
-     
+      
       Entry->Index = Ref->Index;
       low_entity *Low = GetLowEntity(GameState, Ref->Index);
       v3 SimP = GetSimSpaceP(SimRegion, Low);
@@ -86,7 +86,7 @@ StoreEntityReference(entity_reference *Ref) {
 internal sim_entity *
 AddEntityRaw(game_state *GameState, sim_region *SimRegion,
              uint32 StorageIndex, low_entity *Source ) {
-
+  
   Assert(StorageIndex);
   sim_entity *Entity = 0;
   
@@ -164,7 +164,7 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
   
   real32 UpdateSafetyMargin =  MaxEntityRadius + dt* MaxEntityVelocity;
   real32 UpdateSafetyMarginZ = 1.0f;
-
+  
   
   SimRegion->World = World;
   SimRegion->Origin = Origin;
@@ -186,7 +186,7 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
   world_position MinChunk = MapIntoChunkSpace(World,
                                               SimRegion->Origin,
                                               GetMinCorner(SimRegion->Bounds));
-                                              
+  
   world_position MaxChunk = MapIntoChunkSpace(World,
                                               SimRegion->Origin,
                                               GetMaxCorner(SimRegion->Bounds));
@@ -414,15 +414,15 @@ CanCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
     Result = true;
   }
   
- /* if((A->Type == EntityType_Hero) &&
-     (B->Type == EntityType_Stairwell)) {
-    
-    Result = false;
-  }*/
+  /* if((A->Type == EntityType_Hero) &&
+      (B->Type == EntityType_Stairwell)) {
+      
+     Result = false;
+   }*/
   
   /*if((B->Type == EntityType_Hero) &&
      (A->Type == EntityType_Stairwell)) {
-    
+     
     Result = false;
   }*/
   
@@ -609,60 +609,62 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
               
               v3 MinCorner = -0.5f*MinkowskiDiameter;
               v3 MaxCorner = 0.5f*MinkowskiDiameter;
-              
               v3 Rel = Entity->P - TestEntity->P;
               
-              // TODO(Egor): this is junky, get rid of this or make sane speculative
-              // collision check
-              v3 TestWallNormal = {};
-              real32 tMinTest = tMin;
-              sim_entity *TestHitEntity = 0;
-              
-              if(TestWall(&tMinTest, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                          MinCorner.Y, MaxCorner.Y)) {
+              if((Rel.Z >= MinCorner.Z) &&
+                 (Rel.Z < MaxCorner.Z)) {
                 
-                TestWallNormal = v3{1.0f, 0.0f, 0.0f};
-                TestHitEntity = TestEntity;
-              }
-              if(TestWall(&tMinTest, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                          MinCorner.Y, MaxCorner.Y)) {
+                // TODO(Egor): this is junky, get rid of this or make sane speculative
+                // collision check
+                v3 TestWallNormal = {};
+                real32 tMinTest = tMin;
+                sim_entity *TestHitEntity = 0;
                 
-                TestWallNormal = v3{-1.0f, 0.0f, 0.0f};
-                TestHitEntity = TestEntity;
-              }
-              if(TestWall(&tMinTest, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                          MinCorner.X, MaxCorner.X)) {
-                
-                TestWallNormal = v3{0.0f, 1.0f, 0.0f};
-                TestHitEntity = TestEntity;
-              }
-              if(TestWall(&tMinTest, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                          MinCorner.X, MaxCorner.X)) {
-                
-                TestWallNormal = v3{0.0f, -1.0f, 0.0f};
-                TestHitEntity = TestEntity;
-              }
-              
-              if(TestEntity->Type == EntityType_Stairwell) {
-                
-                int a = 3; 
-              }
-              
-              if(TestHitEntity) {
-                
-                v3 TestP = Entity->P + PlayerDelta*tMinTest;
-                if(SpeculativeCollide(Entity, TestEntity)) {
+                if(TestWall(&tMinTest, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                            MinCorner.Y, MaxCorner.Y)) {
                   
-                  WallNormal = TestWallNormal;
-                  tMin = tMinTest;
-                  HitEntity = TestHitEntity; 
+                  TestWallNormal = v3{1.0f, 0.0f, 0.0f};
+                  TestHitEntity = TestEntity;
+                }
+                if(TestWall(&tMinTest, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                            MinCorner.Y, MaxCorner.Y)) {
+                  
+                  TestWallNormal = v3{-1.0f, 0.0f, 0.0f};
+                  TestHitEntity = TestEntity;
+                }
+                if(TestWall(&tMinTest, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                            MinCorner.X, MaxCorner.X)) {
+                  
+                  TestWallNormal = v3{0.0f, 1.0f, 0.0f};
+                  TestHitEntity = TestEntity;
+                }
+                if(TestWall(&tMinTest, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                            MinCorner.X, MaxCorner.X)) {
+                  
+                  TestWallNormal = v3{0.0f, -1.0f, 0.0f};
+                  TestHitEntity = TestEntity;
+                }
+                
+                if(TestEntity->Type == EntityType_Stairwell) {
+                  
+                  int a = 3; 
+                }
+                
+                if(TestHitEntity) {
+                  
+                  v3 TestP = Entity->P + PlayerDelta*tMinTest;
+                  if(SpeculativeCollide(Entity, TestEntity)) {
+                    
+                    WallNormal = TestWallNormal;
+                    tMin = tMinTest;
+                    HitEntity = TestHitEntity; 
+                  }
                 }
               }
             }
           }
         }
       }
-      
       
       Entity->P += tMin*PlayerDelta;   
       // NOTE(Egor): update our movement resource
