@@ -282,6 +282,7 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
   
   Entity.Low->Sim.Dim.X = GameState->World->TileSideInMeters;
   Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
+  Entity.Low->Sim.Dim.Z = 0.5f * GameState->World->TileSideInMeters;
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
@@ -341,6 +342,7 @@ AddPlayer(game_state *GameState) {
   
   Entity.Low->Sim.Dim.Y = 0.5f;
   Entity.Low->Sim.Dim.X = 1.0f;
+  Entity.Low->Sim.Dim.Z = 0.5f;
   InitHitPoints(Entity.Low, 3);
   
   add_low_entity_result Sword = AddSword(GameState);
@@ -912,7 +914,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels;
       real32 EntityGroundPointY = CenterY - Entity->P.Y*MetersToPixels;
-      real32 EntityZ = -Entity->P.Z*MetersToPixels;
+
+      real32 ZFudge = Entity->P.Z * (Entity->P.X *0.05f  + Entity->P.Y *0.05f) * 0.4f  * MetersToPixels;
+      
+      real32 EntityZ = -Entity->P.Z*MetersToPixels + ZFudge;
       
 #if 0
       v2 PlayerLeftTop = 
@@ -932,6 +937,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           EntityGroundPointX + Piece->Offset.X,
           EntityGroundPointY + Piece->Offset.Y + Piece->OffsetZ + EntityZ*Piece->OffsetZC
         };
+        
+        Cen += V2(ZFudge, ZFudge);
         
         if(Piece->Bitmap) {
           
