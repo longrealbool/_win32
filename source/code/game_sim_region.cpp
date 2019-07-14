@@ -601,6 +601,11 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
             
             if(CanCollide(GameState, Entity, TestEntity)) {
               
+              if(TestEntity->Type == EntityType_Monster) {
+                
+                int a = 3;
+              }
+              
               // TODO(Egor): idk how much it will impair perfomance, but maybe
               // I should fix my indentation module, and use generic { }
               v3 MinkowskiDiameter = V3(TestEntity->Dim.X + Entity->Dim.X,

@@ -244,6 +244,8 @@ struct add_low_entity_result {
   uint32 Index;
 };
 
+
+
 internal add_low_entity_result
 AddLowEntity(game_state *GameState, entity_type EntityType, world_position *P) {
   
@@ -274,15 +276,26 @@ AddLowEntity(game_state *GameState, entity_type EntityType, world_position *P) {
 
 
 internal add_low_entity_result
+AddGroundedEntity(game_state *GameState, entity_type EntityType, world_position *P, v3 Dim) {
+ 
+  world_position OffsetP = MapIntoChunkSpace(GameState->World, *P, V3(0.0f, 0.0f, 0.5f*Dim.Z));
+  add_low_entity_result Entity = AddLowEntity(GameState, EntityType, &OffsetP);
+  Entity.Low->Sim.Dim = Dim; 
+  
+  return Entity;
+}
+
+
+internal add_low_entity_result
 AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+  
+  v3 Dim = V3(GameState->World->TileSideInMeters,
+              GameState->World->TileSideInMeters,
+              GameState->World->TileDepthInMeters);
   
   world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
                                                    AbsTileY, AbsTileZ);
-  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Wall, &P);
-  
-  Entity.Low->Sim.Dim.X = GameState->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.Z = 0.5f * GameState->World->TileSideInMeters;
+  add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Wall, &P, Dim);
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
@@ -291,14 +304,12 @@ AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
 internal add_low_entity_result
 AddStair(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
-  world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
-                                                   AbsTileY, AbsTileZ,
-                                                   V3(0.0f, 0.0f, 0.5f * GameState->World->TileDepthInMeters));
-  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Stairwell, &P);
+  v3 Dim = V3(GameState->World->TileSideInMeters,
+              2.0f * GameState->World->TileSideInMeters,
+              GameState->World->TileDepthInMeters);
   
-  Entity.Low->Sim.Dim.X = GameState->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.Y = 2.0f * GameState->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.Z = GameState->World->TileDepthInMeters;
+  world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
+  add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Stairwell, &P, Dim);
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
@@ -327,7 +338,8 @@ AddSword(game_state *GameState) {
   
   Entity.Low->Sim.Dim.Y = 0.5f;
   Entity.Low->Sim.Dim.X = 1.0f;
-  AddFlag(&Entity.Low->Sim, EntityFlag_NonSpatial | EntityFlag_Moveable);
+  Entity.Low->Sim.Dim.Z = 0.1f;
+  AddFlag(&Entity.Low->Sim, EntityFlag_NonSpatial | EntityFlag_Moveable | EntityFlag_Collides);
   
   return Entity;
 }
@@ -335,20 +347,16 @@ AddSword(game_state *GameState) {
 internal add_low_entity_result
 AddPlayer(game_state *GameState) {
   
+  v3 Dim = V3(1.0f,
+              0.5f,
+              0.63f);
+  
   world_position P = GameState->CameraP;
-  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, &P);
-  
+  add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Hero, &P, Dim);
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides | EntityFlag_Moveable);
-  
-  Entity.Low->Sim.Dim.Y = 0.5f;
-  Entity.Low->Sim.Dim.X = 1.0f;
-  Entity.Low->Sim.Dim.Z = 0.5f;
   InitHitPoints(Entity.Low, 3);
-  
   add_low_entity_result Sword = AddSword(GameState);
-  
   Entity.Low->Sim.Sword.Index = Sword.Index;
-  
   
   // NOTE(Egor): if camera doesn't follows any entity, make it follow this
   if(GameState->CameraFollowingEntityIndex == 0) {
@@ -362,12 +370,11 @@ AddPlayer(game_state *GameState) {
 internal add_low_entity_result
 AddMonster(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
-  world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
-                                                   AbsTileY, AbsTileZ);
-  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Monster, &P);
-  
-  Entity.Low->Sim.Dim.Y = 0.5f;
-  Entity.Low->Sim.Dim.X = 1.0f;
+  v3 Dim = V3(1.0f,
+              0.5f,
+              0.5f);
+  world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
+  add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Monster, &P, Dim);
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   InitHitPoints(Entity.Low, 3);
   
@@ -375,17 +382,15 @@ AddMonster(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTi
 }
 
 
-
 internal add_low_entity_result
 AddFamiliar(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
+  v3 Dim = V3(1.0f, 0.5f, 0.5f);
   world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
                                                    AbsTileY, AbsTileZ);
-  add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Familiar, &P);
+  add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Familiar, &P, Dim);
   
   AddFlag(&Entity.Low->Sim, EntityFlag_Moveable);
-  Entity.Low->Sim.Dim.Y = 0.5f;
-  Entity.Low->Sim.Dim.X = 1.0f;
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   
   return Entity;
@@ -534,7 +539,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     GameState->World = PushStruct(&GameState->WorldArena, world);
     world *World = GameState->World;
-    InitializeWorld(World, 1.4f);
+    InitializeWorld(World, 1.4f, 3.0f);
     
     int32 TileSideInPixels = 60;
     GameState->MetersToPixels = TileSideInPixels/World->TileSideInMeters;
@@ -911,13 +916,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
       }
-      
-      real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels;
-      real32 EntityGroundPointY = CenterY - Entity->P.Y*MetersToPixels;
 
-      real32 ZFudge = Entity->P.Z * (Entity->P.X *0.05f  + Entity->P.Y *0.05f) * 0.4f  * MetersToPixels;
+      real32 ZFudge = (1.0f + 0.05f*Entity->P.Z);
+      real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels*ZFudge;
+      real32 EntityGroundPointY = CenterY - Entity->P.Y*MetersToPixels*ZFudge;
+
       
-      real32 EntityZ = -Entity->P.Z*MetersToPixels + ZFudge;
+      real32 EntityZ = -Entity->P.Z*MetersToPixels;
       
 #if 0
       v2 PlayerLeftTop = 
@@ -937,8 +942,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           EntityGroundPointX + Piece->Offset.X,
           EntityGroundPointY + Piece->Offset.Y + Piece->OffsetZ + EntityZ*Piece->OffsetZC
         };
-        
-        Cen += V2(ZFudge, ZFudge);
         
         if(Piece->Bitmap) {
           

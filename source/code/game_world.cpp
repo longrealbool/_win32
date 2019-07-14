@@ -187,16 +187,14 @@ AreInTheSameChunk(world *World, world_position *A, world_position *B) {
 
 #define TILES_PER_CHUNK 16
 internal void
-InitializeWorld(world *World, real32 TileSideInMeters) {
+InitializeWorld(world *World, real32 TileSideInMeters, real32 TileDepthInMeters) {
   
   World->TileSideInMeters = TileSideInMeters;
-  //World->ChunkSideInMeters = (real32)TILES_PER_CHUNK*TileSideInMeters;
-  
-  World->TileDepthInMeters = TileSideInMeters;
+  World->TileDepthInMeters = TileDepthInMeters;
   
   World->ChunkDimInMeters = V3((real32)(TILES_PER_CHUNK*TileSideInMeters),
                                (real32)(TILES_PER_CHUNK*TileSideInMeters),
-                               (real32)(TileSideInMeters));
+                               TileDepthInMeters);
   World->FirstFree = 0;
   
   for(uint32 ChunkIndex = 0;
@@ -356,8 +354,9 @@ inline world_position
 ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY,
                               int32 AbsTileZ, v3 AdditionalOffset = V3(0,0,0)) {
   
-  v3 Offset = World->TileSideInMeters *
-    V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ);
+  v3 TileDim = V3(World->TileSideInMeters, World->TileSideInMeters, World->TileDepthInMeters);
+  
+  v3 Offset = Hadamard(TileDim, V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ));
 
   world_position BasePos = {};
   // TODO(Egor): could produce floating point precision problems in future

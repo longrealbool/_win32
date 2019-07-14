@@ -538,12 +538,12 @@ RectMinDim(v3 Min, v3 Dim) {
 inline bool32
 RectIntersect(rectangle3 A, rectangle3 B) {
   
-  bool32 Result = !(A.Min.X > B.Max.X ||
-                    A.Max.X < B.Min.X ||
-                    A.Min.Y > B.Max.Y ||
-                    A.Max.Y < B.Min.Y ||
-                    A.Min.Z > B.Max.Z ||
-                    A.Max.Z < B.Min.Z);
+  bool32 Result = !(A.Min.X >= B.Max.X ||
+                    A.Max.X <= B.Min.X ||
+                    A.Min.Y >= B.Max.Y ||
+                    A.Max.Y <= B.Min.Y ||
+                    A.Min.Z >= B.Max.Z ||
+                    A.Max.Z <= B.Min.Z);
   
   return Result;
 }
