@@ -523,6 +523,11 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region) {
     
     real32 StepHeight = 0.1f;
     Result = (AbsoluteValue(Mover->P.Z - Ground) > StepHeight);
+    
+    if(Result == false) {
+      
+      int a = 3;
+    }
   }
   
   return Result;
@@ -725,6 +730,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   
   
   // TODO(Egor): this is no-good, should handle the ground properly
+  Ground += 0.5f * Entity->Dim.Z;
   if((Entity->P.Z <= Ground) || 
      (IsSet(Entity, EntityFlag_ZSupported) && Entity->dP.Z == 0.0f)) {
    

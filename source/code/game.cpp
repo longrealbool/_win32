@@ -349,7 +349,7 @@ AddPlayer(game_state *GameState) {
   
   v3 Dim = V3(1.0f,
               0.5f,
-              0.63f);
+              0.62f);
   
   world_position P = GameState->CameraP;
   add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Hero, &P, Dim);
@@ -423,7 +423,7 @@ PushPiece(entity_visible_piece_group *Group, loaded_bitmap *Bitmap,
   entity_visible_piece *Piece = Group->Pieces + Group->Count++;
   Piece->Bitmap = Bitmap;
   Piece->Offset = Group->GameState->MetersToPixels*V2(Offset.X, -Offset.Y) - Align;
-  Piece->OffsetZ = Group->GameState->MetersToPixels*OffsetZ;
+  Piece->OffsetZ = OffsetZ;
   Piece->OffsetZC = OffsetZC;
   
   Piece->Dim = Dim;
@@ -866,7 +866,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Stairwell: {
           
-          PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Dim.XY, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Dim.XY, V4(1.0f, 0.5f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), Entity->Dim.Z, 0.0f, Entity->Dim.XY, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Monster: {
           
@@ -916,13 +917,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
       }
-
-      real32 ZFudge = (1.0f + 0.05f*Entity->P.Z);
-      real32 EntityGroundPointX = CenterX + Entity->P.X*MetersToPixels*ZFudge;
-      real32 EntityGroundPointY = CenterY - Entity->P.Y*MetersToPixels*ZFudge;
-
       
-      real32 EntityZ = -Entity->P.Z*MetersToPixels;
+#if 0
+      v3 EntityBaseP = Entity->P - V3(0, 0, 0.5f * Entity->Dim.Z);
+      
+      real32 ZFudge = (1.0f + 0.05f*Entity->P.Z);
+      real32 EntityGroundPointX = CenterX + EntityBaseP.X*MetersToPixels*ZFudge;
+      real32 EntityGroundPointY = CenterY - EntityBaseP.Y*MetersToPixels*ZFudge;
+      
+      
+      real32 EntityZ = -EntityBaseP.Z*MetersToPixels;
+#endif
       
 #if 0
       v2 PlayerLeftTop = 
@@ -935,12 +940,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 #endif
       
       for(uint32 PieceIndex = 0; PieceIndex < PieceGroup.Count; ++PieceIndex) {
-        
+
         entity_visible_piece *Piece = PieceGroup.Pieces + PieceIndex;
+        
+        v3 EntityBaseP = Entity->P - V3(0, 0, 0.5f * Entity->Dim.Z);
+        real32 ZFudge = (1.0f + 0.1f*(EntityBaseP.Z + Piece->OffsetZ));
+        
+        real32 EntityGroundPointX = CenterX + EntityBaseP.X*MetersToPixels*ZFudge;
+        real32 EntityGroundPointY = CenterY - EntityBaseP.Y*MetersToPixels*ZFudge;
+        real32 EntityZ = -EntityBaseP.Z*MetersToPixels;
+        
+
         
         v2 Cen = {
           EntityGroundPointX + Piece->Offset.X,
-          EntityGroundPointY + Piece->Offset.Y + Piece->OffsetZ + EntityZ*Piece->OffsetZC
+          EntityGroundPointY + Piece->Offset.Y  + EntityZ*Piece->OffsetZC
         };
         
         if(Piece->Bitmap) {
