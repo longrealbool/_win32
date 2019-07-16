@@ -869,7 +869,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Stairwell: {
           
-          PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Dim.XY, V4(1.0f, 0.5f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), 1.0f * Entity->Dim.Z/5, 0.0f, Entity->Dim.XY, V4(1.0f, 0.2f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), 2.0f * Entity->Dim.Z/5, 0.0f, Entity->Dim.XY, V4(1.0f, 0.4f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), 3.0f * Entity->Dim.Z/5, 0.0f, Entity->Dim.XY, V4(1.0f, 0.6f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), 4.0f * Entity->Dim.Z/5, 0.0f, Entity->Dim.XY, V4(1.0f, 0.8f, 0.0f, 1.0f)); 
           PushRect(&PieceGroup, V2(0,0), Entity->Dim.Z, 0.0f, Entity->Dim.XY, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Monster: {
