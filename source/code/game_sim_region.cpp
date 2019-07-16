@@ -5,10 +5,10 @@ AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low
 
 
 inline bool32 
-EntityOverlapsRectangle(v3 P, v3 Dim, rectangle3 Rect) {
+EntityOverlapsRectangle(v3 P, sim_entity_collision_volume Volume, rectangle3 Rect) {
   
-  rectangle3 GrownRectange = AddRadiusTo(Rect, 0.5f*Dim);
-  bool32 Result = IsInRectangle(GrownRectange, P);
+  rectangle3 GrownRectange = AddRadiusTo(Rect, 0.5f*Volume.Dim);
+  bool32 Result = IsInRectangle(GrownRectange, P + Volume.OffsetP);
   
   return Result;
 }
@@ -138,7 +138,7 @@ AddEntity(game_state *GameState, sim_region *SimRegion, uint32 StorageIndex, low
     if(SimP) {
       
       Dest->P = *SimP;
-      Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Dim, SimRegion->UpdateBounds);
+      Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdateBounds);
     }
     else {
       Dest->P = GetSimSpaceP(SimRegion, Source);
@@ -207,7 +207,8 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
               if(!IsSet(&Low->Sim, EntityFlag_NonSpatial)) {
                 
                 v3 SimSpaceP = GetSimSpaceP(SimRegion, Low);
-                if(EntityOverlapsRectangle(SimSpaceP, Low->Sim.Dim, SimRegion->Bounds)) {
+                if(EntityOverlapsRectangle(SimSpaceP, Low->Sim.Collision->TotalVolume,
+                                           SimRegion->Bounds)) {
                   
                   AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
                 }

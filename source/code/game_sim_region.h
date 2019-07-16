@@ -36,6 +36,20 @@ enum sim_entity_flags {
 };
 
 
+struct sim_entity_collision_volume {
+
+  v3 OffsetP;
+  v3 Dim;
+};
+
+
+struct sim_entity_collision_volume_group {
+  
+  sim_entity_collision_volume TotalVolume;
+  uint32 VolumeCount;
+  sim_entity_collision_volume *Volumes;
+};
+
 
 struct sim_entity {
   
@@ -54,7 +68,7 @@ struct sim_entity {
   
   uint32 FacingDirection;
   
-  v3 Dim;
+  sim_entity_collision_volume_group *Collision;
   
   uint32 HitPointMax;
   hit_point HitPoint[16];
@@ -64,6 +78,7 @@ struct sim_entity {
   
   // NOTE(Egor): for stairs only
   real32 WalkableHeight;
+  v2 WalkableDim;
 };
 
 

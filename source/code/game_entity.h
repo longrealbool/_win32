@@ -46,7 +46,7 @@ MakeEntitySpatial(sim_entity *Entity, v3 P, v3 dP) {
 inline v3
 GetEntityGroundPoint(sim_entity *Entity) {
   
-  v3 Result = Entity->P + V3(0, 0, -0.5f*Entity->Dim.Z);
+  v3 Result = Entity->P;
   return Result;
 }
 
@@ -55,10 +55,10 @@ GetStairGround(sim_entity *Entity, v3 AtGroundPoint) {
 
   Assert(Entity->Type == EntityType_Stairwell);
   
-  rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
+  rectangle2 EntityRect = RectCenterDim(Entity->P.XY, Entity->WalkableDim);
   // NOTE(Egor): get local normalized over axis coordinates inside AABB
-  v3 Bary = Clamp01(GetBarycentric(EntityRect, AtGroundPoint));
-  real32 Ground = EntityRect.Min.Z + Bary.Y*Entity->WalkableHeight;
+  v2 Bary = Clamp01(GetBarycentric(EntityRect, AtGroundPoint.XY));
+  real32 Ground = Entity->P.Z + Bary.Y*Entity->WalkableHeight;
   
   return Ground;
 }
