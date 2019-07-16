@@ -60,8 +60,10 @@ struct sim_entity {
   hit_point HitPoint[16];
   
   entity_reference Sword;
-  //real32 DistanceRemaining;
   real32 DistanceLimit;
+  
+  // NOTE(Egor): for stairs only
+  real32 WalkableHeight;
 };
 
 

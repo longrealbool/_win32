@@ -502,10 +502,7 @@ HandleOverlap(game_state *GameState, sim_entity *Mover,
   
   if(Region->Type == EntityType_Stairwell) {
     
-    // NOTE(Egor): get local normalized over axis coordinates inside AABB
-    rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
-    v3 Bary = Clamp01(GetBarycentric(RegionRect, Mover->P));
-    *Ground = Lerp(RegionRect.Min.Z, RegionRect.Max.Z, Bary.Y);
+    *Ground = GetStairGround(Region, GetEntityGroundPoint(Mover));
   }
 }
 
@@ -516,18 +513,11 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region) {
   bool32 Result = true;
   if(Region->Type == EntityType_Stairwell) {
     
-    // NOTE(Egor): get local normalized over axis coordinates inside AABB
-    rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
-    v3 Bary = Clamp01(GetBarycentric(RegionRect, Mover->P));
-    real32 Ground = Lerp(RegionRect.Min.Z, RegionRect.Max.Z, Bary.Y);
-    
+    v3 MoverGroundPoint = GetEntityGroundPoint(Mover);
     real32 StepHeight = 0.1f;
-    Result = (AbsoluteValue(Mover->P.Z - Ground) > StepHeight);
     
-    if(Result == false) {
-      
-      int a = 3;
-    }
+    real32 Ground = GetStairGround(Region, MoverGroundPoint);
+    Result = (AbsoluteValue(MoverGroundPoint.Z - Ground) > StepHeight);
   }
   
   return Result;
@@ -730,7 +720,9 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   
   
   // TODO(Egor): this is no-good, should handle the ground properly
-  Ground += 0.5f * Entity->Dim.Z;
+  // NOTE(Egor): right now this is ground under the abstract entity location 
+  // (half Dim.Z abot the ground under the nominal foot of the player)
+  Ground += Entity->P.Z - GetEntityGroundPoint(Entity).Z;
   if((Entity->P.Z <= Ground) || 
      (IsSet(Entity, EntityFlag_ZSupported) && Entity->dP.Z == 0.0f)) {
    
