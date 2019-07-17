@@ -46,6 +46,8 @@ struct sim_entity_collision_volume {
 struct sim_entity_collision_volume_group {
   
   sim_entity_collision_volume TotalVolume;
+  
+  // TODO(Egor): must be 1 or greater
   uint32 VolumeCount;
   sim_entity_collision_volume *Volumes;
 };

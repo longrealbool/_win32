@@ -602,63 +602,82 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
                 int a = 3;
               }
               
-              // TODO(Egor): idk how much it will impair perfomance, but maybe
-              // I should fix my indentation module, and use generic { }
-              v3 MinkowskiDiameter = V3(TestEntity->Dim.X + Entity->Dim.X,
-                                        TestEntity->Dim.Y + Entity->Dim.Y,
-                                        TestEntity->Dim.Z + Entity->Dim.Z);
-              
-              v3 MinCorner = -0.5f*MinkowskiDiameter;
-              v3 MaxCorner = 0.5f*MinkowskiDiameter;
-              v3 Rel = Entity->P - TestEntity->P;
-              
-              if((Rel.Z >= MinCorner.Z) &&
-                 (Rel.Z < MaxCorner.Z)) {
+              for(uint32 EntityVolumeIndex = 0;
+                  EntityVolumeIndex < Entity->Collision->VolumeCount;
+                  ++EntityVolumeIndex) {
                 
-                // TODO(Egor): this is junky, get rid of this or make sane speculative
-                // collision check
-                v3 TestWallNormal = {};
-                real32 tMinTest = tMin;
-                sim_entity *TestHitEntity = 0;
+                sim_entity_collision_volume *Volume =
+                  Entity->Collision->Volumes + EntityVolumeIndex;
                 
-                if(TestWall(&tMinTest, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                            MinCorner.Y, MaxCorner.Y)) {
+                // NOTE(Egor): TestVolumeIndex = TestEntityVolumeIndex
+                for(uint32 TestVolumeIndex = 0;
+                    TestVolumeIndex < TestEntity->Collision->VolumeCount;
+                    ++TestVolumeIndex) {
                   
-                  TestWallNormal = v3{1.0f, 0.0f, 0.0f};
-                  TestHitEntity = TestEntity;
-                }
-                if(TestWall(&tMinTest, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                            MinCorner.Y, MaxCorner.Y)) {
+                  sim_entity_collision_volume *TestVolume =
+                    TestEntity->Collision->Volumes + TestVolumeIndex;
                   
-                  TestWallNormal = v3{-1.0f, 0.0f, 0.0f};
-                  TestHitEntity = TestEntity;
-                }
-                if(TestWall(&tMinTest, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                            MinCorner.X, MaxCorner.X)) {
                   
-                  TestWallNormal = v3{0.0f, 1.0f, 0.0f};
-                  TestHitEntity = TestEntity;
-                }
-                if(TestWall(&tMinTest, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                            MinCorner.X, MaxCorner.X)) {
+                  // TODO(Egor): idk how much it will impair perfomance, but maybe
+                  // I should fix my indentation module, and use generic { }
+                  v3 MinkowskiDiameter = V3(TestVolume->Dim.X + Volume->Dim.X,
+                                            TestVolume->Dim.Y + Volume->Dim.Y,
+                                            TestVolume->Dim.Z + Volume->Dim.Z);
                   
-                  TestWallNormal = v3{0.0f, -1.0f, 0.0f};
-                  TestHitEntity = TestEntity;
-                }
-                
-                if(TestEntity->Type == EntityType_Stairwell) {
+                  v3 MinCorner = -0.5f*MinkowskiDiameter;
+                  v3 MaxCorner = 0.5f*MinkowskiDiameter;
+                  v3 Rel = ((Entity->P + Volume->OffsetP) -
+                            (TestEntity->P + TestVolume->OffsetP));
                   
-                  int a = 3; 
-                }
-                
-                if(TestHitEntity) {
-                  
-                  v3 TestP = Entity->P + PlayerDelta*tMinTest;
-                  if(SpeculativeCollide(Entity, TestEntity)) {
+                  if((Rel.Z >= MinCorner.Z) &&
+                     (Rel.Z < MaxCorner.Z)) {
                     
-                    WallNormal = TestWallNormal;
-                    tMin = tMinTest;
-                    HitEntity = TestHitEntity; 
+                    // TODO(Egor): this is junky, get rid of this or make sane speculative
+                    // collision check
+                    v3 TestWallNormal = {};
+                    real32 tMinTest = tMin;
+                    sim_entity *TestHitEntity = 0;
+                    
+                    if(TestWall(&tMinTest, MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                                MinCorner.Y, MaxCorner.Y)) {
+                      
+                      TestWallNormal = v3{1.0f, 0.0f, 0.0f};
+                      TestHitEntity = TestEntity;
+                    }
+                    if(TestWall(&tMinTest, MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+                                MinCorner.Y, MaxCorner.Y)) {
+                      
+                      TestWallNormal = v3{-1.0f, 0.0f, 0.0f};
+                      TestHitEntity = TestEntity;
+                    }
+                    if(TestWall(&tMinTest, MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                                MinCorner.X, MaxCorner.X)) {
+                      
+                      TestWallNormal = v3{0.0f, 1.0f, 0.0f};
+                      TestHitEntity = TestEntity;
+                    }
+                    if(TestWall(&tMinTest, MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+                                MinCorner.X, MaxCorner.X)) {
+                      
+                      TestWallNormal = v3{0.0f, -1.0f, 0.0f};
+                      TestHitEntity = TestEntity;
+                    }
+                    
+                    if(TestEntity->Type == EntityType_Stairwell) {
+                      
+                      int a = 3; 
+                    }
+                    
+                    if(TestHitEntity) {
+                      
+                      v3 TestP = Entity->P + PlayerDelta*tMinTest;
+                      if(SpeculativeCollide(Entity, TestEntity)) {
+                        
+                        WallNormal = TestWallNormal;
+                        tMin = tMinTest;
+                        HitEntity = TestHitEntity; 
+                      }
+                    }
                   }
                 }
               }
@@ -699,7 +718,8 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
 #if 1
   // NOTE(Egor): testing if entities overlaps
   {
-    rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
+    rectangle3 EntityRect = RectCenterDim(Entity->P + Entity->Collision->TotalVolume.OffsetP,
+                                          Entity->Collision->TotalVolume.Dim);
     for(uint32 TestEntityIndex = 0;
         TestEntityIndex < SimRegion->EntityCount;
         ++TestEntityIndex) {
@@ -707,7 +727,8 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
       sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
       if(CanOverlap(GameState, Entity, TestEntity)) {
         
-        rectangle3 TestEntityRect = RectCenterDim(TestEntity->P, TestEntity->Dim);
+        rectangle3 TestEntityRect = RectCenterDim(TestEntity->P + TestEntity->Collision->TotalVolume.OffsetP,
+                                                  TestEntity->Collision->TotalVolume.Dim);
         if(RectIntersect(EntityRect, TestEntityRect)) {
           
           HandleOverlap(GameState, Entity, TestEntity, dT, &Ground);
