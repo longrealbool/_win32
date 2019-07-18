@@ -954,7 +954,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Wall: {
           
-          PushBitmap(&PieceGroup, &GameState->Tree, V2(0, 0), 0, 1.0f, V2(30, 60));
+          PushBitmap(&PieceGroup, &GameState->Tree, V2(0, 0), 0, 1.0f, V2(30, 30));
           //PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Stairwell: {
