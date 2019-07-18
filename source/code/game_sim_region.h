@@ -3,6 +3,9 @@
 enum entity_type {
   
   EntityType_Null,
+  
+  EntityType_Space,
+  
   EntityType_Hero,
   EntityType_Monster,
   EntityType_Familiar,
@@ -32,6 +35,7 @@ enum sim_entity_flags {
   EntityFlag_NonSpatial = (0x1 << 2),
   EntityFlag_Moveable = (0x1 << 3),
   EntityFlag_ZSupported = (0x1 << 4),
+  EntityFlag_Traversable = (0x1 << 5),
   EntityFlag_Simulated = (0x1 << 30),
 };
 

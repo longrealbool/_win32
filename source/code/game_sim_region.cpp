@@ -401,45 +401,39 @@ CanCollide(game_state *GameState, sim_entity *A, sim_entity *B) {
   
   bool32 Result = false;
   
-  if(A->StorageIndex > B->StorageIndex) {
+  if(A != B) {
     
-    sim_entity *Temp = A;
-    A = B;
-    B = Temp;
-  }
-  
-  if(!IsSet(A, EntityFlag_NonSpatial) &&
-     !IsSet(B , EntityFlag_NonSpatial)) {
-    
-    // TODO(Egor): property-based logic should be here
-    Result = true;
-  }
-  
-  /* if((A->Type == EntityType_Hero) &&
-      (B->Type == EntityType_Stairwell)) {
+    if(A->StorageIndex > B->StorageIndex) {
       
-     Result = false;
-   }*/
-  
-  /*if((B->Type == EntityType_Hero) &&
-     (A->Type == EntityType_Stairwell)) {
-     
-    Result = false;
-  }*/
-  
-  uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
-  for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket];
-      Rule;
-      Rule = Rule->NextInHash) {
+      sim_entity *Temp = A;
+      A = B;
+      B = Temp;
+    }
     
-    if((Rule->StorageIndexA == A->StorageIndex) &&
-       (Rule->StorageIndexB == B->StorageIndex)) {
+    if(IsSet(A, EntityFlag_Collides) && IsSet(B, EntityFlag_Collides)) {
       
-      Result = Rule->CanCollide;
-      break;
+      if(!IsSet(A, EntityFlag_NonSpatial) &&
+         !IsSet(B , EntityFlag_NonSpatial)) {
+        
+        // TODO(Egor): property-based logic should be here
+        Result = true;
+      }
+      
+      uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
+      for(pairwise_collision_rule *Rule = GameState->CollisionRuleHash[HashBucket];
+          Rule;
+          Rule = Rule->NextInHash) {
+        
+        if((Rule->StorageIndexA == A->StorageIndex) &&
+           (Rule->StorageIndexB == B->StorageIndex)) {
+          
+          Result = Rule->CanCollide;
+          break;
+        }
+      }
     }
   }
-  
+    
   return Result;
 }
 
