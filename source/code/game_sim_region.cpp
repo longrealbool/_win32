@@ -531,8 +531,8 @@ struct test_wall {
 };
 
 internal bool32
-EntitiesOverlap(sim_entity *Entity, sim_entity *TestEntity) {
- 
+EntitiesOverlap(sim_entity *Entity, sim_entity *TestEntity, v3 Epsilon = V3(0, 0, 0)) {
+  
   bool32 Result = false;
   for(uint32 EntityVolumeIndex = 0;
       !Result && (EntityVolumeIndex < Entity->Collision->VolumeCount);
@@ -549,9 +549,8 @@ EntitiesOverlap(sim_entity *Entity, sim_entity *TestEntity) {
       sim_entity_collision_volume *TestVolume = TestEntity->Collision->Volumes + TestVolumeIndex;
       // check multiple volumes after this
       
-      rectangle3 EntityRect = RectCenterDim(Entity->P + Volume->OffsetP, Volume->Dim);
+      rectangle3 EntityRect = RectCenterDim(Entity->P + Volume->OffsetP, Volume->Dim + Epsilon);
       rectangle3 TestEntityRect = RectCenterDim(TestEntity->P + TestVolume->OffsetP, TestVolume->Dim);
-      
       Result = RectIntersect(EntityRect, TestEntityRect);
     }
   }
@@ -609,7 +608,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
     real32 PlayerDeltaLength = Length(PlayerDelta);
     // NOTE(Egor): construction solid geometry
     real32 tMin = 1.0f;
-    real32 tMax = 1.0f;
+    real32 tMax = 0.0f;
     
     // TODO(Egor): What do we want to do for epsilon
     if(PlayerDeltaLength > 0.0f ) {
@@ -634,7 +633,11 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
           sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
           if(TestEntity != Entity) {
             
-            if(CanCollide(GameState, Entity, TestEntity)) {
+            real32 OverlapEpsion = 0.001f;
+            bool32 Collides = ((IsSet(TestEntity, EntityFlag_Traversable) &&
+                                EntitiesOverlap(Entity, TestEntity, V3(1.0f, 1.0f, 1.0f)*OverlapEpsion)) ||
+                               CanCollide(GameState, Entity, TestEntity));
+            if(Collides) {
               
               for(uint32 EntityVolumeIndex = 0;
                   EntityVolumeIndex < Entity->Collision->VolumeCount;
@@ -668,11 +671,6 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
                     
                     // TODO(Egor): this is junky, get rid of this or make sane speculative
                     // collision check
-
-                    real32 tMinTest = tMin;
-                    real32 tMaxTest = 0.0f;
-                    bool32 HitThis = false;
-                    
                     
                     test_wall Walls[] = {
                       { V3(1.0f, 0.0f, 0.0f), MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
@@ -685,48 +683,48 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
                         MinCorner.X, MaxCorner.X }
                     };
                     
-#if 0
                     // NOTE(Egor): we determine if we are handling maximum distance test
                     // for case when we want to move form one spaze_entity to another
                     if(IsSet(TestEntity, EntityFlag_Traversable)) {
                       
-                      if(true) {
-                        v3 TestWallNormal = {};
+                      real32 tMaxTest = tMax;
+                      bool32 HitThis = false;
+                      
+                      v3 TestWallNormal = {};
+                      
+                      for(uint32 WallIndex = 0; WallIndex < ArrayCount(Walls); ++WallIndex) {
                         
-                        for(uint32 WallIndex = 0; WallIndex < ArrayCount(Walls); ++WallIndex) {
+                        test_wall *Wall = Walls + WallIndex;
+                        
+                        real32 tEpsilon = 0.001f;
+                        if(Wall->DeltaX != 0.0f) {
                           
-                          test_wall *Wall = Walls + WallIndex;
+                          real32 tResult = (Wall->WallC - Wall->RelX) / Wall->DeltaX;
+                          real32 Y = Wall->RelY + tResult * Wall->DeltaY;
                           
-                          real32 tEpsilon = 0.001f;
-                          if(Wall->DeltaX != 0.0f) {
+                          if((tResult >= 0.0f) && (tMaxTest < tResult)) {
                             
-                            real32 tResult = (Wall->WallC - Wall->RelX) / Wall->DeltaX;
-                            real32 Y = Wall->RelY + tResult * Wall->DeltaY;
-                            
-                            if((tResult >= 0.0f) && (tMaxTest < tResult)) {
+                            if((Y >= Wall->MinY) && (Y < Wall->MaxY)) {
                               
-                              if((Y >= Wall->MinY) && (Y < Wall->MaxY)) {
-                                
-                                tMaxTest = tResult; 
-                                TestWallNormal = Wall->Normal;
-                                HitThis = true;
-                              }
+                              tMaxTest = Max(0.0f, tResult - tEpsilon); 
+                              TestWallNormal = Wall->Normal;
+                              HitThis = true;
                             }
                           }
-                        } // for()
-                        if(HitThis) {
-                          
-                          tMax = tMaxTest;
-                          WallNormalMax = TestWallNormal;
-                          HitEntityMax = TestEntity;
                         }
+                      } // for()
+                      if(HitThis) {
+                        
+                        tMax = tMaxTest;
+                        WallNormalMax = TestWallNormal;
+                        HitEntityMax = TestEntity;
                         
                       }// if()
                     } // if()
-                    else 
-#endif
-                    {
-
+                    else {
+                      
+                      real32 tMinTest = tMin;
+                      bool32 HitThis = false;
                       
                       v3 TestWallNormal = {};
                       
@@ -754,7 +752,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
                         
                         v3 TestP = Entity->P + PlayerDelta*tMinTest;
                         if(SpeculativeCollide(Entity, TestEntity)) {
-
+                          
                           tMin = tMinTest;
                           WallNormalMin = TestWallNormal;
                           HitEntityMin = TestEntity;
@@ -773,13 +771,13 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
       sim_entity *HitEntity = 0;
       v3 WallNormal = {};
       if(tMin < tMax) {
-       
+        
         tStop = tMin;
         HitEntity = HitEntityMin;
         WallNormal = WallNormalMin;
       }
       else {
-
+        
         tStop = tMax;
         HitEntity = HitEntityMax;
         WallNormal = WallNormalMax;
@@ -816,7 +814,6 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
 #if 1
   // NOTE(Egor): testing if entities overlaps
   {
-
     for(uint32 TestEntityIndex = 0;
         TestEntityIndex < SimRegion->EntityCount;
         ++TestEntityIndex) {
@@ -824,30 +821,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
       sim_entity *TestEntity = SimRegion->Entities + TestEntityIndex;
       if(CanOverlap(GameState, Entity, TestEntity)) {
         
-        bool32 Overlapped = false;
-        for(uint32 EntityVolumeIndex = 0;
-            !Overlapped && (EntityVolumeIndex < Entity->Collision->VolumeCount);
-            ++EntityVolumeIndex) {
-          
-          sim_entity_collision_volume *Volume =
-            Entity->Collision->Volumes + EntityVolumeIndex;
-          
-          // NOTE(Egor): TestVolumeIndex = TestEntityVolumeIndex
-          for(uint32 TestVolumeIndex = 0;
-              !Overlapped && (TestVolumeIndex < TestEntity->Collision->VolumeCount);
-              ++TestVolumeIndex) {
-            
-            sim_entity_collision_volume *TestVolume = TestEntity->Collision->Volumes + TestVolumeIndex;
-            // check multiple volumes after this
-            
-            rectangle3 EntityRect = RectCenterDim(Entity->P + Volume->OffsetP, Volume->Dim);
-            rectangle3 TestEntityRect = RectCenterDim(TestEntity->P + TestVolume->OffsetP, TestVolume->Dim);
-            
-            Overlapped = RectIntersect(EntityRect, TestEntityRect);
-          }
-        }
-        
-        if(Overlapped) {
+        if(EntitiesOverlap(Entity, TestEntity)) {
           HandleOverlap(GameState, Entity, TestEntity, dT, &Ground);
         }
       }

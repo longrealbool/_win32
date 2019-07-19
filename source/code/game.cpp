@@ -306,7 +306,7 @@ AddGroundedEntity(game_state *GameState, entity_type EntityType, world_position 
 internal add_low_entity_result
 AddWall(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
   
-
+  
   
   world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX,
                                                    AbsTileY, AbsTileZ);
@@ -378,7 +378,7 @@ AddSpace(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTile
 
 internal add_low_entity_result
 AddMonster(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
-
+  
   world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
   add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Monster, &P,
                                                    GameState->MonsterCollision);
@@ -463,14 +463,14 @@ PushRect(entity_visible_piece_group *Group,
 
 internal void 
 PushRectOutline(entity_visible_piece_group *Group,
-         v2 Offset, real32 OffsetZ, real32 OffsetZC,
-         v2 Dim, v4 Color){
+                v2 Offset, real32 OffsetZ, real32 OffsetZC,
+                v2 Dim, v4 Color){
   
   real32 Thickness = 0.1f;
   
   PushPiece(Group, 0, Offset - V2(0, Dim.Y)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Dim.X, Thickness), Color);
   PushPiece(Group, 0, Offset + V2(0, Dim.Y)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Dim.X, Thickness), Color);
-
+  
   PushPiece(Group, 0, Offset - V2(Dim.X, 0)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Thickness, Dim.Y), Color);
   PushPiece(Group, 0, Offset + V2(Dim.X, 0)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Thickness, Dim.Y), Color);
 }
@@ -506,7 +506,7 @@ DrawHitpoints(sim_entity *Entity, entity_visible_piece_group *PieceGroup) {
 
 internal sim_entity_collision_volume_group*
 MakeNullCollision(game_state *GameState) {
-
+  
   // TODO(Egor): ONLY TEMPORARY, should use another arena
   sim_entity_collision_volume_group *Group = PushStruct(&GameState->WorldArena,
                                                         sim_entity_collision_volume_group);
@@ -521,7 +521,7 @@ MakeNullCollision(game_state *GameState) {
 
 internal sim_entity_collision_volume_group*
 MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, real32 DimZ) {
-
+  
   // TODO(Egor): ONLY TEMPORARY, should use another arena
   sim_entity_collision_volume_group *Group = PushStruct(&GameState->WorldArena,
                                                         sim_entity_collision_volume_group);
@@ -529,7 +529,7 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
   Group->VolumeCount = 1;
   Group->Volumes = PushArray(&GameState->WorldArena,
                              Group->VolumeCount, sim_entity_collision_volume);
-
+  
   Group->TotalVolume.Dim = V3(DimX, DimY, DimZ);
   Group->TotalVolume.OffsetP = V3(0, 0, 0.5f * DimZ);
   Group->Volumes[0] = Group->TotalVolume;
@@ -563,7 +563,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     AddLowEntity(GameState, EntityType_Null, 0);
     // TODO(Egor): This may be more appropriate to do in the platform layer
-
+    
     GameState->NullCollision = MakeNullCollision(GameState);
     GameState->SwordCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.1f);
     GameState->PlayerCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 1.2f);
@@ -576,9 +576,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                            GameState->World->TileDepthInMeters);
     
     GameState->StairCollision = MakeSimpleGroundedCollision(GameState,
-                                                           GameState->World->TileSideInMeters,
-                                                           2.0f * GameState->World->TileSideInMeters,
-                                                           1.1f * GameState->World->TileDepthInMeters);
+                                                            GameState->World->TileSideInMeters,
+                                                            2.0f * GameState->World->TileSideInMeters,
+                                                            1.1f * GameState->World->TileDepthInMeters);
     
     GameState->StandardRoomCollision = MakeSimpleGroundedCollision(GameState, 
                                                                    TilesPerWidth * GameState->World->TileSideInMeters,
@@ -615,7 +615,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     
     //    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
-
+    
     
     int32 TileSideInPixels = 60;
     GameState->MetersToPixels = TileSideInPixels/World->TileSideInMeters;
@@ -710,7 +710,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           if(ShouldBeWall) {
             
-            AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+            if(ScreenIndex == 0) {
+              AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+            }
           }
           else if(CreatedZDoor) {
             if(TileY == 4 && TileX == 13) {
@@ -937,7 +939,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           PushBitmap(&PieceGroup, &Hero->HeroTorso, V2(0, 0), 0, 1.0f, Hero->Align);
           PushBitmap(&PieceGroup, &Hero->HeroHead, V2(0, 0), 0, 1.0f, Hero->Align);
           PushBitmap(&PieceGroup, &Hero->HeroCape, V2(0, 0), 0, 1.0f, Hero->Align);
-          //PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          PushRect(&PieceGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           
           DrawHitpoints(Entity, &PieceGroup);
         } break;
