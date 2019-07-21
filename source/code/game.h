@@ -57,18 +57,10 @@ ZeroSize(size_t Size, void *Ptr) {
   }
 }
 
-#define MINE_RAND_MAX 32767
-
-internal uint32
-RollTheDice(void) {
-  
-  static uint32 next = 17;
-  next = next * 1103515245 + 12345;
-  return (unsigned int)(next/65536) % (MINE_RAND_MAX + 1);
-}
 
 #include "game_intrinsic.h"
 #include "game_math.cpp"
+#include "game_random.h"
 #include "game_world.h"
 #include "game_sim_region.h"
 #include "game_entity.h"
@@ -142,6 +134,7 @@ struct pairwise_collision_rule {
   pairwise_collision_rule *NextInHash;
 };
 
+uint32 *RandomTable;
   
 struct game_state {
   
@@ -152,6 +145,10 @@ struct game_state {
   
   uint32 LowEntityCount;
   low_entity LowEntity[10000];
+  
+  loaded_bitmap Grass[2];
+  loaded_bitmap Stones[4];
+  loaded_bitmap Tuft[3];
   
   uint32 CameraFollowingEntityIndex;
   world_position CameraP;

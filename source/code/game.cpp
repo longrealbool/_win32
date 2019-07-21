@@ -538,14 +538,44 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
 }
 
 
+internal void
+DrawBackground(game_state *GameState, game_offscreen_buffer *Buffer) {
+
+  random_series Series = Seed(1234);
+  
+  v2 Center = 0.5f*V2i(Buffer->Width, Buffer->Height);
+  loaded_bitmap *Stamp = 0;
+  
+  real32 Radius = 5.0f;
+  
+  for(uint32 GrassIndex = 0, PatternIndex = 0;
+      GrassIndex < 150;
+      ++GrassIndex) {
+    
+    if(RandomChoice(&Series, 2)) {
+      
+      Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
+    }
+    else {
+      
+      Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
+    }
+    
+    v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+    v2 Offset = {RollTheDiceBilateral(&Series), RollTheDiceBilateral(&Series)};
+    v2 P = Center + Radius*Offset*GameState->MetersToPixels - BitmapCenter;
+    
+    DrawBitmap(Buffer, Stamp, P.X, P.Y);
+  }
+  
+}
+
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
   Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
          (ArrayCount(Input->Controllers[0].Buttons)));
   Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
-  
-  
   
   game_state *GameState = (game_state *)Memory->PermanentStorage;
   if(!Memory->IsInitialized)
@@ -615,6 +645,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     
     //    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
+    
+#if 1
+    
+    loaded_bitmap *Stones = GameState->Stones;
+    loaded_bitmap *Grass = GameState->Grass;
+    loaded_bitmap *Tuft = GameState->Tuft;
+    
+    Grass[0] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//grass00.bmp");
+    Grass[1] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//grass01.bmp");
+    
+    Stones[0] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//ground00.bmp");    
+    Stones[1] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//ground01.bmp");    
+    Stones[2] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//ground02.bmp");    
+    Stones[3] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//ground03.bmp");    
+    
+    Tuft[0] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
+    Tuft[1] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
+    Tuft[2] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
+    
+#endif 
     
     
     int32 TileSideInPixels = 60;
@@ -870,6 +920,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   DrawBitmap(Buffer, &GameState->Backdrop, 0, 0);
 #endif
   
+  DrawBackground(GameState, Buffer);
+  
   real32 CenterX = 0.5f*Buffer->Width;
   real32 CenterY = 0.5f*Buffer->Height;
   
@@ -945,6 +997,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Space: {
           
+#if 0
           for(uint32 VolumeIndex = 0;
               VolumeIndex < Entity->Collision->VolumeCount;
               ++VolumeIndex) {
@@ -952,6 +1005,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
             PushRectOutline(&PieceGroup, Volume->OffsetP.XY, 0, 0, Volume->Dim.XY, V4(0.0f, 0.0f, 1.0f, 1.0f)); 
           }
+#endif
           
         } break;
         case EntityType_Wall: {

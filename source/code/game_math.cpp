@@ -51,6 +51,20 @@ V2(real32 X, real32 Y) {
   return Result;
 }
 
+inline v2
+V2i(int32 X, int32 Y) {
+ 
+  v2 Result = {(real32)X, (real32)Y};
+  return Result;
+}
+
+inline v2
+V2i(uint32 X, uint32 Y) {
+  
+  v2 Result = {(real32)X, (real32)Y};
+  return Result;
+}
+
 inline v3
 V3(real32 X, real32 Y, real32 Z) {
   
@@ -282,6 +296,15 @@ Clamp01(v2 Value) {
   
   Result.X = Clamp01(Value.X);
   Result.Y = Clamp01(Value.Y);
+  return Result;
+}
+
+
+inline v2
+Hadamard(v2 A, v2 B) {
+  
+  v2 Result = {A.X * B.X, A.Y * B.Y};
+  
   return Result;
 }
 
