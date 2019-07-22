@@ -69,6 +69,7 @@ ZeroSize(size_t Size, void *Ptr) {
 struct loaded_bitmap {
   int32 Height;
   int32 Width;
+  int32 Pitch;
   
   uint32* Pixels;
 };

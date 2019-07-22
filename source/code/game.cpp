@@ -166,7 +166,7 @@ DrawBitmap(game_offscreen_buffer *Buffer,
   for(int Y = MinY; Y < MaxY; ++Y)
   {
     uint32 *Dest = (uint32 *)DestRow;
-    uint32 *Source = SourceRow;
+    uint32 *Source = (uint32 *)SourceRow;
     for(int X = MinX; X < MaxX; ++X)
     {
       
