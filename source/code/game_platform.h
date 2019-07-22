@@ -120,6 +120,7 @@ extern "C" {
   // FOUR THINGS - timing, controller/keyboard input, bitmap buffer to use, sound buffer to use
   
   // TODO(Egor): In the future, rendering _specifically_ will become a three-tiered abstraction!!!
+#define LOADED_BITMAP_BYTES_PER_PIXEL 4
   typedef struct game_offscreen_buffer
   {
     // NOTE(Egor): Pixels are alwasy 32-bits wide, Memory Order BB GG RR XX
@@ -127,7 +128,6 @@ extern "C" {
     int Width;
     int Height;
     int Pitch;
-    int BytesPerPixel;
   } game_offscreen_buffer;
   
   typedef struct game_sound_output_buffer

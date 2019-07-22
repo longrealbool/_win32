@@ -69,7 +69,7 @@ internal loaded_bitmap
 DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
              thread_context *Thread, char *FileName)
 {
-  loaded_bitmap LoadedBitmap = {};
+  loaded_bitmap Result = {};
   debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
   
   if(ReadResult.ContentsSize != 0) {
@@ -79,9 +79,9 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     // NOTE(Egor, bitmap_format): be aware that bitmap can have negative height for
     // top-down pictures, and there can be compression
     uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
-    LoadedBitmap.Pixels = Pixel;
-    LoadedBitmap.Height = Header->Height;
-    LoadedBitmap.Width = Header->Width;
+    Result.Memory = Pixel;
+    Result.Height = Header->Height;
+    Result.Width = Header->Width;
     
     // NOTE(Egor, bitmap_loading): we have to account all color masks in header,
     // in order to correctly load bitmaps saved with different software
@@ -121,16 +121,22 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
       }
     }
     
+    Result.Pitch = -Result.Width*LOADED_BITMAP_BYTES_PER_PIXEL;
+    // NOTE(Egor): bitmap was loaded bottom to top, so we reverse pitch (make him negative),
+    // and shift Memory ptr to top of the image (bottom of the array)
+    Result.Memory = (uint8 *)Result.Memory - (Result.Height-1)*(Result.Pitch);
   }
   
-  return LoadedBitmap;
+  
+  
+  return Result;
 }
 
 
 internal void
-DrawBitmap(game_offscreen_buffer *Buffer,
+DrawBitmap(loaded_bitmap *Buffer,
            loaded_bitmap *Bitmap,
-           real32 RealX, real32 RealY) {
+           real32 RealX, real32 RealY, real32 CAlpha) {
   
   int32 MinX = RoundReal32ToInt32(RealX);
   int32 MinY = RoundReal32ToInt32(RealY);
@@ -157,11 +163,14 @@ DrawBitmap(game_offscreen_buffer *Buffer,
   // NOTE(Egor): just example
   // uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch*Buffer->Height;
   
-  uint32 *SourceRow = (uint32 *)Bitmap->Pixels + (Bitmap->Height-1)*(Bitmap->Width);
-  SourceRow += -SourceOffsetY*Bitmap->Width + SourceOffsetX;
+
+  
+  uint8 *Test = (uint8 *)Bitmap->Memory;
+  uint8 *SourceRow = (uint8 *)Bitmap->Memory + SourceOffsetY*Bitmap->Pitch
+                      + LOADED_BITMAP_BYTES_PER_PIXEL*SourceOffsetX;
   
   // go to line to draw
-  uint8 *DestRow = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*Buffer->BytesPerPixel);
+  uint8 *DestRow = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*LOADED_BITMAP_BYTES_PER_PIXEL);
   
   for(int Y = MinY; Y < MaxY; ++Y)
   {
@@ -169,38 +178,44 @@ DrawBitmap(game_offscreen_buffer *Buffer,
     uint32 *Source = (uint32 *)SourceRow;
     for(int X = MinX; X < MaxX; ++X)
     {
+     
       
-      real32 A = (real32)((*Source >> 24) & 0xFF) / 255.0f;
+      real32 As = (real32)((*Source >> 24) & 0xFF) / 255.0f;
+      As *= CAlpha;
+      
       real32 Rs = (real32)((*Source >> 16) & 0xFF);
       real32 Gs = (real32)((*Source >> 8) & 0xFF);
       real32 Bs = (real32)((*Source >> 0) & 0xFF);
       
       
+      real32 Ad = (real32)((*Dest >> 24) & 0xFF);
       real32 Rd = (real32)((*Dest >> 16) & 0xFF);
       real32 Gd = (real32)((*Dest >> 8) & 0xFF);
       real32 Bd = (real32)((*Dest >> 0) & 0xFF);
       
-      real32 R = (1.0f - A)*Rd + A*Rs;
-      real32 G = (1.0f - A)*Gd + A*Gs;
-      real32 B = (1.0f - A)*Bd + A*Bs;
+      real32 A = Max(Ad , 255.0f*As);
+      real32 R = (1.0f - As)*Rd + As*Rs;
+      real32 G = (1.0f - As)*Gd + As*Gs;
+      real32 B = (1.0f - As)*Bd + As*Bs;
       
       
-      *Dest = (((uint32)(R + 0.5f) << 16) |
-               ((uint32)(G + 0.5f) << 8) |
+      *Dest = (((uint32)(A + 0.5f) << 24) |
+               ((uint32)(R + 0.5f) << 16) |
+               ((uint32)(G + 0.5f) << 8)  |
                ((uint32)(B + 0.5f) << 0));
       
       Dest++;
       Source++;
     }
     DestRow += Buffer->Pitch;
-    SourceRow -= Bitmap->Width;
+    SourceRow += Bitmap->Pitch;
     
   }
   
 }
 
 internal void
-DrawRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax,
+DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
               real32 R, real32 G, real32 B)
 {
   
@@ -224,7 +239,7 @@ DrawRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax,
   uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch*Buffer->Height;
   
   // go to line to draw
-  uint8 *Row = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*Buffer->BytesPerPixel);
+  uint8 *Row = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*LOADED_BITMAP_BYTES_PER_PIXEL);
   // TODO: color
   for(int Y = MinY; Y < MaxY; ++Y)
   {
@@ -539,8 +554,8 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
 
 
 internal void
-DrawBackground(game_state *GameState, game_offscreen_buffer *Buffer) {
-
+DrawBackground(game_state *GameState, loaded_bitmap *Buffer) {
+  
   random_series Series = Seed(1234);
   
   v2 Center = 0.5f*V2i(Buffer->Width, Buffer->Height);
@@ -548,9 +563,7 @@ DrawBackground(game_state *GameState, game_offscreen_buffer *Buffer) {
   
   real32 Radius = 5.0f;
   
-  for(uint32 GrassIndex = 0, PatternIndex = 0;
-      GrassIndex < 150;
-      ++GrassIndex) {
+  for(uint32 Index = 0; Index < 150; ++Index) {
     
     if(RandomChoice(&Series, 2)) {
       
@@ -565,9 +578,25 @@ DrawBackground(game_state *GameState, game_offscreen_buffer *Buffer) {
     v2 Offset = {RollTheDiceBilateral(&Series), RollTheDiceBilateral(&Series)};
     v2 P = Center + Radius*Offset*GameState->MetersToPixels - BitmapCenter;
     
-    DrawBitmap(Buffer, Stamp, P.X, P.Y);
+    DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
   }
   
+}
+
+
+internal loaded_bitmap
+MakeEmptyBitmap(memory_arena *Arena, uint32 Width, uint32 Height) {
+  
+  loaded_bitmap Result = {};
+  
+  Result.Width = Width;
+  Result.Height = Height;
+  Result.Pitch = Result.Width * LOADED_BITMAP_BYTES_PER_PIXEL;
+  uint32 TotalBitmapSize = Result.Width*Result.Height * sizeof(uint32);
+  Result.Memory = PushSize_(Arena, TotalBitmapSize);
+  ZeroSize(TotalBitmapSize, Result.Memory);
+  
+  return Result;
 }
 
 
@@ -593,6 +622,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     AddLowEntity(GameState, EntityType_Null, 0);
     // TODO(Egor): This may be more appropriate to do in the platform layer
+    
     
     GameState->NullCollision = MakeNullCollision(GameState);
     GameState->SwordCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.1f);
@@ -665,6 +695,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Tuft[2] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
     
 #endif 
+    
     
     
     int32 TileSideInPixels = 60;
@@ -816,6 +847,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
     //AddFamiliar(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
     
+    
+    GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena, 512, 512);
+    DrawBackground(GameState, &GameState->GroundBuffer);
+    
     Memory->IsInitialized = true;
   }
   
@@ -911,19 +946,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   // NOTE(Egor): rudimentary render starts below
   //
   
+  loaded_bitmap DrawBuffer_ = {};
+  loaded_bitmap *DrawBuffer = &DrawBuffer_;
+  DrawBuffer->Width = Buffer->Width;
+  DrawBuffer->Height = Buffer->Height;
+  DrawBuffer->Memory = Buffer->Memory;
+  DrawBuffer->Pitch = Buffer->Pitch;
+  
+  
   
   //#if NO_ASSETS
-#if 1
-  DrawRectangle(Buffer, V2(0.0f, 0.0f), V2((real32)Buffer->Width, (real32)Buffer->Height),
+  DrawRectangle(DrawBuffer, V2(0.0f, 0.0f), V2((real32)DrawBuffer->Width, (real32)DrawBuffer->Height),
                 0.5f, 0.5f, 0.5f);
-#else
-  DrawBitmap(Buffer, &GameState->Backdrop, 0, 0);
-#endif
+  DrawBitmap(DrawBuffer, &GameState->GroundBuffer, 0, 0, 1.0f);
   
-  DrawBackground(GameState, Buffer);
-  
-  real32 CenterX = 0.5f*Buffer->Width;
-  real32 CenterY = 0.5f*Buffer->Height;
+  real32 CenterX = 0.5f*DrawBuffer->Width;
+  real32 CenterY = 0.5f*DrawBuffer->Height;
   
   entity_visible_piece_group PieceGroup;
   PieceGroup.GameState = GameState;
@@ -1097,12 +1135,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         if(Piece->Bitmap) {
           
-          DrawBitmap(Buffer, Piece->Bitmap, Cen.X, Cen.Y);
+          DrawBitmap(DrawBuffer, Piece->Bitmap, Cen.X, Cen.Y, 1.0f);
         }
         else {
           
           v2 HalfDim = Piece->Dim*MetersToPixels*0.5f;
-          DrawRectangle(Buffer, Cen - HalfDim, Cen + HalfDim,
+          DrawRectangle(DrawBuffer, Cen - HalfDim, Cen + HalfDim,
                         Piece->R, Piece->G, Piece->B); 
         }
         
@@ -1112,7 +1150,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   world_position WorldOrigin = {};
   v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
-  DrawRectangle(Buffer, Diff.XY, V2(10.0f, 10.0f), 1.0f, 1.0f, 0.0f);
+  DrawRectangle(DrawBuffer, Diff.XY, V2(10.0f, 10.0f), 1.0f, 1.0f, 0.0f);
   
   
   // NOTE(Egor): Ending the simulation

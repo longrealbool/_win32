@@ -66,12 +66,14 @@ ZeroSize(size_t Size, void *Ptr) {
 #include "game_entity.h"
 
 
+
+
 struct loaded_bitmap {
   int32 Height;
   int32 Width;
   int32 Pitch;
   
-  uint32* Pixels;
+  void* Memory;
 };
 
 struct hero_bitmaps {
@@ -146,6 +148,8 @@ struct game_state {
   
   uint32 LowEntityCount;
   low_entity LowEntity[10000];
+  
+  loaded_bitmap GroundBuffer;
   
   loaded_bitmap Grass[2];
   loaded_bitmap Stones[4];
