@@ -194,28 +194,28 @@ DrawBitmap(loaded_bitmap *Buffer,
     uint32 *Source = (uint32 *)SourceRow;
     for(int X = MinX; X < MaxX; ++X)
     {
-     
-      
-
 
       real32 As = (real32)((*Source >> 24) & 0xFF);
-      real32 Rs = (real32)((*Source >> 16) & 0xFF);
-      real32 Gs = (real32)((*Source >> 8) & 0xFF);
-      real32 Bs = (real32)((*Source >> 0) & 0xFF);
-      
-      real32 RAs = (As/255.0f) *   CAlpha;
+      real32 RAs = (As/255.0f) * CAlpha;
+      real32 Rs = CAlpha*(real32)((*Source >> 16) & 0xFF);
+      real32 Gs = CAlpha*(real32)((*Source >> 8) & 0xFF);
+      real32 Bs = CAlpha*(real32)((*Source >> 0) & 0xFF);
       
       real32 Ad = (real32)((*Dest >> 24) & 0xFF);
       real32 Rd = (real32)((*Dest >> 16) & 0xFF);
       real32 Gd = (real32)((*Dest >> 8) & 0xFF);
       real32 Bd = (real32)((*Dest >> 0) & 0xFF);
       
-      real32 RAsComplement = (1.0f - RAs);
+      real32 RAd = (Ad / 255.0f);
       
-      real32 A = RAsComplement*Ad + As; 
-      real32 R = RAsComplement*Rd + RAs*Rs;
-      real32 G = RAsComplement*Gd + RAs*Gs;
-      real32 B = RAsComplement*Bd + RAs*Bs;
+      real32 RAsComplement = (1 - RAs );
+      
+      // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
+      // when we draw it on final is ignored (used for blending only)
+      real32 A = (RAs + RAd - RAs*RAd)*255.0f; 
+      real32 R = RAsComplement*Rd + Rs;
+      real32 G = RAsComplement*Gd + Gs;
+      real32 B = RAsComplement*Bd + Bs;
       
       
       *Dest = (((uint32)(A + 0.5f) << 24) |
