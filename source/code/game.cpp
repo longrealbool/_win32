@@ -95,10 +95,14 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     bit_scan_result GreenScan = FindLeastSignificantSetBit(GreenMask);
     bit_scan_result BlueScan = FindLeastSignificantSetBit(BlueMask);
     
-    int32 AlphaShift = 24 - (int32)AlphaScan.Index;
-    int32 RedShift = 16 - (int32)RedScan.Index;
-    int32 GreenShift = 8 - (int32)GreenScan.Index;
-    int32 BlueShift = 0 - (int32)BlueScan.Index;
+    int32 AlphaShiftUp = 24;
+    int32 AlphaShiftDown = (int32)AlphaScan.Index;
+    int32 RedShiftUp = 16;
+    int32 RedShiftDown = (int32)RedScan.Index;
+    int32 GreenShiftUp = 8;
+    int32 GreenShiftDown = (int32)GreenScan.Index;
+    int32 BlueShiftUp = 0;
+    int32 BlueShiftDown = (int32)BlueScan.Index;
     
     Assert(AlphaScan.Found);    
     Assert(RedScan.Found);
@@ -112,10 +116,22 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         
         uint32 C = *SourceDest;
         
-        *SourceDest = (RotateLeft(C & AlphaMask, AlphaShift) |
-                       RotateLeft(C & RedMask, RedShift) |
-                       RotateLeft(C & GreenMask, GreenShift) |
-                       RotateLeft(C & BlueMask, BlueShift));
+        real32 R = (real32)((C & RedMask) >> RedShiftDown);
+        real32 G = (real32)((C & GreenMask) >> GreenShiftDown);
+        real32 B = (real32)((C & BlueMask) >> BlueShiftDown);
+        real32 A = (real32)((C & AlphaMask) >> AlphaShiftDown);
+        real32 An = A / 255.0f;
+        
+#if 1
+        R = R*An;
+        G = G*An;
+        B = B*An;
+#endif
+        
+        *SourceDest = (((uint32)(A + 0.5f) << 24) |
+                       ((uint32)(R + 0.5f) << 16) |
+                       ((uint32)(G + 0.5f) << 8)  |
+                       ((uint32)(B + 0.5f) << 0));
         
         SourceDest++;
       }
@@ -180,23 +196,26 @@ DrawBitmap(loaded_bitmap *Buffer,
     {
      
       
-      real32 As = (real32)((*Source >> 24) & 0xFF) / 255.0f;
-      As *= CAlpha;
-      
+
+
+      real32 As = (real32)((*Source >> 24) & 0xFF);
       real32 Rs = (real32)((*Source >> 16) & 0xFF);
       real32 Gs = (real32)((*Source >> 8) & 0xFF);
       real32 Bs = (real32)((*Source >> 0) & 0xFF);
       
+      real32 RAs = (As/255.0f) *   CAlpha;
       
       real32 Ad = (real32)((*Dest >> 24) & 0xFF);
       real32 Rd = (real32)((*Dest >> 16) & 0xFF);
       real32 Gd = (real32)((*Dest >> 8) & 0xFF);
       real32 Bd = (real32)((*Dest >> 0) & 0xFF);
       
-      real32 A = Max(Ad , 255.0f*As);
-      real32 R = (1.0f - As)*Rd + As*Rs;
-      real32 G = (1.0f - As)*Gd + As*Gs;
-      real32 B = (1.0f - As)*Bd + As*Bs;
+      real32 RAsComplement = (1.0f - RAs);
+      
+      real32 A = RAsComplement*Ad + As; 
+      real32 R = RAsComplement*Rd + RAs*Rs;
+      real32 G = RAsComplement*Gd + RAs*Gs;
+      real32 B = RAsComplement*Bd + RAs*Bs;
       
       
       *Dest = (((uint32)(A + 0.5f) << 24) |
