@@ -152,7 +152,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
 internal void
 DrawBitmap(loaded_bitmap *Buffer,
            loaded_bitmap *Bitmap,
-           real32 RealX, real32 RealY, real32 CAlpha) {
+           real32 RealX, real32 RealY, real32 CAlpha = 1.0f) {
   
   int32 MinX = RoundReal32ToInt32(RealX);
   int32 MinY = RoundReal32ToInt32(RealY);
@@ -211,7 +211,8 @@ DrawBitmap(loaded_bitmap *Buffer,
       real32 RAsComplement = (1 - RAs );
       
       // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
-      // when we draw it on final is ignored (used for blending only)
+      // for case when we create intermediate buffer with two or more bitmaps blend with 
+      // each other
       real32 A = (RAs + RAd - RAs*RAd)*255.0f; 
       real32 R = RAsComplement*Rd + Rs;
       real32 G = RAsComplement*Gd + Gs;
@@ -866,6 +867,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
     //AddFamiliar(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
     
+    real32 ScreenWidth = (real32)Buffer->Width;
+    real32 ScreenHeight = (real32)Buffer->Height;
+    real32 MaximumZScale = 0.5f;
+    real32 GroundOverscan = 1.5f;
+    uint32 GroundBufferWidth = (uint32)(GroundOverscan * ScreenWidth);
+    uint32 GroundBufferHeight = (uint32)(GroundOverscan * ScreenHeight);
+    
     
     GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena, 512, 512);
     DrawBackground(GameState, &GameState->GroundBuffer);
@@ -972,15 +980,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   DrawBuffer->Memory = Buffer->Memory;
   DrawBuffer->Pitch = Buffer->Pitch;
   
-  
-  
-  //#if NO_ASSETS
-  DrawRectangle(DrawBuffer, V2(0.0f, 0.0f), V2((real32)DrawBuffer->Width, (real32)DrawBuffer->Height),
-                0.5f, 0.5f, 0.5f);
-  DrawBitmap(DrawBuffer, &GameState->GroundBuffer, 0, 0, 1.0f);
-  
+
   real32 CenterX = 0.5f*DrawBuffer->Width;
   real32 CenterY = 0.5f*DrawBuffer->Height;
+  
+  //#if NO_ASSETS
+  DrawRectangle(DrawBuffer, V2(0.0f, 0.0f),
+                V2((real32)DrawBuffer->Width, (real32)DrawBuffer->Height),
+                0.5f, 0.5f, 0.5f);
+  
+  
+  real32 GroundX = CenterX - 0.5f * (real32)GameState->GroundBuffer.Width;
+  real32 GroundY = CenterY - 0.5f * (real32)GameState->GroundBuffer.Height;
+  DrawBitmap(DrawBuffer, &GameState->GroundBuffer, GroundX, GroundY);
   
   entity_visible_piece_group PieceGroup;
   PieceGroup.GameState = GameState;

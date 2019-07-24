@@ -149,8 +149,6 @@ struct game_state {
   uint32 LowEntityCount;
   low_entity LowEntity[10000];
   
-  loaded_bitmap GroundBuffer;
-  
   loaded_bitmap Grass[2];
   loaded_bitmap Stones[4];
   loaded_bitmap Tuft[3];
@@ -167,7 +165,6 @@ struct game_state {
   loaded_bitmap Sword;
   loaded_bitmap Stairwell;
   
-  
   // TODO(Egor): must be a power of two
   pairwise_collision_rule *CollisionRuleHash[256];
   pairwise_collision_rule *FirstFreeCollisionRule;
@@ -180,6 +177,9 @@ struct game_state {
   sim_entity_collision_volume_group *MonsterCollision;
   sim_entity_collision_volume_group *FamiliarCollision;
   sim_entity_collision_volume_group *StandardRoomCollision;
+  
+  loaded_bitmap GroundBuffer;
+  world_position GroundBufferP;
 };
 
 struct entity_visible_piece_group {
