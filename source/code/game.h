@@ -22,6 +22,7 @@ struct memory_arena {
   size_t Size;
   uint8 *Base;
   size_t Used;
+  int32 TempCount;
   
 };
 
@@ -32,17 +33,54 @@ InitializeArena(memory_arena *Arena, size_t Size, void *Base) {
   Arena->Size = Size;
   Arena->Base = (uint8 *)Base;
   Arena->Used = 0;
+  Arena->TempCount = 0;
 }
 
 #define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
 #define PushArray(Arena, Count, type) (type *)PushSize_(Arena, (Count)*sizeof(type))
-void *
-PushSize_(memory_arena *Arena, size_t Size) {
+
+void *PushSize_(memory_arena *Arena, size_t Size) {
   
   Assert((Arena->Used + Size) <= Arena->Size);
   void *Result = Arena->Base + Arena->Used;
   Arena->Used += Size;
   return(Result);
+}
+
+struct temporary_memory {
+ 
+  memory_arena *Arena;
+  size_t Used;
+};
+
+inline temporary_memory
+BeginTemporaryMemory(memory_arena *Arena) {
+  
+  temporary_memory Result;
+  
+  Result.Arena = Arena;
+  Result.Used = Arena->Used;
+  Result.Arena->TempCount++;
+  
+  return Result;
+}
+
+inline void EndTemporaryMemory(temporary_memory *TempMem) {
+  
+  memory_arena *Arena = TempMem->Arena;
+  Assert(Arena->Used >= TempMem->Used);
+  
+
+  Arena->Used = TempMem->Used;
+  Assert(Arena->TempCount > 0);
+  Arena->TempCount--;
+}
+
+inline void CheckArena(memory_arena *Arena) {
+  
+ 
+  Assert(Arena->TempCount == 0);
+  
 }
 
 
@@ -137,13 +175,18 @@ struct pairwise_collision_rule {
   pairwise_collision_rule *NextInHash;
 };
 
-uint32 *RandomTable;
-  
+struct ground_buffer {
+
+  world_position P;
+  void *Memory;
+};
+
 struct game_state {
   
   memory_arena WorldArena;
+  memory_arena TransientArena;
   world* World;
-
+  
   controlled_entity ControlledEntities[ArrayCount(((game_input *)0)->Controllers)];
   
   uint32 LowEntityCount;
@@ -178,8 +221,16 @@ struct game_state {
   sim_entity_collision_volume_group *FamiliarCollision;
   sim_entity_collision_volume_group *StandardRoomCollision;
   
-  loaded_bitmap GroundBuffer;
-  world_position GroundBufferP;
+  
+};
+
+struct transient_state {
+  
+  bool32 Initialized;
+  memory_arena TransientArena;
+  uint32 GroundBufferCount;
+  ground_buffer *GroundBuffers;
+  loaded_bitmap GroundBitmapTemplate;
 };
 
 struct entity_visible_piece_group {
