@@ -574,16 +574,16 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
 
 
 internal void
-DrawBackground(game_state *GameState, loaded_bitmap *Buffer) {
+DrawGroundChunk(game_state *GameState, loaded_bitmap *Buffer, world_position *Pos) {
   
-  random_series Series = Seed(1234);
+  // TODO(Egor): this is nuts, make sane spatial hashing
+  random_series Series = Seed(12*Pos->ChunkX + 34*Pos->ChunkY + 57*Pos->ChunkZ);
   
-  v2 Center = 0.5f*V2i(Buffer->Width, Buffer->Height);
+  real32 Width = (real32)Buffer->Width;
+  real32 Height = (real32)Buffer->Height;
+  
   loaded_bitmap *Stamp = 0;
-  
-  real32 Radius = 5.0f;
-  
-  for(uint32 Index = 0; Index < 150; ++Index) {
+  for(uint32 Index = 0; Index < 450; ++Index) {
     
     if(RandomChoice(&Series, 2)) {
       
@@ -595,12 +595,22 @@ DrawBackground(game_state *GameState, loaded_bitmap *Buffer) {
     }
     
     v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-    v2 Offset = {RollTheDiceBilateral(&Series), RollTheDiceBilateral(&Series)};
-    v2 P = Center + Radius*Offset*GameState->MetersToPixels - BitmapCenter;
-    
+    v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
+                   Height*RollTheDiceUnilateral(&Series));
+    v2 P = Offset - BitmapCenter;
     DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
   }
   
+  for(uint32 Index = 0; Index < 100; ++Index) {
+    
+    Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+    
+    v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+    v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
+                   Height*RollTheDiceUnilateral(&Series));
+    v2 P = Offset - BitmapCenter;
+    DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
+  }
 }
 
 
@@ -709,6 +719,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Stones[1] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//ground01.bmp");    
     Stones[2] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//ground02.bmp");    
     Stones[3] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//ground03.bmp");    
+
     
     Tuft[0] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
     Tuft[1] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
@@ -743,7 +754,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       uint32 RandomChoice;
       
       bool32 NonValid = 1; // WARNING(Egor): TEST (!!!)
-      if(DoorUp || DoorDown) {
+      //if(DoorUp || DoorDown) {
+      if(1) {
         RandomChoice = RollTheDice() % 2;
       }
       else {
@@ -811,9 +823,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           if(ShouldBeWall) {
             
-            if(ScreenIndex == 0) {
               AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
-            }
           }
           else if(CreatedZDoor) {
             if(TileY == 4 && TileX == 13) {
@@ -871,12 +881,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     real32 ScreenHeight = (real32)Buffer->Height;
     real32 MaximumZScale = 0.5f;
     real32 GroundOverscan = 1.5f;
-    uint32 GroundBufferWidth = (uint32)(GroundOverscan * ScreenWidth);
-    uint32 GroundBufferHeight = (uint32)(GroundOverscan * ScreenHeight);
+    uint32 GroundBufferWidth = RoundReal32ToUInt32(GroundOverscan * ScreenWidth);
+    uint32 GroundBufferHeight = RoundReal32ToUInt32(GroundOverscan * ScreenHeight);
+    GameState->GroundBufferP = GameState->CameraP;
     
     
-    GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena, 512, 512);
-    DrawBackground(GameState, &GameState->GroundBuffer);
+    GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena,
+                                              GroundBufferWidth, GroundBufferHeight);
+    DrawGroundChunk(GameState, &GameState->GroundBuffer, &GameState->GroundBufferP);
     
     Memory->IsInitialized = true;
   }
@@ -968,7 +980,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   sim_region *SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds, Input->dtForFrame);
   
-  
   //
   // NOTE(Egor): rudimentary render starts below
   //
@@ -979,20 +990,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   DrawBuffer->Height = Buffer->Height;
   DrawBuffer->Memory = Buffer->Memory;
   DrawBuffer->Pitch = Buffer->Pitch;
-  
 
   real32 CenterX = 0.5f*DrawBuffer->Width;
   real32 CenterY = 0.5f*DrawBuffer->Height;
   
-  //#if NO_ASSETS
   DrawRectangle(DrawBuffer, V2(0.0f, 0.0f),
                 V2((real32)DrawBuffer->Width, (real32)DrawBuffer->Height),
                 0.5f, 0.5f, 0.5f);
   
+  v2 Ground = V2(CenterX - 0.5f * (real32)GameState->GroundBuffer.Width, 
+                  CenterY - 0.5f * (real32)GameState->GroundBuffer.Height);
   
-  real32 GroundX = CenterX - 0.5f * (real32)GameState->GroundBuffer.Width;
-  real32 GroundY = CenterY - 0.5f * (real32)GameState->GroundBuffer.Height;
-  DrawBitmap(DrawBuffer, &GameState->GroundBuffer, GroundX, GroundY);
+  // NOTE(Egor): groundbuffer scrolling
+  v3 DeltaGround2Camera = Subtract(GameState->World, &GameState->CameraP , &GameState->GroundBufferP);
+  DeltaGround2Camera.Y = -DeltaGround2Camera.Y;
+  Ground -= (MetersToPixels*DeltaGround2Camera.XY);
+  
+  DrawBitmap(DrawBuffer, &GameState->GroundBuffer, Ground.X, Ground.Y);
   
   entity_visible_piece_group PieceGroup;
   PieceGroup.GameState = GameState;
