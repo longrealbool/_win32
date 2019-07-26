@@ -30,8 +30,8 @@ struct world_chunk {
 
 struct world {
   
-  real32 TileSideInMeters;
-  real32 TileDepthInMeters;
+//  real32 TileSideInMeters;
+//  real32 TileDepthInMeters;
 //  real32 ChunkSideInMeters;
   v3 ChunkDimInMeters;
   

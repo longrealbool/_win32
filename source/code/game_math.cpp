@@ -617,6 +617,16 @@ AddRadiusTo(rectangle3 Source, v3 Radius) {
   return Result;
 }
 
+inline rectangle3
+Offset(rectangle3 A, v3 Offset) {
+ 
+  rectangle3 Result;
+  Result.Min = A.Min + Offset;
+  Result.Max = A.Max + Offset;
+  
+  return Result;
+}
+
 inline v3
 GetMinCorner(rectangle3 Rect) {
   

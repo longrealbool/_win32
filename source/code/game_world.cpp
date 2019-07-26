@@ -185,16 +185,11 @@ AreInTheSameChunk(world *World, world_position *A, world_position *B) {
   return Result;
 }
 
-#define TILES_PER_CHUNK 16
+#define TILES_PER_CHUNK 8
 internal void
-InitializeWorld(world *World, real32 TileSideInMeters, real32 TileDepthInMeters) {
+InitializeWorld(world *World, v3 ChunkDimInMeters) {
   
-  World->TileSideInMeters = TileSideInMeters;
-  World->TileDepthInMeters = TileDepthInMeters;
-  
-  World->ChunkDimInMeters = V3((real32)(TILES_PER_CHUNK*TileSideInMeters),
-                               (real32)(TILES_PER_CHUNK*TileSideInMeters),
-                               TileDepthInMeters);
+  World->ChunkDimInMeters = ChunkDimInMeters;
   World->FirstFree = 0;
   
   for(uint32 ChunkIndex = 0;
@@ -208,7 +203,7 @@ InitializeWorld(world *World, real32 TileSideInMeters, real32 TileDepthInMeters)
 
 inline world_position
 CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
-  
+ 
   world_position Result = {};
   
   Result.ChunkX = ChunkX;
@@ -216,8 +211,13 @@ CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
   Result.ChunkZ = ChunkZ;
   
   return Result;
+}
+
+inline world_position
+CenteredChunkPoint(world_chunk *Chunk) {
   
-  
+  world_position Result = CenteredChunkPoint(Chunk->ChunkX, Chunk->ChunkY, Chunk->ChunkZ);
+  return Result;
 }
 
 
@@ -350,6 +350,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
 }
 
 
+#if 0
 inline world_position
 ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY,
                               int32 AbsTileZ, v3 AdditionalOffset = V3(0,0,0)) {
@@ -365,4 +366,5 @@ ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY,
   Assert(IsCanonical(World, Result.Offset_));
   return Result;
 }
+#endif
 
