@@ -64,6 +64,10 @@ extern "C" {
   
   
 #include <stdint.h>
+#include <stddef.h>
+#include <limits.h>
+#include <float.h>
+
   
   typedef int8_t int8;
   typedef int16_t int16;
@@ -81,10 +85,15 @@ extern "C" {
   typedef float real32;
   typedef double real64;
   
+#define real32Maximum FLT_MAX
+  
   typedef struct thread_context
   {
     int Placeholder;
   } thread_context;
+  
+  
+  
   
   /*
       NOTE(Egor): Services that the platform layer provides to the game
@@ -183,6 +192,7 @@ extern "C" {
     game_button_state MouseButtons[5];
     int32 MouseX, MouseY, MouseZ;
     
+    bool32 ExecutableReloaded;
     real32 dtForFrame;
     
     game_controller_input Controllers[5];
