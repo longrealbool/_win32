@@ -606,53 +606,75 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
 
 
 internal void
-FillGroundChunk(transient_state *TranState, game_state *GameState, ground_buffer *GroundBuffer, world_position *Pos) {
-  
+FillGroundChunk(transient_state *TranState, game_state *GameState,
+                ground_buffer *GroundBuffer, world_position *Pos) {
   
   loaded_bitmap *Buffer = &TranState->GroundBitmapTemplate;
   Buffer->Memory = GroundBuffer->Memory;
   GroundBuffer->P = *Pos;
   
-  // TODO(Egor): this is nuts, make sane spatial hashing
-  random_series Series = Seed(12*Pos->ChunkX + 34*Pos->ChunkY + 57*Pos->ChunkZ);
+  // NOTE(Egor): the idea is: 
+  // we take block that we want (Pos), generate 3x3 block centered at (Pos)
+  // with rigid order, allowing to bitmaps blits over the top of our block generating
+  // seemless texture and cut the center block - effectively our (Pos)
   
   real32 Width = (real32)Buffer->Width;
   real32 Height = (real32)Buffer->Height;
-  
-  loaded_bitmap *Stamp = 0;
-  for(uint32 Index = 0; Index < 450; ++Index) {
-    
-    if(RandomChoice(&Series, 2)) {
+
+  for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+    for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
       
-      Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
-    }
-    else {
+      int32 ChunkX = Pos->ChunkX - ChunkOffsetX;
+      int32 ChunkY = Pos->ChunkY - ChunkOffsetY;
+      int32 ChunkZ = Pos->ChunkZ;
       
-      Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
+      // TODO(Egor): this is nuts, make sane spatial hashing
+      random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
+      
+      v2 Center = V2(Width*0.5f, Height*0.5f);
+      v2 OffsetG = V2(Width*ChunkOffsetX, -1.0f*Height*ChunkOffsetY);
+      
+      loaded_bitmap *Stamp = 0;
+      for(uint32 Index = 0; Index < 450; ++Index) {
+        
+        if(RandomChoice(&Series, 2)) {
+          
+          Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
+        }
+        else {
+          
+          Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
+        }
+        
+        v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height) ;
+        
+        v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
+                       Height*RollTheDiceUnilateral(&Series));
+        
+        v2 P = Offset - BitmapCenter - OffsetG ;
+        DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
+      }
+     
+#if 0
+      for(uint32 Index = 0; Index < 100; ++Index) {
+        
+        Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+        
+        v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+        v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
+                       Height*RollTheDiceUnilateral(&Series));
+        v2 P = Offset - BitmapCenter;
+        DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
+      }
+#endif
+      
     }
-    
-    v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-    v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
-                   Height*RollTheDiceUnilateral(&Series));
-    v2 P = Offset - BitmapCenter;
-    DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
-  }
-  
-  for(uint32 Index = 0; Index < 100; ++Index) {
-    
-    Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
-    
-    v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-    v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
-                   Height*RollTheDiceUnilateral(&Series));
-    v2 P = Offset - BitmapCenter;
-    DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
   }
 }
 
 internal void
 ClearBitmap(loaded_bitmap *Bitmap) {
-
+  
   if(Bitmap->Memory) {
     uint32 TotalBitmapSize = Bitmap->Width*Bitmap->Height*LOADED_BITMAP_BYTES_PER_PIXEL;
     ZeroSize(TotalBitmapSize, Bitmap->Memory);
@@ -966,6 +988,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   ///////////////////////////////////////////////////////////////////////////
   Assert(sizeof(transient_state) <= Memory->TransientStorageSize);
   transient_state *TransientState = (transient_state *)Memory->TransientStorage;
+  
   if(!TransientState->Initialized){
     
     InitializeArena(&TransientState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
