@@ -624,8 +624,8 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
     for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
       
-      int32 ChunkX = Pos->ChunkX - ChunkOffsetX;
-      int32 ChunkY = Pos->ChunkY - ChunkOffsetY;
+      int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
+      int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
       int32 ChunkZ = Pos->ChunkZ;
       
       // TODO(Egor): this is nuts, make sane spatial hashing
@@ -651,7 +651,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
         v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
                        Height*RollTheDiceUnilateral(&Series));
         
-        v2 P = Offset - BitmapCenter - OffsetG ;
+        v2 P = Offset - BitmapCenter + OffsetG ;
         DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
       }
      
