@@ -635,8 +635,10 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       v2 OffsetG = V2(Width*ChunkOffsetX, -1.0f*Height*ChunkOffsetY);
       
       loaded_bitmap *Stamp = 0;
-      for(uint32 Index = 0; Index < 20; ++Index) {
+      for(uint32 Index = 0; Index < 1; ++Index) {
         
+        
+#if 0
         if(RandomChoice(&Series, 2)) {
           
           Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
@@ -645,6 +647,11 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           
           Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
         }
+#else
+        
+        Stamp = GameState->Slumps + RandomChoice(&Series, ArrayCount(GameState->Slumps));
+        
+#endif
         
         v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height) ;
         
@@ -654,7 +661,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
         v2 P = Offset - BitmapCenter + OffsetG ;
         DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
       }
-     
+      
 #if 0
       for(uint32 Index = 0; Index < 5; ++Index) {
         
@@ -809,7 +816,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     //    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
-#if 1
+#if 0
     
     loaded_bitmap *Stones = GameState->Stones;
     loaded_bitmap *Grass = GameState->Grass;
@@ -827,6 +834,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Tuft[0] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
     Tuft[1] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
     Tuft[2] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tuft00.bmp");    
+    
+#else
+    
+    loaded_bitmap *Slump = GameState->Slumps;
+    Slump[0] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//slump00.bmp");    
+    Slump[1] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//slump01.bmp");    
+    Slump[2] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//slump02.bmp");    
+    Slump[3] = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//slump03.bmp");    
+    
     
 #endif 
     

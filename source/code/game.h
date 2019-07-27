@@ -195,6 +195,7 @@ struct game_state {
   loaded_bitmap Grass[2];
   loaded_bitmap Stones[4];
   loaded_bitmap Tuft[3];
+  loaded_bitmap Slumps[4];
   
   uint32 CameraFollowingEntityIndex;
   world_position CameraP;
