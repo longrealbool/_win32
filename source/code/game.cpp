@@ -638,7 +638,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       for(uint32 Index = 0; Index < 1; ++Index) {
         
         
-#if 0
+#if 1
         if(RandomChoice(&Series, 2)) {
           
           Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
@@ -816,7 +816,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     //    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
-#if 0
+#if 1
     
     loaded_bitmap *Stones = GameState->Stones;
     loaded_bitmap *Grass = GameState->Grass;
@@ -870,8 +870,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       uint32 RandomChoice;
       
       bool32 NonValid = 1; // WARNING(Egor): TEST (!!!)
-      //if(DoorUp || DoorDown) {
-      if(1) {
+      if(DoorUp || DoorDown) {
+//      if(1) {
         RandomChoice = RollTheDice() % 2;
       }
       else {

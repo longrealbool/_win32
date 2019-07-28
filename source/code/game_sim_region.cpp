@@ -498,12 +498,12 @@ HandleOverlap(game_state *GameState, sim_entity *Mover,
 
 
 internal bool32
-SpeculativeCollide(sim_entity *Mover, sim_entity *Region) {
+SpeculativeCollide(sim_entity *Mover, sim_entity *Region, v3 TestP) {
   
   bool32 Result = true;
   if(Region->Type == EntityType_Stairwell) {
     
-    v3 MoverGroundPoint = GetEntityGroundPoint(Mover);
+    v3 MoverGroundPoint = GetEntityGroundPoint(Mover, TestP);
     real32 StepHeight = 0.1f;
     
     real32 Ground = GetStairGround(Region, MoverGroundPoint);
@@ -679,7 +679,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
                     };
                     
                     // NOTE(Egor): we determine if we are handling maximum distance test
-                    // for case when we want to move form one spaze_entity to another
+                    // for case when we want to move form one space_entity to another
                     if(IsSet(TestEntity, EntityFlag_Traversable)) {
                       
                       real32 tMaxTest = tMax;
@@ -746,7 +746,7 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
                       if(HitThis) {
                         
                         v3 TestP = Entity->P + PlayerDelta*tMinTest;
-                        if(SpeculativeCollide(Entity, TestEntity)) {
+                        if(SpeculativeCollide(Entity, TestEntity, TestP)) {
                           
                           tMin = tMinTest;
                           WallNormalMin = TestWallNormal;
