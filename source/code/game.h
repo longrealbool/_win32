@@ -104,8 +104,6 @@ ZeroSize(size_t Size, void *Ptr) {
 #include "game_entity.h"
 
 
-
-
 struct loaded_bitmap {
   int32 Height;
   int32 Width;
@@ -131,17 +129,6 @@ struct low_entity {
   
 };
 
-
-
-struct entity_visible_piece {
-  
-  loaded_bitmap *Bitmap;
-  v2 Offset;
-  real32 OffsetZ;
-  real32 OffsetZC;
-  real32 R, G, B, A;
-  v2 Dim;
-};
 
 enum entity_residence {
   
@@ -178,7 +165,7 @@ struct pairwise_collision_rule {
 struct ground_buffer {
 
   world_position P;
-  void *Memory;
+  loaded_bitmap Bitmap;
 };
 
 struct game_state {
@@ -223,10 +210,7 @@ struct game_state {
   sim_entity_collision_volume_group *FamiliarCollision;
   sim_entity_collision_volume_group *StandardRoomCollision;
   
-  
   real32 FloorHeight;
-  
-  
 };
 
 struct transient_state {
@@ -235,15 +219,8 @@ struct transient_state {
   memory_arena TransientArena;
   uint32 GroundBufferCount;
   ground_buffer *GroundBuffers;
-  loaded_bitmap GroundBitmapTemplate;
 };
 
-struct entity_visible_piece_group {
-  
-  game_state *GameState;
-  uint32 Count;
-  entity_visible_piece Pieces[64];
-};
 
 inline low_entity *
 GetLowEntity(game_state *GameState, uint32 LowIndex) {
