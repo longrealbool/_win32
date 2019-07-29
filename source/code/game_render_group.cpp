@@ -55,8 +55,8 @@ PushPiece(render_group *Group, loaded_bitmap *Bitmap,
 }
 
 internal void 
-PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, real32 OffsetZ,
-           v2 Align, real32 A = 1.0f, real32 OffsetZC = 1.0f) {
+PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset,
+           v2 Align, real32 A = 1.0f,  real32 OffsetZ = 0.0f, real32 OffsetZC = 1.0f) {
   
   PushPiece(Group, Bitmap, Offset, OffsetZ, OffsetZC,  Align, V2(0,0), V4(1.0f, 1.0f, 1.0f, A));
 }
@@ -84,16 +84,16 @@ PushRect(render_group *Group, v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Dim
 }
 
 internal void 
-PushRectOutline(render_group *Group, v2 Offset, real32 OffsetZ, real32 OffsetZC,
-                v2 Dim, v4 Color) {
+PushRectOutline(render_group *Group, v2 Offset, v2 Dim, v4 Color,
+                real32 OffsetZ = 0.0f, real32 OffsetZC = 1.0f ) {
   
-  real32 Thickness = 0.1f;
+  real32 Thickness = 0.05f;
   
-  PushPiece(Group, 0, Offset - V2(0, Dim.Y)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Dim.X, Thickness), Color);
-  PushPiece(Group, 0, Offset + V2(0, Dim.Y)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Dim.X, Thickness), Color);
+  PushRect(Group, Offset - V2(0, Dim.Y)*0.5f, OffsetZ, OffsetZC, V2(Dim.X, Thickness), Color);
+  PushRect(Group, Offset + V2(0, Dim.Y)*0.5f, OffsetZ, OffsetZC, V2(Dim.X, Thickness), Color);
   
-  PushPiece(Group, 0, Offset - V2(Dim.X, 0)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Thickness, Dim.Y), Color);
-  PushPiece(Group, 0, Offset + V2(Dim.X, 0)*0.5f, OffsetZ, OffsetZC, V2(0,0), V2(Thickness, Dim.Y), Color);
+  PushRect(Group, Offset - V2(Dim.X, 0)*0.5f, OffsetZ, OffsetZC, V2(Thickness, Dim.Y), Color);
+  PushRect(Group, Offset + V2(Dim.X, 0)*0.5f, OffsetZ, OffsetZC, V2(Thickness, Dim.Y), Color);
 }
 
 
@@ -184,7 +184,7 @@ DrawBitmap(loaded_bitmap *Buffer,
 
 internal void
 DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
-              v3 Color)
+              v4 Color)
 {
   
   int32 MinX = RoundReal32ToInt32(vMin.X);
@@ -199,7 +199,8 @@ DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
   if(MaxX > Buffer->Width) MaxX = Buffer->Width;
   if(MaxY > Buffer->Height) MaxY = Buffer->Height;
   
-  uint32 PixColor = ((RoundReal32ToUInt32(Color.R * 255.0f) << 16) |
+  uint32 PixColor = ((RoundReal32ToUInt32(Color.A * 255.0f) << 24) |
+                     (RoundReal32ToUInt32(Color.R * 255.0f) << 16) |
                      (RoundReal32ToUInt32(Color.G * 255.0f) << 8)  |
                      (RoundReal32ToUInt32(Color.B * 255.0f) << 0));
   
@@ -256,10 +257,14 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
     render_group_entry_header *Header = (render_group_entry_header *)(Group->PushBufferBase + BaseAddress);
     
     switch(Header->Type) {
-    
+      
       case RenderGroupEntryType_render_entry_clear: {
         
         render_entry_clear *Entry = (render_entry_clear *)Header;
+        
+        DrawRectangle(Output, V2(0.0f, 0.0f),
+                      V2((real32)Output->Width, (real32)Output->Height),
+                      Entry->Color);
         
         BaseAddress += sizeof(*Entry);
         
@@ -278,25 +283,30 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       
       case RenderGroupEntryType_render_entry_rectangle: {
         
-
+        
         render_entry_rectangle *Entry = (render_entry_rectangle *)Header;
         BaseAddress += sizeof(*Entry);
         
         v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
         
-
-        DrawRectangle(Output, P, P + Entry->Dim, Entry->Color.RGB); 
+        
+        DrawRectangle(Output, P, P + Entry->Dim, Entry->Color); 
         
       } break;
       
       InvalidDefaultCase;
-      
     }
-    
+  }
+}
 
+inline void
+Clear(render_group *Group, v4 Color) {
+  
+  render_entry_clear *Entry = PushRenderElement(Group, render_entry_clear);
+  
+  if(Entry) {
     
-
-    
+    Entry->Color = Color;
   }
 }
 

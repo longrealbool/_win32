@@ -66,13 +66,13 @@ BeginTemporaryMemory(memory_arena *Arena) {
   return Result;
 }
 
-inline void EndTemporaryMemory(temporary_memory *TempMem) {
+inline void EndTemporaryMemory(temporary_memory TempMem) {
   
-  memory_arena *Arena = TempMem->Arena;
-  Assert(Arena->Used >= TempMem->Used);
+  memory_arena *Arena = TempMem.Arena;
+  Assert(Arena->Used >= TempMem.Used);
   
 
-  Arena->Used = TempMem->Used;
+  Arena->Used = TempMem.Used;
   Assert(Arena->TempCount > 0);
   Arena->TempCount--;
 }
