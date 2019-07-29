@@ -36,6 +36,10 @@ union v4 {
     
     real32 R, G, B, A;
   };
+  struct {
+    v3 RGB;
+    real32 Ignored0_;
+  };
   
   real32 E[4];
 };

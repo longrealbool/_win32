@@ -5,9 +5,18 @@ struct render_basis {
   v3 P;
 };
 
+struct render_entity_basis {
+  
+  render_basis *Basis;
+  v2 Offset;
+  real32 OffsetZ;
+  real32 OffsetZC;
+};
+
 enum render_group_entry_type {
   
   RenderGroupEntryType_render_entry_clear,
+  RenderGroupEntryType_render_entry_bitmap,
   RenderGroupEntryType_render_entry_rectangle,
 };
 
@@ -19,20 +28,26 @@ struct render_group_entry_header {
 struct render_entry_clear {
 
   render_group_entry_header Header;
-  real32 R, G, B, A;
+  v4 Color;
+};
+
+struct render_entry_bitmap {
+  
+  render_group_entry_header Header;
+  loaded_bitmap *Bitmap;
+  v4 Color;
+  render_entity_basis EntityBasis;
 };
 
 struct render_entry_rectangle {
   
   render_group_entry_header Header;
-  render_basis *Basis;
-  loaded_bitmap *Bitmap;
-  v2 Offset;
-  real32 OffsetZ;
-  real32 OffsetZC;
-  real32 R, G, B, A;
+  v4 Color;
+  render_entity_basis EntityBasis;
   v2 Dim;
 };
+
+
 
 struct render_group {
 

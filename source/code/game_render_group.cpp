@@ -39,21 +39,18 @@ inline void
 PushPiece(render_group *Group, loaded_bitmap *Bitmap,
           v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Align, v2 Dim, v4 Color) {
 
-  render_entry_rectangle *Piece = PushRenderElement(Group, render_entry_rectangle);
+  render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
   if(Piece) {
     
-    Piece->Basis = Group->DefaultBasis;
+    render_entity_basis EntityBasis;
+    EntityBasis.Basis = Group->DefaultBasis;
+    EntityBasis.Offset = Group->MtP*V2(Offset.X, -Offset.Y) - Align;
+    EntityBasis.OffsetZ = OffsetZ;
+    EntityBasis.OffsetZC = OffsetZC;
+    
+    Piece->EntityBasis = EntityBasis;
     Piece->Bitmap = Bitmap;
-    Piece->Offset = Group->MtP*V2(Offset.X, -Offset.Y) - Align;
-    Piece->OffsetZ = OffsetZ;
-    Piece->OffsetZC = OffsetZC;
-    
-    Piece->Dim = Dim;
-    
-    Piece->R = Color.R;
-    Piece->G = Color.G;
-    Piece->B = Color.B;
-    Piece->A = Color.A;
+    Piece->Color = Color;
   }
 }
 
@@ -67,7 +64,23 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, real32 OffsetZ
 internal void 
 PushRect(render_group *Group, v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Dim, v4 Color) {
   
-  PushPiece(Group, 0, Offset, OffsetZ, OffsetZC, V2(0,0), Dim, Color);
+  render_entry_rectangle *Piece = PushRenderElement(Group, render_entry_rectangle);
+  if(Piece) {
+    
+    v2 HalfDim = Dim*Group->MtP*0.5f;
+    
+    render_entity_basis EntityBasis;
+    EntityBasis.Basis = Group->DefaultBasis;
+    EntityBasis.Offset = Group->MtP*V2(Offset.X, -Offset.Y) - HalfDim;
+    EntityBasis.OffsetZ = OffsetZ;
+    EntityBasis.OffsetZC = OffsetZC;
+    
+    Piece->EntityBasis = EntityBasis;
+    Piece->Dim = Dim*Group->MtP;
+    Piece->Color = Color;
+    
+    Assert(Piece->EntityBasis.Basis);
+  }
 }
 
 internal void 
@@ -208,6 +221,28 @@ DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
 }
 
 
+
+inline v2
+GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenCenter) {
+  
+  real32 MtP = Group->MtP;
+  
+  v3 EntityBaseP = EntityBasis->Basis->P;
+  real32 ZFudge = (1.0f + 0.05f*(EntityBaseP.Z + EntityBasis->OffsetZ));
+  
+  real32 EntityGroundPointX = ScreenCenter.X + EntityBaseP.X*MtP*ZFudge;
+  real32 EntityGroundPointY = ScreenCenter.Y - EntityBaseP.Y*MtP*ZFudge;
+  real32 EntityZ = -EntityBaseP.Z*MtP;
+  
+  v2 Cen = {
+    EntityGroundPointX + EntityBasis->Offset.X,
+    EntityGroundPointY + EntityBasis->Offset.Y  + EntityZ*EntityBasis->OffsetZC
+  };
+  
+  return Cen;
+}
+
+
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
@@ -229,33 +264,28 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         BaseAddress += sizeof(*Entry);
         
       } break;
+      case RenderGroupEntryType_render_entry_bitmap: {
+        
+        render_entry_bitmap *Entry = (render_entry_bitmap *)Header;
+        BaseAddress += sizeof(*Entry);
+        
+        v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
+        
+        Assert(Entry->Bitmap);
+        DrawBitmap(Output, Entry->Bitmap, P.X, P.Y, 1.0f);
+        
+      } break;
+      
       case RenderGroupEntryType_render_entry_rectangle: {
         
+
         render_entry_rectangle *Entry = (render_entry_rectangle *)Header;
         BaseAddress += sizeof(*Entry);
         
-        v3 EntityBaseP = Entry->Basis->P;
-        real32 ZFudge = (1.0f + 0.05f*(EntityBaseP.Z + Entry->OffsetZ));
+        v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
         
-        real32 EntityGroundPointX = ScreenCenter.X + EntityBaseP.X*MtP*ZFudge;
-        real32 EntityGroundPointY = ScreenCenter.Y - EntityBaseP.Y*MtP*ZFudge;
-        real32 EntityZ = -EntityBaseP.Z*MtP;
-        
-        v2 Cen = {
-          EntityGroundPointX + Entry->Offset.X,
-          EntityGroundPointY + Entry->Offset.Y  + EntityZ*Entry->OffsetZC
-        };
-        
-        if(Entry->Bitmap) {
-          
-          DrawBitmap(Output, Entry->Bitmap, Cen.X, Cen.Y, 1.0f);
-        }
-        else {
-          
-          v2 HalfDim = Entry->Dim*MtP*0.5f;
-          DrawRectangle(Output, Cen - HalfDim, Cen + HalfDim,
-                        V3(Entry->R, Entry->G, Entry->B)); 
-        }
+
+        DrawRectangle(Output, P, P + Entry->Dim, Entry->Color.RGB); 
         
       } break;
       
@@ -269,3 +299,4 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
     
   }
 }
+
