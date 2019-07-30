@@ -271,6 +271,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       } break;
       case RenderGroupEntryType_render_entry_bitmap: {
         
+        
         render_entry_bitmap *Entry = (render_entry_bitmap *)Header;
         BaseAddress += sizeof(*Entry);
         
@@ -280,7 +281,6 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         DrawBitmap(Output, Entry->Bitmap, P.X, P.Y, 1.0f);
         
       } break;
-      
       case RenderGroupEntryType_render_entry_rectangle: {
         
         
@@ -288,9 +288,34 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         BaseAddress += sizeof(*Entry);
         
         v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
-        
-        
         DrawRectangle(Output, P, P + Entry->Dim, Entry->Color); 
+      } break;
+      case RenderGroupEntryType_render_entry_coordinate_system: {
+        
+        
+        render_entry_coordinate_system *Entry = (render_entry_coordinate_system *)Header;
+        BaseAddress += sizeof(*Entry);
+        
+        v2 DimOrigin = V2(5, 5);
+        
+        v2 P = Entry->Origin;
+        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
+        
+        P = Entry->Origin + Entry->XAxis;
+        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
+        
+        P = Entry->Origin + Entry->YAxis;
+        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
+        
+        for(uint32 I = 0; I < ArrayCount(Entry->Points); ++I) {
+          
+          v2 Point = Entry->Points[I];
+          
+          P = Entry->Origin + Point.X*Entry->XAxis + Point.Y*Entry->YAxis; 
+          
+          DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
+          
+        }
         
       } break;
       
@@ -308,5 +333,24 @@ Clear(render_group *Group, v4 Color) {
     
     Entry->Color = Color;
   }
+}
+
+inline render_entry_coordinate_system *
+PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color) {
+  
+  render_entry_coordinate_system *Entry = PushRenderElement(Group, render_entry_coordinate_system);
+  
+  if(Entry) {
+    
+    
+    Entry->EntityBasis.Basis = Group->DefaultBasis;
+    Entry->Origin = Origin;
+    Entry->XAxis = XAxis;
+    Entry->YAxis = YAxis;
+    Entry->Color = Color;
+    
+  }
+  
+  return Entry;
 }
 

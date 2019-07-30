@@ -1221,6 +1221,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
+  GameState->Time += Input->dtForFrame;
+  
+  v2 Origin = ScreenCenter;
+  v2 XAxis = 100.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
+  v2 YAxis = V2(-XAxis.Y, XAxis.X);
+  render_entry_coordinate_system *C = PushCoordinateSystem(RenderGroup, Origin, XAxis, YAxis, V4(1.0f, 1.0f, 0.0f, 1.0f));
+  
+  uint32 PIndex = 0;
+  for(real32 Y = 0; Y <= 1; Y += 0.25f) {
+    for(real32 X = 0; X <= 1; X += 0.25f) {
+      
+      C->Points[PIndex++] = V2(X, Y);
+    }
+  }
+  
+  
+  
   RenderPushBuffer(RenderGroup, DrawBuffer);
   
   world_position WorldOrigin = {};

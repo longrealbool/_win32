@@ -212,6 +212,10 @@ struct game_state {
   sim_entity_collision_volume_group *StandardRoomCollision;
   
   real32 FloorHeight;
+  
+  real32 Time;
+  real32 Scale;
+  real32 Angle;
 };
 
 struct transient_state {

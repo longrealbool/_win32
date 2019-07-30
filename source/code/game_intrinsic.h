@@ -13,6 +13,18 @@ inline real32 AbsoluteValue(real32 Real32) {
   return Result;
 }
 
+inline real32 Cos(real32 Phi) {
+ 
+  real32 Result = cosf(Phi);
+  return Result;
+}
+
+inline real32 Sin(real32 Phi) {
+  
+  real32 Result = sinf(Phi);
+  return Result;
+}
+
 inline real32 
 SquareRoot(real32 Value) {
   
