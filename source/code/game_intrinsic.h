@@ -13,6 +13,12 @@ inline real32 AbsoluteValue(real32 Real32) {
   return Result;
 }
 
+inline int32 AbsoluteValue(int32 Real32) {
+  
+  int32 Result = (int32)fabs(Real32);
+  return Result;
+}
+
 inline real32 Cos(real32 Phi) {
  
   real32 Result = cosf(Phi);

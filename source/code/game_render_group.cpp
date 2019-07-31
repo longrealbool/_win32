@@ -244,32 +244,95 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
 }
 
 
-
-
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
   
+  int32 Width = Buffer->Width - 1;
+  int32 Height = Buffer->Height - 1;
+  
+  int32 YMin = Height;
+  int32 XMin = Width;
+  int32 XMax = 0;
+  int32 YMax = 0;
+  
   v2 Min = Basis.Origin;
   v2 Max = Basis.Origin + Basis.XAxis + Basis.YAxis;
+  v2 toAxisX = Min + Basis.XAxis;
+  v2 toAxisY = Min + Basis.YAxis;
+  
+#if 0
+  
+  v2 P[4] = {Min, Min + Basis.XAxis, Min + Basis.YAxis, Max};
+  
+  for(uint32 Index = 0; Index < ArrayCount(P); ++Index) {
+    
+    v2 *TestP = P + Index;
+    
+    int32 CeilX = CeilReal32ToInt32(TestP->X);
+    int32 FloorX = FloorReal32ToInt32(TestP->X);
+    int32 CeilY = CeilReal32ToInt32(TestP->Y);
+    int32 FloorY = FloorReal32ToInt32(TestP->Y);
+    
+    if(XMin > FloorX) XMin = FloorX;
+    if(YMin > FloorY) YMin = FloorY;
+    if(XMax < CeilX) XMax = CeilX;
+    if(YMax < CeilY) YMax = CeilY;
+  }
+  
+#else 
+  // TODO(Egor): Test what is faster
+  // TODO(Egor): we could push the speed by refusing from Min\Max
+  v2 Result = Max - Min;
+  if(AbsoluteValue(Result.X) > AbsoluteValue(Result.Y)) {
+    
+    XMax = RoundReal32ToInt32(Max(Max.X, Min.X));
+    XMin = RoundReal32ToInt32(Min(Max.X, Min.X));
+  }
+  else {
+    
+    YMax = RoundReal32ToInt32(Max(Max.Y, Min.Y));
+    YMin = RoundReal32ToInt32(Min(Max.Y, Min.Y));
+  }
+  
+  Result = toAxisX - toAxisY;
+  if(AbsoluteValue(Result.X) > AbsoluteValue(Result.Y)) {
+    
+    XMax = RoundReal32ToInt32(Max(toAxisX.X, toAxisY.X));
+    XMin = RoundReal32ToInt32(Min(toAxisX.X, toAxisY.X));
+  }
+  else {
+    
+    YMax = RoundReal32ToInt32(Max(toAxisX.Y, toAxisY.Y));
+    YMin = RoundReal32ToInt32(Min(toAxisX.Y, toAxisY.Y));
+  }
+  
+#endif
+  
+  
+  if(XMin < 0) XMin = 0;
+  if(YMin < 0) YMin = 0;
+  if(XMax > Width) XMax = Width;
+  if(YMax > Height) YMax = Height;
   
   uint32 PixColor = ((RoundReal32ToUInt32(Color.A * 255.0f) << 24) |
                      (RoundReal32ToUInt32(Color.R * 255.0f) << 16) |
                      (RoundReal32ToUInt32(Color.G * 255.0f) << 8)  |
                      (RoundReal32ToUInt32(Color.B * 255.0f) << 0));
   
-  uint8 *Row = (uint8 *)Buffer->Memory;
+  uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*LOADED_BITMAP_BYTES_PER_PIXEL;
 
-  for(int Y = 0; Y < Buffer->Height; ++Y) {
+  for(int32 Y = YMin; Y <= YMax; ++Y) {
     
     uint32 *Pixel = (uint32 *)Row;
-    for(int X = 0; X < Buffer->Width; ++X) {
+    for(int32 X = XMin; X <= XMax; ++X) {
       
       v2 PixelP = V2i(X, Y);
-      real32 Edge0 = Inner(PixelP - Max, V2(1, 0));
-      real32 Edge1 = Inner(PixelP - Max, V2(0, 1)); 
-      real32 Edge2 = Inner(PixelP - Min, V2(0, -1)); 
-      real32 Edge3 = Inner(PixelP - Min, V2(-1, 0)); 
+      real32 Edge0 = Inner(PixelP - Max, Basis.XAxis);
+      real32 Edge1 = Inner(PixelP - Max, Basis.YAxis); 
+      real32 Edge2 = Inner(PixelP - Min, -Basis.XAxis); 
+      real32 Edge3 = Inner(PixelP - Min, -Basis.YAxis); 
       
+#if 1
       if(Edge0 < 0 &&
          Edge1 < 0 &&
          Edge2 < 0 &&
@@ -277,6 +340,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
         
         *Pixel = PixColor;
       }
+#else
+      *Pixel = PixColor;
+#endif
       
       Pixel++;
     }
