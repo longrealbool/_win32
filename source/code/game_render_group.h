@@ -51,6 +51,13 @@ struct render_entry_rectangle {
 };
 
 
+struct render_v2_basis {
+ 
+  v2 Origin;
+  v2 XAxis;
+  v2 YAxis;
+};
+
 struct render_entry_coordinate_system {
   
   render_group_entry_header Header;

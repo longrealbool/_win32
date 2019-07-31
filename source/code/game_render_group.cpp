@@ -244,6 +244,49 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
 }
 
 
+
+
+internal void
+DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
+  
+  v2 Min = Basis.Origin;
+  v2 Max = Basis.Origin + Basis.XAxis + Basis.YAxis;
+  
+  uint32 PixColor = ((RoundReal32ToUInt32(Color.A * 255.0f) << 24) |
+                     (RoundReal32ToUInt32(Color.R * 255.0f) << 16) |
+                     (RoundReal32ToUInt32(Color.G * 255.0f) << 8)  |
+                     (RoundReal32ToUInt32(Color.B * 255.0f) << 0));
+  
+  uint8 *Row = (uint8 *)Buffer->Memory;
+
+  for(int Y = 0; Y < Buffer->Height; ++Y) {
+    
+    uint32 *Pixel = (uint32 *)Row;
+    for(int X = 0; X < Buffer->Width; ++X) {
+      
+      v2 PixelP = V2i(X, Y);
+      real32 Edge0 = Inner(PixelP - Max, V2(1, 0));
+      real32 Edge1 = Inner(PixelP - Max, V2(0, 1)); 
+      real32 Edge2 = Inner(PixelP - Min, V2(0, -1)); 
+      real32 Edge3 = Inner(PixelP - Min, V2(-1, 0)); 
+      
+      if(Edge0 < 0 &&
+         Edge1 < 0 &&
+         Edge2 < 0 &&
+         Edge3 < 0) {
+        
+        *Pixel = PixColor;
+      }
+      
+      Pixel++;
+    }
+    Row += Buffer->Pitch;
+  }
+}
+
+
+
+
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
@@ -307,6 +350,19 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         P = Entry->Origin + Entry->YAxis;
         DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
         
+        
+        P = Entry->Origin + Entry->YAxis + Entry->XAxis; 
+        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
+        
+        render_v2_basis V2Basis;
+        V2Basis.Origin = Entry->Origin;
+        V2Basis.XAxis = Entry->XAxis;
+        V2Basis.YAxis = Entry->YAxis;
+        
+        
+        DrawRectangleSlowly(Output, V2Basis, V4(1,0,1,1));
+        
+#if 0
         for(uint32 I = 0; I < ArrayCount(Entry->Points); ++I) {
           
           v2 Point = Entry->Points[I];
@@ -314,9 +370,8 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
           P = Entry->Origin + Point.X*Entry->XAxis + Point.Y*Entry->YAxis; 
           
           DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
-          
         }
-        
+#endif
       } break;
       
       InvalidDefaultCase;
