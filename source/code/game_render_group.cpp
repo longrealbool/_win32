@@ -245,7 +245,7 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
 
 
 internal void
-DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
+DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, loaded_bitmap *Texture) {
   
   int32 Width = Buffer->Width - 1;
   int32 Height = Buffer->Height - 1;
@@ -259,6 +259,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
   v2 Max = Basis.Origin + Basis.XAxis + Basis.YAxis;
   v2 toAxisX = Min + Basis.XAxis;
   v2 toAxisY = Min + Basis.YAxis;
+  
+  real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
+  real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
   
 #if 0
   
@@ -280,7 +283,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
   }
   
 #else 
-  // TODO(Egor): Test what is faster
+  // TODO(Egor): Test which is faster
   // TODO(Egor): we could push the speed by refusing from Min\Max
   v2 Result = Max - Min;
   if(AbsoluteValue(Result.X) > AbsoluteValue(Result.Y)) {
@@ -308,7 +311,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
   
 #endif
   
-  
   if(XMin < 0) XMin = 0;
   if(YMin < 0) YMin = 0;
   if(XMax > Width) XMax = Width;
@@ -327,10 +329,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
     for(int32 X = XMin; X <= XMax; ++X) {
       
       v2 PixelP = V2i(X, Y);
-      real32 Edge0 = Inner(PixelP - Max, Basis.XAxis);
-      real32 Edge1 = Inner(PixelP - Max, Basis.YAxis); 
-      real32 Edge2 = Inner(PixelP - Min, -Basis.XAxis); 
-      real32 Edge3 = Inner(PixelP - Min, -Basis.YAxis); 
+      v2 d = PixelP - Basis.Origin;
+      
+      
+      real32 Edge0 = Inner(d - Basis.XAxis - Basis.YAxis, Basis.XAxis);
+      real32 Edge1 = Inner(d - Basis.XAxis - Basis.YAxis, Basis.YAxis); 
+      real32 Edge2 = Inner(d, -Basis.XAxis); 
+      real32 Edge3 = Inner(d, -Basis.YAxis); 
       
 #if 1
       if(Edge0 < 0 &&
@@ -338,7 +343,66 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color) {
          Edge2 < 0 &&
          Edge3 < 0) {
         
-        *Pixel = PixColor;
+        v2 UV =  V2(InvXAxisLengthSq * Inner(Basis.XAxis,d),
+                    InvYAxisLengthSq * Inner(Basis.YAxis,d));
+        
+        // TODO(Egor): clamp this later
+        Assert(UV.X >= 0 && UV.X <= 1.01f);
+        Assert(UV.Y >= 0 && UV.Y <= 1.01f);
+        
+        real32 tX = 1.0f + (UV.X * (Texture->Width - 3) + 0.5f);
+        real32 tY = 1.0f + (UV.Y * (Texture->Height - 3) + 0.5f);
+        
+        int32 PixelX = (int32)tX;
+        int32 PixelY = (int32)tY;
+        
+        // NOTE(Egor): take the fractional part of tX and tY
+        real32 fX = tX - (real32)PixelX;
+        real32 fY = tY - (real32)PixelY;
+        
+        Assert(PixelX >= 0 && PixelX <= (Texture->Width - 1));
+        Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
+        
+        uint8 *TexelPtr = ((uint8 *)Texture->Memory)
+                           + PixelY*Texture->Pitch + PixelX*LOADED_BITMAP_BYTES_PER_PIXEL;
+        
+        uint32 TexelA = *(uint32 *)TexelPtr;
+        uint32 TexelB = *(uint32 *)TexelPtr + sizeof(uint32);
+        uint32 TexelC = *(uint32 *)TexelPtr + Texture->Pitch;
+        uint32 TexelD = *(uint32 *)TexelPtr + Texture->Pitch + sizeof(uint32);
+        
+//        v4 Texel = 
+        
+        real32 As = (real32)((TexelA >> 24) & 0xFF);
+
+        real32 Rs = Color.A*(real32)((TexelA >> 16) & 0xFF);
+        real32 Gs = Color.A*(real32)((TexelA >> 8) & 0xFF);
+        real32 Bs = Color.A*(real32)((TexelA >> 0) & 0xFF);
+        real32 RAs = (As/255.0f) * Color.A;
+        
+        real32 Ad = (real32)((*Pixel >> 24) & 0xFF);
+        real32 Rd = (real32)((*Pixel >> 16) & 0xFF);
+        real32 Gd = (real32)((*Pixel >> 8) & 0xFF);
+        real32 Bd = (real32)((*Pixel >> 0) & 0xFF);
+        
+        real32 RAd = (Ad / 255.0f);
+        
+        real32 RAsComplement = (1 - RAs);
+        
+        // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
+        // for case when we create intermediate buffer with two or more bitmaps blend with 
+        // each other
+        real32 A = (RAs + RAd - RAs*RAd)*255.0f; 
+        real32 R = RAsComplement*Rd + Rs;
+        real32 G = RAsComplement*Gd + Gs;
+        real32 B = RAsComplement*Bd + Bs;
+        
+        
+        *Pixel = (((uint32)(A + 0.5f) << 24) |
+                 ((uint32)(R + 0.5f) << 16) |
+                 ((uint32)(G + 0.5f) << 8)  |
+                 ((uint32)(B + 0.5f) << 0));
+        
       }
 #else
       *Pixel = PixColor;
@@ -426,7 +490,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         V2Basis.YAxis = Entry->YAxis;
         
         
-        DrawRectangleSlowly(Output, V2Basis, V4(1,0,1,1));
+        DrawRectangleSlowly(Output, V2Basis, V4(1,0,1,1), Entry->Texture);
         
 #if 0
         for(uint32 I = 0; I < ArrayCount(Entry->Points); ++I) {
@@ -457,7 +521,7 @@ Clear(render_group *Group, v4 Color) {
 }
 
 inline render_entry_coordinate_system *
-PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color) {
+PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color, loaded_bitmap* Bitmap) {
   
   render_entry_coordinate_system *Entry = PushRenderElement(Group, render_entry_coordinate_system);
   
@@ -469,6 +533,7 @@ PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Colo
     Entry->XAxis = XAxis;
     Entry->YAxis = YAxis;
     Entry->Color = Color;
+    Entry->Texture = Bitmap;
     
   }
   
