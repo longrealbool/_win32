@@ -263,7 +263,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
   real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
   real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
   
-#if 0
+#if 1
   
   v2 P[4] = {Min, Min + Basis.XAxis, Min + Basis.YAxis, Max};
   
@@ -347,11 +347,11 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
                     InvYAxisLengthSq * Inner(Basis.YAxis,d));
         
         // TODO(Egor): clamp this later
-        Assert(UV.X >= 0 && UV.X <= 1.01f);
-        Assert(UV.Y >= 0 && UV.Y <= 1.01f);
+        Assert(UV.X >= 0 && UV.X <= 1.0f);
+        Assert(UV.Y >= 0 && UV.Y <= 1.0f);
         
-        real32 tX = 1.0f + (UV.X * (Texture->Width - 3) + 0.5f);
-        real32 tY = 1.0f + (UV.Y * (Texture->Height - 3) + 0.5f);
+        real32 tX = 1.0f + (UV.X * (real32)(Texture->Width - 3) + 0.5f);
+        real32 tY = 1.0f + (UV.Y * (real32)(Texture->Height - 3) + 0.5f);
         
         int32 PixelX = (int32)tX;
         int32 PixelY = (int32)tY;
@@ -364,20 +364,43 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
         Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
         
         uint8 *TexelPtr = ((uint8 *)Texture->Memory)
-                           + PixelY*Texture->Pitch + PixelX*LOADED_BITMAP_BYTES_PER_PIXEL;
+          + PixelY*Texture->Pitch + PixelX*LOADED_BITMAP_BYTES_PER_PIXEL;
         
-        uint32 TexelA = *(uint32 *)TexelPtr;
-        uint32 TexelB = *(uint32 *)TexelPtr + sizeof(uint32);
-        uint32 TexelC = *(uint32 *)TexelPtr + Texture->Pitch;
-        uint32 TexelD = *(uint32 *)TexelPtr + Texture->Pitch + sizeof(uint32);
+        uint32 TexelValA = *(uint32 *)(TexelPtr);
+        uint32 TexelValB = *(uint32 *)(TexelPtr + sizeof(uint32));
+        uint32 TexelValC = *(uint32 *)(TexelPtr + Texture->Pitch);
+        uint32 TexelValD = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
         
-//        v4 Texel = 
+        v4 TexelA  = V4((real32)((TexelValA >> 16) & 0xFF),
+                        (real32)((TexelValA >> 8) & 0xFF),
+                        (real32)((TexelValA >> 0) & 0xFF),
+                        (real32)((TexelValA >> 24) & 0xFF));
         
-        real32 As = (real32)((TexelA >> 24) & 0xFF);
-
-        real32 Rs = Color.A*(real32)((TexelA >> 16) & 0xFF);
-        real32 Gs = Color.A*(real32)((TexelA >> 8) & 0xFF);
-        real32 Bs = Color.A*(real32)((TexelA >> 0) & 0xFF);
+        v4 TexelB  = V4((real32)((TexelValB >> 16) & 0xFF),
+                        (real32)((TexelValB >> 8) & 0xFF),
+                        (real32)((TexelValB >> 0) & 0xFF),
+                        (real32)((TexelValB >> 24) & 0xFF));
+        
+        v4 TexelC  = V4((real32)((TexelValC >> 16) & 0xFF),
+                        (real32)((TexelValC >> 8) & 0xFF),
+                        (real32)((TexelValC >> 0) & 0xFF),
+                        (real32)((TexelValC >> 24) & 0xFF));
+        
+        v4 TexelD  = V4((real32)((TexelValD >> 16) & 0xFF),
+                        (real32)((TexelValD >> 8) & 0xFF),
+                        (real32)((TexelValD >> 0) & 0xFF),
+                        (real32)((TexelValD >> 24) & 0xFF));
+        
+        
+        v4 Texel = Lerp(Lerp(TexelA, TexelB, fX),
+                        Lerp(TexelC, TexelD, fX),
+                        fY);
+        
+        real32 As = Texel.A;
+        real32 Rs = Texel.R;
+        real32 Gs = Texel.G;
+        real32 Bs = Texel.B;
+        
         real32 RAs = (As/255.0f) * Color.A;
         
         real32 Ad = (real32)((*Pixel >> 24) & 0xFF);
@@ -399,9 +422,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
         
         
         *Pixel = (((uint32)(A + 0.5f) << 24) |
-                 ((uint32)(R + 0.5f) << 16) |
-                 ((uint32)(G + 0.5f) << 8)  |
-                 ((uint32)(B + 0.5f) << 0));
+                  ((uint32)(R + 0.5f) << 16) |
+                  ((uint32)(G + 0.5f) << 8)  |
+                  ((uint32)(B + 0.5f) << 0));
         
       }
 #else

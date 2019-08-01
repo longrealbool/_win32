@@ -134,6 +134,8 @@ Lerp(real32 A, real32 B, real32 t) {
   return Result;
 }
 
+
+
 inline real32
 SafeRatio(real32 Numerator, real32 Divisor, real32 N) {
   
@@ -453,8 +455,96 @@ Clamp01(v3 Value) {
 ///
 
 
+inline v4
+operator-(v4 A) {
+  
+  v4 Result;
+  Result.X = -A.X;
+  Result.Y = -A.Y;
+  Result.Z = -A.Z;
+  Result.W = -A.W;
+  
+  return Result;
+}
+
+inline v4
+operator-(v4 A, v4 B) {
+  
+  v4 Result;
+  Result.X = A.X - B.X; 
+  Result.Y = A.Y - B.Y;
+  Result.Z = A.Z - B.Z;
+  Result.W = A.W - B.W;
+  
+  return Result;
+}
+
+inline v4
+operator+(v4 A, v4 B) {
+  
+  v4 Result;
+  Result.X = A.X + B.X;
+  Result.Y = A.Y + B.Y;
+  Result.Z = A.Z + B.Z;
+  Result.W = A.W + B.W;
+  
+  return Result;
+}
+
+inline v4 &
+operator +=(v4 &A, v4 B) {
+  
+  A = A + B;
+  return A;
+}
+
+inline v4 &
+operator -=(v4 &A, v4 B) {
+  
+  A = A - B;
+  return A;
+}
+
+inline v4
+operator*(real32 lambda, v4 B) {
+  
+  v4 Result;
+  
+  Result.X = B.X * lambda;
+  Result.Y = B.Y * lambda;
+  Result.Z = B.Z * lambda;
+  Result.W = B.W * lambda;
+  
+  return Result;
+}
 
 
+inline v4
+operator*(v4 B, real32 lambda) {
+  
+  v4 Result = lambda * B;
+  return Result;
+}
+
+inline v4 &
+operator*=(v4 &B, real32 A) {
+  
+  B =  A * B;
+  return B;
+}
+
+inline v4
+Lerp(v4 A, v4 B, real32 t) {
+  
+  v4 Result = (1.0f - t)*A + t*B;
+  return Result;
+}
+
+
+
+///
+////////////////////////////////////////////////
+///
 
 
 

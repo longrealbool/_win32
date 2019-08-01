@@ -1222,13 +1222,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   }
   
   GameState->Time += Input->dtForFrame/4;
+//  GameState->Time = 0.0f;
   
   v2 Origin = ScreenCenter;
-  v2 XAxis = 300.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
+//  v2 XAxis = 300.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
+  v2 XAxis = 300.0f*V2(1.0f, 0.0f);
   v2 YAxis = V2(-XAxis.Y, XAxis.X);
   render_entry_coordinate_system *C = 
     PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis, XAxis, YAxis,
-                         V4(1.0f, 1.0f, 0.0f, 1.0f), &GameState->Tree);
+                         V4(1.0f, 0.0f, 0.0f, 1.0f), &GameState->Grass[0]);
   
   uint32 PIndex = 0;
   for(real32 Y = 0; Y <= 1; Y += 0.25f) {
