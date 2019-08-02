@@ -449,9 +449,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
         // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
         // for case when we create intermediate buffer with two or more bitmaps blend with 
         // each other
-        v4 Blended = V4(RAsComplement*Dest.R + Texel.R,
-                        RAsComplement*Dest.G + Texel.G,
-                        RAsComplement*Dest.B + Texel.B,
+        v4 Blended = V4(RAsComplement*Dest.R + Texel.R*Color.R*Color.A,
+                        RAsComplement*Dest.G + Texel.G*Color.G*Color.A,
+                        RAsComplement*Dest.B + Texel.B*Color.B*Color.A,
                         (RAs + RAd - RAs*RAd)); 
         
         v4 Blended255 = Linear1ToSRGB255(Blended);
@@ -549,7 +549,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         V2Basis.YAxis = Entry->YAxis;
         
         
-        DrawRectangleSlowly(Output, V2Basis, V4(1,0,1,1), Entry->Texture);
+        DrawRectangleSlowly(Output, V2Basis, Entry->Color, Entry->Texture);
         
 #if 0
         for(uint32 I = 0; I < ArrayCount(Entry->Points); ++I) {
