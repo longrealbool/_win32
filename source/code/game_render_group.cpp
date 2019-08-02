@@ -244,6 +244,38 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
 }
 
 
+inline v4 
+SRGB255ToLinear1(v4 C) {
+  
+  v4 Result;
+  
+  real32 Inv255 = 1.0f/255.0f;
+  
+  Result.R = Square(Inv255*C.R);
+  Result.G = Square(Inv255*C.G);
+  Result.B = Square(Inv255*C.B);
+  Result.A = Inv255*C.A;
+  
+  return Result;
+};
+
+
+inline v4 
+Linear1ToSRGB255(v4 C) {
+  
+  v4 Result;
+  
+  255.0f;
+  
+  Result.R = 255.0f*SquareRoot(C.R);
+  Result.G = 255.0f*SquareRoot(C.G);
+  Result.B = 255.0f*SquareRoot(C.B);
+  Result.A = 255.0f*C.A;
+  
+  return Result;
+}
+
+
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, loaded_bitmap *Texture) {
   
@@ -391,40 +423,44 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
                         (real32)((TexelValD >> 0) & 0xFF),
                         (real32)((TexelValD >> 24) & 0xFF));
         
+        // NOTE(Egor): from SRGB to 'linear' brightness space
+        TexelA = SRGB255ToLinear1(TexelA);
+        TexelB = SRGB255ToLinear1(TexelB);
+        TexelC = SRGB255ToLinear1(TexelC);
+        TexelD = SRGB255ToLinear1(TexelD);
         
         v4 Texel = Lerp(Lerp(TexelA, TexelB, fX),
                         Lerp(TexelC, TexelD, fX),
                         fY);
         
-        real32 As = Texel.A;
-        real32 Rs = Texel.R;
-        real32 Gs = Texel.G;
-        real32 Bs = Texel.B;
         
-        real32 RAs = (As/255.0f) * Color.A;
+        real32 RAs = Texel.A * Color.A;
         
-        real32 Ad = (real32)((*Pixel >> 24) & 0xFF);
-        real32 Rd = (real32)((*Pixel >> 16) & 0xFF);
-        real32 Gd = (real32)((*Pixel >> 8) & 0xFF);
-        real32 Bd = (real32)((*Pixel >> 0) & 0xFF);
+        v4 Dest = V4((real32)((*Pixel >> 16) & 0xFF),
+                     (real32)((*Pixel >> 8) & 0xFF),
+                     (real32)((*Pixel >> 0) & 0xFF),
+                     (real32)((*Pixel >> 24) & 0xFF));
         
-        real32 RAd = (Ad / 255.0f);
+        Dest = SRGB255ToLinear1(Dest);
         
+        real32 RAd = Dest.A;
         real32 RAsComplement = (1 - RAs);
         
         // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
         // for case when we create intermediate buffer with two or more bitmaps blend with 
         // each other
-        real32 A = (RAs + RAd - RAs*RAd)*255.0f; 
-        real32 R = RAsComplement*Rd + Rs;
-        real32 G = RAsComplement*Gd + Gs;
-        real32 B = RAsComplement*Bd + Bs;
+        v4 Blended = V4(RAsComplement*Dest.R + Texel.R,
+                        RAsComplement*Dest.G + Texel.G,
+                        RAsComplement*Dest.B + Texel.B,
+                        (RAs + RAd - RAs*RAd)); 
+        
+        v4 Blended255 = Linear1ToSRGB255(Blended);
         
         
-        *Pixel = (((uint32)(A + 0.5f) << 24) |
-                  ((uint32)(R + 0.5f) << 16) |
-                  ((uint32)(G + 0.5f) << 8)  |
-                  ((uint32)(B + 0.5f) << 0));
+        *Pixel = (((uint32)(Blended255.A + 0.5f) << 24) |
+                  ((uint32)(Blended255.R + 0.5f) << 16) |
+                  ((uint32)(Blended255.G + 0.5f) << 8)  |
+                  ((uint32)(Blended255.B + 0.5f) << 0));
         
       }
 #else
