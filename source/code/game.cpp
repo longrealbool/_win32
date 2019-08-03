@@ -118,22 +118,29 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         
         uint32 C = *SourceDest;
         
-        real32 R = (real32)((C & RedMask) >> RedShiftDown);
-        real32 G = (real32)((C & GreenMask) >> GreenShiftDown);
-        real32 B = (real32)((C & BlueMask) >> BlueShiftDown);
-        real32 A = (real32)((C & AlphaMask) >> AlphaShiftDown);
-        real32 An = A / 255.0f;
+        v4 Texel = V4((real32)((C & RedMask) >> RedShiftDown),
+                      (real32)((C & GreenMask) >> GreenShiftDown),
+                      (real32)((C & BlueMask) >> BlueShiftDown),
+                      (real32)((C & AlphaMask) >> AlphaShiftDown));
         
-#if 1
-        R = R*An;
-        G = G*An;
-        B = B*An;
-#endif
+        // NOTE(Egor): when we will grab this data we want to get our color's in 
+        // premultiplied format, so we store them in:
         
-        *SourceDest = (((uint32)(A + 0.5f) << 24) |
-                       ((uint32)(R + 0.5f) << 16) |
-                       ((uint32)(G + 0.5f) << 8)  |
-                       ((uint32)(B + 0.5f) << 0));
+        // sRGB (non-premultiplied) --to_linear--> LinearRGB * LinearAlpha
+        // --to_sRGB--> sRGB (premultiplied)
+        
+        Texel = SRGB255ToLinear1(Texel);
+        Texel.RGB *= Texel.A;
+        Texel = Linear1ToSRGB255(Texel);
+        
+        // when we will take it back from sRGB space to linear
+        // they were already in premultiplied format
+
+        
+        *SourceDest = (((uint32)(Texel.A + 0.5f) << 24) |
+                       ((uint32)(Texel.R + 0.5f) << 16) |
+                       ((uint32)(Texel.G + 0.5f) << 8)  |
+                       ((uint32)(Texel.B + 0.5f) << 0));
         
         SourceDest++;
       }
@@ -464,7 +471,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       v2 OffsetG = V2(Width*ChunkOffsetX, Height*ChunkOffsetY);
       
       loaded_bitmap *Stamp = 0;
-      for(uint32 Index = 0; Index < 20; ++Index) {
+      for(uint32 Index = 0; Index < 50; ++Index) {
         
         
 #if 1
@@ -620,6 +627,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
     GameState->Sword = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//dagger.bmp");
+    GameState->Tree1 = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
+    
     GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//tree.bmp");
     
     GameState->Stairwell = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp");
@@ -1156,7 +1165,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Wall: {
           
-          PushBitmap(RenderGroup, &GameState->Tree, V2(0, 0), V2(30, 30));
+          PushBitmap(RenderGroup, &GameState->Tree1, V2(0, 0), V2(30, 30));
           //PushRect(&RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Stairwell: {
@@ -1222,15 +1231,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   }
   
   GameState->Time += Input->dtForFrame/4;
+  real32 Angle = 0.1f*GameState->Time;
 //  GameState->Time = 0.0f;
   
   v2 Origin = ScreenCenter;
-//  v2 XAxis = 300.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
-  v2 XAxis = 300.0f*V2(1.0f, 0.0f);
+  v2 XAxis = 100.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
   v2 YAxis = V2(-XAxis.Y, XAxis.X);
+  
+  real32 CAngle = 5.0f*Angle;
+  v4 Color = V4(0.5f+0.5f*Sin(CAngle),
+                0.5f+0.5f*Sin(2.9f*CAngle),
+                0.5f+0.5f*Cos(9.9f*CAngle),
+                0.5f + 0.5f*Sin(40.0f*CAngle));
+  
   render_entry_coordinate_system *C = 
     PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis, XAxis, YAxis,
-                         V4(1.0f, 1.0f, 1.0f, Cos(GameState->Time*5.0f)), &GameState->Grass[0]);
+                         Color, &GameState->Tree1);
   
   uint32 PIndex = 0;
   for(real32 Y = 0; Y <= 1; Y += 0.25f) {

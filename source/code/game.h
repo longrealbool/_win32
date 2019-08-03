@@ -195,6 +195,7 @@ struct game_state {
   real32 PtM;
   
   loaded_bitmap Tree;
+  loaded_bitmap Tree1;
   loaded_bitmap Sword;
   loaded_bitmap Stairwell;
   
