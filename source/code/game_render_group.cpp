@@ -46,15 +46,18 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, real32 MtP) {
 
 #define PushRenderElement(Group, Type) (Type *)PushRenderElement_(Group, sizeof(Type), RenderGroupEntryType_##Type)
 
-internal render_group_entry_header *
+internal void*
 PushRenderElement_(render_group *Group, uint32 Size, render_group_entry_type Type) {
  
-  render_group_entry_header *Result = 0;
+  void *Result = 0;
+
+  Size += sizeof(render_group_entry_header);
   
   if((Group->PushBufferSize + Size) < Group->MaxPushBufferSize) {
    
-    Result = (render_group_entry_header *)(Group->PushBufferBase + Group->PushBufferSize);
-    Result->Type = Type;
+    render_group_entry_header *Header = (render_group_entry_header *)(Group->PushBufferBase + Group->PushBufferSize);
+    Header->Type = Type;
+    Result = (Header + 1);
     Group->PushBufferSize += Size;
   }
   else {
@@ -68,7 +71,7 @@ PushRenderElement_(render_group *Group, uint32 Size, render_group_entry_type Typ
 inline void
 PushPiece(render_group *Group, loaded_bitmap *Bitmap,
           v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Align, v2 Dim, v4 Color) {
-
+  
   render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
   if(Piece) {
     
@@ -498,11 +501,15 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
     
     render_group_entry_header *Header = (render_group_entry_header *)(Group->PushBufferBase + BaseAddress);
     
+    BaseAddress += sizeof(*Header);
+    
+    void *Data = (uint8 *)Header + sizeof(*Header);
+    
     switch(Header->Type) {
       
       case RenderGroupEntryType_render_entry_clear: {
         
-        render_entry_clear *Entry = (render_entry_clear *)Header;
+        render_entry_clear *Entry = (render_entry_clear *)Data;
         
         DrawRectangle(Output, V2(0.0f, 0.0f),
                       V2((real32)Output->Width, (real32)Output->Height),
@@ -514,7 +521,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       case RenderGroupEntryType_render_entry_bitmap: {
         
         
-        render_entry_bitmap *Entry = (render_entry_bitmap *)Header;
+        render_entry_bitmap *Entry = (render_entry_bitmap *)Data;
         BaseAddress += sizeof(*Entry);
         
         v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
@@ -526,7 +533,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       case RenderGroupEntryType_render_entry_rectangle: {
         
         
-        render_entry_rectangle *Entry = (render_entry_rectangle *)Header;
+        render_entry_rectangle *Entry = (render_entry_rectangle *)Data;
         BaseAddress += sizeof(*Entry);
         
         v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
@@ -535,7 +542,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       case RenderGroupEntryType_render_entry_coordinate_system: {
         
         
-        render_entry_coordinate_system *Entry = (render_entry_coordinate_system *)Header;
+        render_entry_coordinate_system *Entry = (render_entry_coordinate_system *)Data;
         BaseAddress += sizeof(*Entry);
         
         v2 DimOrigin = V2(5, 5);

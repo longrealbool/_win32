@@ -30,13 +30,11 @@ struct render_group_entry_header {
 
 struct render_entry_clear {
 
-  render_group_entry_header Header;
   v4 Color;
 };
 
 struct render_entry_bitmap {
   
-  render_group_entry_header Header;
   loaded_bitmap *Bitmap;
   v4 Color;
   render_entity_basis EntityBasis;
@@ -44,7 +42,6 @@ struct render_entry_bitmap {
 
 struct render_entry_rectangle {
   
-  render_group_entry_header Header;
   v4 Color;
   render_entity_basis EntityBasis;
   v2 Dim;
@@ -60,7 +57,6 @@ struct render_v2_basis {
 
 struct render_entry_coordinate_system {
   
-  render_group_entry_header Header;
   render_entity_basis EntityBasis;
   v2 Origin;
   v2 XAxis;
