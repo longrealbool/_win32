@@ -282,17 +282,38 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
 }
 
 
+inline v4
+Unpack4x8(uint32 Packed) {
+  
+  v4 Result = V4((real32)((Packed >> 16) & 0xFF),
+                 (real32)((Packed >> 8) & 0xFF),
+                 (real32)((Packed >> 0) & 0xFF),
+                 (real32)((Packed >> 24) & 0xFF));
+  
+  return Result;
+}
 
+inline v3
+SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, real32 Roughness, environment_map *Map) {
+
+  v3 Result = Normal;
+  return Result;
+}
 
 
 internal void
-DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, loaded_bitmap *Texture) {
+DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
+                    loaded_bitmap *Texture, loaded_bitmap *NormalMap,
+                    environment_map *Top, environment_map *Middle, environment_map *Bottom) {
   
   //NOTE(Egor): premultiply color
   Color.RGB *= Color.A;
   
   int32 Width = Buffer->Width - 1;
   int32 Height = Buffer->Height - 1;
+  
+  real32 InvWidth = 1.0f/(real32)Width;
+  real32 InvHeight = 1.0f/(real32)Height;
   
   int32 YMin = Height;
   int32 XMin = Width;
@@ -387,6 +408,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
          Edge2 < 0 &&
          Edge3 < 0) {
         
+        v2 ScreenSpaceUV = V2((real32)X*InvWidth, (real32)Y*InvHeight);
+        
         v2 UV =  V2(InvXAxisLengthSq * Inner(Basis.XAxis,d),
                     InvYAxisLengthSq * Inner(Basis.YAxis,d));
         
@@ -414,59 +437,75 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color, load
         uint32 TexelValB = *(uint32 *)(TexelPtr + sizeof(uint32));
         uint32 TexelValC = *(uint32 *)(TexelPtr + Texture->Pitch);
         uint32 TexelValD = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
-        
-        v4 TexelA  = V4((real32)((TexelValA >> 16) & 0xFF),
-                        (real32)((TexelValA >> 8) & 0xFF),
-                        (real32)((TexelValA >> 0) & 0xFF),
-                        (real32)((TexelValA >> 24) & 0xFF));
-        
-        v4 TexelB  = V4((real32)((TexelValB >> 16) & 0xFF),
-                        (real32)((TexelValB >> 8) & 0xFF),
-                        (real32)((TexelValB >> 0) & 0xFF),
-                        (real32)((TexelValB >> 24) & 0xFF));
-        
-        v4 TexelC  = V4((real32)((TexelValC >> 16) & 0xFF),
-                        (real32)((TexelValC >> 8) & 0xFF),
-                        (real32)((TexelValC >> 0) & 0xFF),
-                        (real32)((TexelValC >> 24) & 0xFF));
-        
-        v4 TexelD  = V4((real32)((TexelValD >> 16) & 0xFF),
-                        (real32)((TexelValD >> 8) & 0xFF),
-                        (real32)((TexelValD >> 0) & 0xFF),
-                        (real32)((TexelValD >> 24) & 0xFF));
-        
+        v4 TexelA  = Unpack4x8(TexelValA);
+        v4 TexelB  = Unpack4x8(TexelValB);
+        v4 TexelC  = Unpack4x8(TexelValC);
+        v4 TexelD  = Unpack4x8(TexelValD);
         // NOTE(Egor): from SRGB to 'linear' brightness space
         TexelA = SRGB255ToLinear1(TexelA);
         TexelB = SRGB255ToLinear1(TexelB);
         TexelC = SRGB255ToLinear1(TexelC);
         TexelD = SRGB255ToLinear1(TexelD);
-        
         v4 Texel = Lerp(Lerp(TexelA, TexelB, fX),
                         Lerp(TexelC, TexelD, fX),
                         fY);
         
-        Texel.R *= Color.R;
-        Texel.G *= Color.G;
-        Texel.B *= Color.B;
-        Texel.A *= Color.A;
-        
-        v4 Dest = V4((real32)((*Pixel >> 16) & 0xFF),
-                     (real32)((*Pixel >> 8) & 0xFF),
-                     (real32)((*Pixel >> 0) & 0xFF),
-                     (real32)((*Pixel >> 24) & 0xFF));
-        
+        if(NormalMap) {
+          
+          uint8 *NormalPtr = ((uint8 *)NormalMap->Memory)
+            + PixelY*NormalMap->Pitch + PixelX*LOADED_BITMAP_BYTES_PER_PIXEL;
+          
+          
+          uint32 NormalValA = *(uint32 *)(NormalPtr);
+          uint32 NormalValB = *(uint32 *)(NormalPtr + sizeof(uint32));
+          uint32 NormalValC = *(uint32 *)(NormalPtr + Texture->Pitch);
+          uint32 NormalValD = *(uint32 *)(NormalPtr + Texture->Pitch + sizeof(uint32));
+          
+          v4 NormalA  = Unpack4x8(NormalValA);
+          v4 NormalB  = Unpack4x8(NormalValB);
+          v4 NormalC  = Unpack4x8(NormalValC);
+          v4 NormalD  = Unpack4x8(NormalValD);
+          v4 Normal = Lerp(Lerp(NormalA, NormalB, fX),
+                           Lerp(NormalC, NormalD, fX),
+                           fY);
+          
+          environment_map *FarMap = 0;
+          real32 tEnvMap = Normal.Z;
+          real32 tFarMap = 0.0f;
+          if(tEnvMap < 0.25f) {
+            
+            FarMap = Bottom;
+            tFarMap = 1.0f -  (tEnvMap / 0.25f);
+          }
+          else if(tEnvMap > 0.75f) {
+            
+            FarMap = Top;
+            //          tFarMap = (1.0f - tEnvMap) / 0.25f;
+            tFarMap = 1.0f - (1.0f - tEnvMap) / 0.25f;
+          }
+          
+          v3 LightColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.XYZ, Normal.W, Middle);
+          
+          if(FarMap) {
+            
+            v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.XYZ, Normal.W, FarMap);
+            LightColor = Lerp(LightColor, FarMapColor, tFarMap);
+          }
+          
+          Texel.RGB = Hadamard(Texel.RGB, LightColor);
+          
+          // NOTE(Egor): end of normal processing
+        }
+
+        // NOTE(Egor): color tinting and external opacity
+        Texel = Hadamard(Texel, Color);        
+        v4 Dest = Unpack4x8(*Pixel);
         Dest = SRGB255ToLinear1(Dest);
-        
-        real32 RAsComplement = (1.0f - Texel.A);
-        
         // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
         // for case when we create intermediate buffer with two or more bitmaps blend with 
-        // each other
-        v4 Blended = V4(RAsComplement*Dest.R + Texel.R,
-                        RAsComplement*Dest.G + Texel.G,
-                        RAsComplement*Dest.B + Texel.B,
-                        (Texel.A + Dest.A - Texel.A*Dest.A)); 
-        
+        // each other 
+        // (Texel.A + Dest.A - Texel.A*Dest.A))
+        v4 Blended = (1.0f - Texel.A)*Dest + Texel;
         v4 Blended255 = Linear1ToSRGB255(Blended);
         
         
@@ -527,7 +566,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
         
         Assert(Entry->Bitmap);
-        DrawBitmap(Output, Entry->Bitmap, P.X, P.Y, 1.0f);
+        //DrawBitmap(Output, Entry->Bitmap, P.X, P.Y, 1.0f);
         
       } break;
       case RenderGroupEntryType_render_entry_rectangle: {
@@ -565,8 +604,9 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         V2Basis.XAxis = Entry->XAxis;
         V2Basis.YAxis = Entry->YAxis;
         
-        
-        DrawRectangleSlowly(Output, V2Basis, Entry->Color, Entry->Texture);
+        DrawRectangleSlowly(Output, V2Basis, Entry->Color,
+                            Entry->Texture, Entry->NormalMap,
+                            Entry->Top, Entry->Middle, Entry->Bottom);
         
 #if 0
         for(uint32 I = 0; I < ArrayCount(Entry->Points); ++I) {
@@ -597,12 +637,13 @@ Clear(render_group *Group, v4 Color) {
 }
 
 inline render_entry_coordinate_system *
-PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color, loaded_bitmap* Bitmap) {
+PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color,
+                     loaded_bitmap *Bitmap, loaded_bitmap *NormalMap,
+                     environment_map *Top, environment_map *Middle, environment_map *Bottom) {
   
   render_entry_coordinate_system *Entry = PushRenderElement(Group, render_entry_coordinate_system);
   
   if(Entry) {
-    
     
     Entry->EntityBasis.Basis = Group->DefaultBasis;
     Entry->Origin = Origin;
@@ -610,7 +651,10 @@ PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Colo
     Entry->YAxis = YAxis;
     Entry->Color = Color;
     Entry->Texture = Bitmap;
-    
+    Entry->NormalMap = NormalMap;
+    Entry->Top = Top;
+    Entry->Middle = Middle;
+    Entry->Bottom = Bottom;
   }
   
   return Entry;

@@ -545,6 +545,42 @@ MakeEmptyBitmap(memory_arena *Arena, uint32 Width, uint32 Height, bool32 ClearTo
   return Result;
 }
 
+internal void
+MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
+
+  real32 InvWidth = 1.0f/(Bitmap->Width - 1.0f);
+  real32 InvHeight = 1.0f/(Bitmap->Height - 1.0f);
+
+  uint8 *Row = (uint8 *)Bitmap->Memory;
+  
+  for(int32 Y = 0; Y < Bitmap->Width; ++Y) {
+    
+    uint32 *Pixel = (uint32 *)Row;
+    for(int32 X = 0; X < Bitmap->Width; ++X) {
+      
+      v2 BitmapUV = V2(InvWidth*(real32)X, InvHeight*(real32)Y);
+      v3 Normal = V3(2.0f*BitmapUV.X - 1.0f, 2.0f*BitmapUV.Y - 1.0f, 0.0f); 
+      Normal.Z = AbsoluteValue(Normal.X) + AbsoluteValue(Normal.Y);
+      Normal = Normalize(Normal);
+      
+      v4 Color = V4(0.5f*(Normal.X + 1.0f),
+                    0.5f*(Normal.Y + 1.0f),
+                    0.5f*(Normal.Z),
+                    Roughness);
+      
+      Color *= 255.0f;
+      
+      uint32 PixNormal = (((uint32)(Color.A + 0.5f) << 24) |
+                          ((uint32)(Color.R + 0.5f) << 16) |
+                          ((uint32)(Color.G + 0.5f) << 8)  |
+                          ((uint32)(Color.B + 0.5f) << 0));
+      
+      *Pixel = PixNormal;
+    }
+    Row += Bitmap->Pitch;
+  }
+}
+
 
 #if 0
 internal void 
@@ -973,7 +1009,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
 #if 1
   
-  Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 0.0f));
+  Clear(RenderGroup, V4(0.5f, 0.5f, 0.5f, 0.0f));
 
 #endif
   
@@ -1243,19 +1279,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 0.5f+0.5f*Sin(2.9f*CAngle),
                 0.5f+0.5f*Cos(9.9f*CAngle),
                 0.5f + 0.5f*Sin(40.0f*CAngle));
+
   
   render_entry_coordinate_system *C = 
     PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis, XAxis, YAxis,
-                         Color, &GameState->Tree1);
-  
-  uint32 PIndex = 0;
-  for(real32 Y = 0; Y <= 1; Y += 0.25f) {
-    for(real32 X = 0; X <= 1; X += 0.25f) {
-      
-      C->Points[PIndex++] = V2(X, Y);
-    }
-  }
-  
+                         Color, &GameState->Tree1, 0, 0, 0, 0);
   
   
   RenderPushBuffer(RenderGroup, DrawBuffer);

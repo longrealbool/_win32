@@ -28,19 +28,34 @@ union v3 {
 };
 
 union v4 {
+  
   struct {
     
     real32 X, Y, Z, W;
   };
+  
   struct {
-    
     union {
+      
+      v3 XYZ;
+      struct {
+        
+        real32 X, Y , Z;
+      };
+    };
+      real32 W;
+  };
+    
+  struct {
+    union {
+      
       v3 RGB;
       struct {
+        
         real32 R, G, B;
       };
     };
-      real32 A;
+    real32 A;
   };
   
   real32 E[4];
@@ -59,7 +74,7 @@ V2(real32 X, real32 Y) {
 
 inline v2
 V2i(int32 X, int32 Y) {
- 
+  
   v2 Result = {(real32)X, (real32)Y};
   return Result;
 }
@@ -317,6 +332,14 @@ Hadamard(v2 A, v2 B) {
 }
 
 
+inline v2 Normalize(v2 A) {
+  
+  real32 InvLength = 1.0f/Length(A);
+  v2 Result = A*InvLength;
+  return Result;
+}
+
+
 ///
 ////////////////////////////////////////////////
 ///
@@ -451,6 +474,20 @@ Clamp01(v3 Value) {
   return Result;
 }
 
+inline v3
+Lerp(v3 A, v3 B, real32 t) {
+  
+  v3 Result = (1.0f - t)*A + t*B;
+  return Result;
+}
+
+inline v3 Normalize(v3 A) {
+  
+  real32 InvLength = 1.0f/Length(A);
+  v3 Result = A*InvLength;
+  return Result;
+}
+
 
 ///
 ////////////////////////////////////////////////
@@ -536,12 +573,48 @@ operator*=(v4 &B, real32 A) {
 }
 
 inline v4
+Hadamard(v4 A, v4 B) {
+  
+  v4 Result = {A.X * B.X, A.Y * B.Y, A.Z * B.Z, A.W * B.W};
+  return Result;
+}
+
+inline v4
 Lerp(v4 A, v4 B, real32 t) {
   
   v4 Result = (1.0f - t)*A + t*B;
   return Result;
 }
 
+inline real32
+Inner(v4 A, v4 B) {
+  
+  real32 Result = A.X * B.X + A.Y * B.Y + A.Z * B.Z + A.W * B.W;
+  return Result;
+}
+
+inline real32
+LengthSq(v4 A) {
+  
+  real32 Result;
+  Result = Inner(A, A);
+  return Result;
+}
+
+inline real32
+Length(v4 A) {
+  
+  real32 Result;
+  Result = SquareRoot(LengthSq(A));
+  return Result;
+}
+
+inline v4 Normalize(v4 A) {
+  
+  real32 InvLength = 1.0f/Length(A);
+  v4 Result = A*InvLength;
+  return Result;
+}
 
 
 ///
