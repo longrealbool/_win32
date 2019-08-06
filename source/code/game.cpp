@@ -560,9 +560,10 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
       
       v2 BitmapUV = V2(InvWidth*(real32)X, InvHeight*(real32)Y);
       v3 Normal = V3(2.0f*BitmapUV.X - 1.0f, 2.0f*BitmapUV.Y - 1.0f, 0.0f); 
-      Normal.Z = AbsoluteValue(Normal.X) + AbsoluteValue(Normal.Y);
-      Normal = Normalize(Normal);
+      // TODO(Egor): this is definitely wrong
+      Normal.Z = SquareRoot(1.0f - Square(Normal.X) - Square(Normal.Y));
       
+      // TODO(Egor): maybe this is wrong
       v4 Color = V4(0.5f*(Normal.X + 1.0f),
                     0.5f*(Normal.Y + 1.0f),
                     0.5f*(Normal.Z),
