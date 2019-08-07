@@ -49,7 +49,7 @@ void *PushSize_(memory_arena *Arena, size_t Size) {
 }
 
 struct temporary_memory {
- 
+  
   memory_arena *Arena;
   size_t Used;
 };
@@ -71,7 +71,7 @@ inline void EndTemporaryMemory(temporary_memory TempMem) {
   memory_arena *Arena = TempMem.Arena;
   Assert(Arena->Used >= TempMem.Used);
   
-
+  
   Arena->Used = TempMem.Used;
   Assert(Arena->TempCount > 0);
   Arena->TempCount--;
@@ -79,7 +79,7 @@ inline void EndTemporaryMemory(temporary_memory TempMem) {
 
 inline void CheckArena(memory_arena *Arena) {
   
- 
+  
   Assert(Arena->TempCount == 0);
   
 }
@@ -164,7 +164,7 @@ struct pairwise_collision_rule {
 };
 
 struct ground_buffer {
-
+  
   world_position P;
   loaded_bitmap Bitmap;
 };
@@ -196,6 +196,7 @@ struct game_state {
   
   loaded_bitmap Tree;
   loaded_bitmap Tree1;
+  loaded_bitmap Tree1NormalMap;
   loaded_bitmap Sword;
   loaded_bitmap Stairwell;
   
@@ -222,7 +223,7 @@ struct game_state {
 struct transient_state {
   
   bool32 Initialized;
-  memory_arena TransientArena;
+  memory_arena TranArena;
   uint32 GroundBufferCount;
   ground_buffer *GroundBuffers;
 };

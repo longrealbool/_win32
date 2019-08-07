@@ -58,8 +58,8 @@ extern "C" {
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
   // TODO(Egor): swap, min, max ... macros???
   
-#define Min(A, B) A < B ? A : B
-#define Max(A, B) A > B ? A : B
+#define Min(A, B) (A < B ? A : B)
+#define Max(A, B) (A > B ? A : B)
   
   
   

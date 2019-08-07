@@ -28,6 +28,20 @@ Linear1ToSRGB255(v4 C) {
   return Result;
 }
 
+inline v4
+UnscaleAndBiasNormal(v4 Normal) {
+  
+  v4 Result;
+  real32 Inv255 = 1.0f/255.0f;
+  Result.X = -1.0f + 2.0f*Inv255*Normal.X;
+  Result.Y = -1.0f + 2.0f*Inv255*Normal.Y;
+  Result.Z = -1.0f + 2.0f*Inv255*Normal.Z;
+  
+  Result.W = Inv255*Normal.W;
+  
+  return Result;
+}
+
 
 internal render_group *
 AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, real32 MtP) {
@@ -131,7 +145,7 @@ PushRectOutline(render_group *Group, v2 Offset, v2 Dim, v4 Color,
 
 
 
-internal void
+internal void 
 DrawBitmap(loaded_bitmap *Buffer,
            loaded_bitmap *Bitmap,
            real32 RealX, real32 RealY, real32 CAlpha = 1.0f) {
@@ -295,8 +309,32 @@ Unpack4x8(uint32 Packed) {
 
 inline v3
 SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, real32 Roughness, environment_map *Map) {
-
+  
   v3 Result = Normal;
+  return Result;
+}
+
+struct billinear_sample {
+ 
+  uint32 A;
+  uint32 B;
+  uint32 C;
+  uint32 D;
+};
+
+inline billinear_sample
+BillinearSample(loaded_bitmap *Texture, int32 X, int32 Y) {
+  
+  billinear_sample Result;
+  
+  uint8 *TexelPtr = ((uint8 *)Texture->Memory)
+    + Y*Texture->Pitch + X*LOADED_BITMAP_BYTES_PER_PIXEL;
+  
+  Result.A = *(uint32 *)(TexelPtr);
+  Result.B = *(uint32 *)(TexelPtr + sizeof(uint32));
+  Result.C = *(uint32 *)(TexelPtr + Texture->Pitch);
+  Result.D = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
+  
   return Result;
 }
 
@@ -387,7 +425,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                      (RoundReal32ToUInt32(Color.B * 255.0f) << 0));
   
   uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*LOADED_BITMAP_BYTES_PER_PIXEL;
-
+  
   for(int32 Y = YMin; Y <= YMax; ++Y) {
     
     uint32 *Pixel = (uint32 *)Row;
@@ -417,8 +455,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         //Assert(UV.X >= 0 && UV.X <= 1.0f);
         //Assert(UV.Y >= 0 && UV.Y <= 1.0f);
         
-        real32 tX = 1.0f + (UV.X * (real32)(Texture->Width - 3) + 0.5f);
-        real32 tY = 1.0f + (UV.Y * (real32)(Texture->Height - 3) + 0.5f);
+        real32 tX = (UV.X * (real32)(Texture->Width - 2));
+        real32 tY = (UV.Y * (real32)(Texture->Height - 2));
         
         int32 PixelX = (int32)tX;
         int32 PixelY = (int32)tY;
@@ -430,17 +468,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         Assert(PixelX >= 0 && PixelX <= (Texture->Width - 1));
         Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
         
-        uint8 *TexelPtr = ((uint8 *)Texture->Memory)
-          + PixelY*Texture->Pitch + PixelX*LOADED_BITMAP_BYTES_PER_PIXEL;
-        
-        uint32 TexelValA = *(uint32 *)(TexelPtr);
-        uint32 TexelValB = *(uint32 *)(TexelPtr + sizeof(uint32));
-        uint32 TexelValC = *(uint32 *)(TexelPtr + Texture->Pitch);
-        uint32 TexelValD = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
-        v4 TexelA  = Unpack4x8(TexelValA);
-        v4 TexelB  = Unpack4x8(TexelValB);
-        v4 TexelC  = Unpack4x8(TexelValC);
-        v4 TexelD  = Unpack4x8(TexelValD);
+        billinear_sample TexelSample = BillinearSample(Texture, PixelX, PixelY);
+
+        v4 TexelA  = Unpack4x8(TexelSample.A);
+        v4 TexelB  = Unpack4x8(TexelSample.B);
+        v4 TexelC  = Unpack4x8(TexelSample.C);
+        v4 TexelD  = Unpack4x8(TexelSample.D);
         // NOTE(Egor): from SRGB to 'linear' brightness space
         TexelA = SRGB255ToLinear1(TexelA);
         TexelB = SRGB255ToLinear1(TexelB);
@@ -452,23 +485,19 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         if(NormalMap) {
           
-          uint8 *NormalPtr = ((uint8 *)NormalMap->Memory)
-            + PixelY*NormalMap->Pitch + PixelX*LOADED_BITMAP_BYTES_PER_PIXEL;
+          billinear_sample NormalSample = BillinearSample(NormalMap, PixelX, PixelY);
           
+          v4 NormalA  = Unpack4x8(NormalSample.A);
+          v4 NormalB  = Unpack4x8(NormalSample.B);
+          v4 NormalC  = Unpack4x8(NormalSample.C);
+          v4 NormalD  = Unpack4x8(NormalSample.D);
           
-          uint32 NormalValA = *(uint32 *)(NormalPtr);
-          uint32 NormalValB = *(uint32 *)(NormalPtr + sizeof(uint32));
-          uint32 NormalValC = *(uint32 *)(NormalPtr + Texture->Pitch);
-          uint32 NormalValD = *(uint32 *)(NormalPtr + Texture->Pitch + sizeof(uint32));
-          
-          v4 NormalA  = Unpack4x8(NormalValA);
-          v4 NormalB  = Unpack4x8(NormalValB);
-          v4 NormalC  = Unpack4x8(NormalValC);
-          v4 NormalD  = Unpack4x8(NormalValD);
           v4 Normal = Lerp(Lerp(NormalA, NormalB, fX),
                            Lerp(NormalC, NormalD, fX),
                            fY);
           
+          Normal = UnscaleAndBiasNormal(Normal);
+#if 0
           environment_map *FarMap = 0;
           real32 tEnvMap = Normal.Z;
           real32 tFarMap = 0.0f;
@@ -493,10 +522,14 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           }
           
           Texel.RGB = Hadamard(Texel.RGB, LightColor);
+#else
+          Texel.RGB = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.RGB;
+          Texel.A = 1.0f;
+#endif
           
           // NOTE(Egor): end of normal processing
         }
-
+        
         // NOTE(Egor): color tinting and external opacity
         Texel = Hadamard(Texel, Color);        
         v4 Dest = Unpack4x8(*Pixel);
@@ -604,9 +637,11 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         V2Basis.XAxis = Entry->XAxis;
         V2Basis.YAxis = Entry->YAxis;
         
+#if 1
         DrawRectangleSlowly(Output, V2Basis, Entry->Color,
                             Entry->Texture, Entry->NormalMap,
                             Entry->Top, Entry->Middle, Entry->Bottom);
+#endif
         
 #if 0
         for(uint32 I = 0; I < ArrayCount(Entry->Points); ++I) {

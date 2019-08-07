@@ -443,8 +443,8 @@ internal void
 FillGroundChunk(transient_state *TranState, game_state *GameState,
                 ground_buffer *GroundBuffer, world_position *Pos) {
   
-  temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TransientArena);
-  render_group *GroundGroup = AllocateRenderGroup(&TranState->TransientArena, Megabytes(4), 1.0f);
+  temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
+  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), 1.0f);
   
   loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
   GroundBuffer->P = *Pos;
@@ -553,32 +553,108 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
 
   uint8 *Row = (uint8 *)Bitmap->Memory;
   
-  for(int32 Y = 0; Y < Bitmap->Width; ++Y) {
+  for(int32 Y = 0; Y < Bitmap->Height; ++Y) {
     
     uint32 *Pixel = (uint32 *)Row;
     for(int32 X = 0; X < Bitmap->Width; ++X) {
       
       v2 BitmapUV = V2(InvWidth*(real32)X, InvHeight*(real32)Y);
-      v3 Normal = V3(2.0f*BitmapUV.X - 1.0f, 2.0f*BitmapUV.Y - 1.0f, 0.0f); 
-      // TODO(Egor): this is definitely wrong
-      Normal.Z = SquareRoot(1.0f - Square(Normal.X) - Square(Normal.Y));
+      
+      real32 Nx = 2.0f*BitmapUV.X - 1.0f;
+      real32 Ny = 2.0f*BitmapUV.Y - 1.0f;
+      real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
+      
+      v3 Normal = V3(0, 0, 1);
+      if(RootTerm >= 0.0f) {
+        
+        real32 Nz = SquareRoot(RootTerm); 
+        Normal = V3(Nx, Ny, Nz); 
+      }
       
       // TODO(Egor): maybe this is wrong
-      v4 Color = V4(0.5f*(Normal.X + 1.0f),
-                    0.5f*(Normal.Y + 1.0f),
-                    0.5f*(Normal.Z),
-                    Roughness);
-      
-      Color *= 255.0f;
+      v4 Color = V4(255.0f*(0.5f*(Normal.X + 1.0f)),
+                    255.0f*(0.5f*(Normal.Y + 1.0f)),
+                    255.0f*(0.5f*(Normal.Z + 1.0f)),
+                    255.0f*Roughness);
       
       uint32 PixNormal = (((uint32)(Color.A + 0.5f) << 24) |
                           ((uint32)(Color.R + 0.5f) << 16) |
                           ((uint32)(Color.G + 0.5f) << 8)  |
                           ((uint32)(Color.B + 0.5f) << 0));
       
-      *Pixel = PixNormal;
+      
+      *Pixel++ = PixNormal;
     }
+    
     Row += Bitmap->Pitch;
+  }
+}
+
+
+internal void
+MakeSphereNormalMapDebug(loaded_bitmap *Bitmap, real32 Roughness) {
+  
+  static int32 StaticX = 0;
+  static int32 StaticY = 0;
+  
+  for(uint32 Counter = 0; Counter < 81*4; ++Counter) {
+    int32 Y = StaticY;
+    int32 X = StaticX;
+    
+    real32 InvWidth = 1.0f/(Bitmap->Width-1);
+    real32 InvHeight = 1.0f/(Bitmap->Height-1);
+    
+    uint8 *Row = (uint8 *)Bitmap->Memory + Bitmap->Pitch*Y;
+    
+    uint32 *Pixel = (uint32 *)Row + X;
+    
+    v2 BitmapUV = V2(InvWidth*(real32)(X + 1), InvHeight*(real32)(Y + 1));
+    
+#if 1
+    real32 Nx = 2.0f*BitmapUV.X - 1.0f;
+    real32 Ny = 2.0f*BitmapUV.Y - 1.0f;
+    real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
+    v3 Normal = V3(0, 0, 1);
+    if(RootTerm >= 0.0f) {
+      
+      real32 Nz = SquareRoot(RootTerm); 
+      Normal = V3(Nx, Ny, Nz); 
+    }
+    
+#else
+    v3 Normal = V3(2.0f*BitmapUV.X - 1.0f, 2.0f*BitmapUV.Y - 1.0f, 0.0f); 
+    // TODO(Egor): this is ugly hack
+    Normal.Z = SquareRoot(1.0f - Min(1.0f, Square(Normal.X) + Square(Normal.Y)));
+#endif
+    
+    // TODO(Egor): maybe this is wrong
+    v4 Color = V4(255.0f*(0.5f*(Normal.X + 1.0f)),
+                  255.0f*(0.5f*(Normal.Y + 1.0f)),
+                  255.0f*(0.5f*(Normal.Z + 1.0f)),
+                  255.0f*Roughness);
+    
+    uint32 PixNormal = (((uint32)(Color.A + 0.5f) << 24) |
+                        ((uint32)(Color.R + 0.5f) << 16) |
+                        ((uint32)(Color.G + 0.5f) << 8)  |
+                        ((uint32)(Color.B + 0.5f) << 0));
+    
+
+    
+    
+    
+    *Pixel = PixNormal;
+
+
+    StaticX++;
+    if(StaticX == Bitmap->Width) {
+      StaticY++;
+      StaticX = 0;
+    }
+    if(StaticY == Bitmap->Height) {
+      StaticY = 0;
+      StaticX = 0;
+    }
+      
   }
 }
 
@@ -595,7 +671,7 @@ RequestGroundBuffers(world_position CenterP, rectangle3 Bounds) {
     
   }
   
-  FillGroundChunk(TransientState, GameState, TransientState->GroundBuffers,
+  FillGroundChunk(TranState, GameState, TranState->GroundBuffers,
                   &GameState->CameraP);
 }
 #endif
@@ -877,42 +953,44 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   // NOTE(Egor): transient state initialization   
   ///////////////////////////////////////////////////////////////////////////
   Assert(sizeof(transient_state) <= Memory->TransientStorageSize);
-  transient_state *TransientState = (transient_state *)Memory->TransientStorage;
+  transient_state *TranState = (transient_state *)Memory->TransientStorage;
   
-  if(!TransientState->Initialized){
+  if(!TranState->Initialized){
     
-    InitializeArena(&TransientState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
+    InitializeArena(&TranState->TranArena, Memory->TransientStorageSize - sizeof(transient_state),
                     (uint8 *)Memory->TransientStorage + sizeof(transient_state));
     
     
-    TransientState->GroundBufferCount = 32;
-    TransientState->GroundBuffers = PushArray(&TransientState->TransientArena,
-                                              TransientState->GroundBufferCount, ground_buffer); 
+    TranState->GroundBufferCount = 32;
+    TranState->GroundBuffers = PushArray(&TranState->TranArena,
+                                              TranState->GroundBufferCount, ground_buffer); 
     
     for(uint32 GroundBufferIndex = 0;
-        GroundBufferIndex < TransientState->GroundBufferCount;
+        GroundBufferIndex < TranState->GroundBufferCount;
         ++GroundBufferIndex) {
       
-      ground_buffer *GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
-      GroundBuffer->Bitmap = MakeEmptyBitmap(&TransientState->TransientArena,
+      ground_buffer *GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
+      GroundBuffer->Bitmap = MakeEmptyBitmap(&TranState->TranArena,
                                                              GroundBufferWidth,
                                                              GroundBufferHeight, false);
       
       GroundBuffer->P = NullPosition();
     }
     
+    GameState->Tree1NormalMap = MakeEmptyBitmap(&TranState->TranArena, GameState->Tree1.Width, GameState->Tree1.Height);
+   // MakeSphereNormalMap(&GameState->Tree1NormalMap, 0.0f);
     
-    TransientState->Initialized = true;
+    TranState->Initialized = true;
   }
   
   // NOTE(Egor): debug code
   if(Input->ExecutableReloaded) {
     
     for(uint32 GroundBufferIndex = 0;
-        GroundBufferIndex < TransientState->GroundBufferCount;
+        GroundBufferIndex < TranState->GroundBufferCount;
         ++GroundBufferIndex) {
       
-      ground_buffer *GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
+      ground_buffer *GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
       GroundBuffer->P = NullPosition();
     }
   }
@@ -995,8 +1073,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-  temporary_memory RenderMem = BeginTemporaryMemory(&TransientState->TransientArena);
-  render_group *RenderGroup = AllocateRenderGroup(&TransientState->TransientArena, Megabytes(4), GameState->MtP);
+
+  
+  temporary_memory RenderMem = BeginTemporaryMemory(&TranState->TranArena);
+  render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->MtP);
 
   
   loaded_bitmap DrawBuffer_ = {};
@@ -1008,9 +1088,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   v2 ScreenCenter = {0.5f*DrawBuffer->Width, 0.5f*DrawBuffer->Height};
   
+
+  
 #if 1
   
-  Clear(RenderGroup, V4(0.5f, 0.5f, 0.5f, 0.0f));
+  Clear(RenderGroup, V4(0.0f, 0.0f, 0.0f, 1.0f));
+  
+
 
 #endif
   
@@ -1042,10 +1126,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           real32 FurthestBufferLenSq = 0.0f;
           
           for(uint32 GroundBufferIndex = 0;
-              GroundBufferIndex < TransientState->GroundBufferCount;
+              GroundBufferIndex < TranState->GroundBufferCount;
               ++GroundBufferIndex) {
             
-            ground_buffer *GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
+            ground_buffer *GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
             
             if(AreInTheSameChunk(World, &GroundBuffer->P ,
                                  &ChunkCenterP)) {
@@ -1071,7 +1155,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           if(FurthestBuffer) {
             
-            FillGroundChunk(TransientState, GameState, FurthestBuffer, &ChunkCenterP);
+            FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
           PushRectOutline(RenderGroup, RelP.XY, World->ChunkDimInMeters.XY, V4(1.0f, 1.0f, 0.0f, 1.0f));
@@ -1089,8 +1173,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   memory_arena SimArena;
   InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
   
-  temporary_memory SimMem = BeginTemporaryMemory(&TransientState->TransientArena);
-  sim_region *SimRegion = BeginSim(&TransientState->TransientArena, GameState, GameState->World, GameState->CameraP, SimBounds, Input->dtForFrame);
+  temporary_memory SimMem = BeginTemporaryMemory(&TranState->TranArena);
+  sim_region *SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World, GameState->CameraP, SimBounds, Input->dtForFrame);
 
   //
   // NOTE(Egor): rudimentary render starts below
@@ -1098,9 +1182,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
   
   // NOTE(Egor): groundbuffer scrolling
-  for(uint32 Index = 0; Index < TransientState->GroundBufferCount; ++Index) {
+  for(uint32 Index = 0; Index < TranState->GroundBufferCount; ++Index) {
     
-    ground_buffer *GroundBuffer = TransientState->GroundBuffers + Index;
+    ground_buffer *GroundBuffer = TranState->GroundBuffers + Index;
     
     if(IsValid(GroundBuffer->P)) {
       
@@ -1126,7 +1210,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       move_spec MoveSpec = DefaultMoveSpec();
       v3 ddP = {};
       
-      render_basis *Basis = PushStruct(&TransientState->TransientArena, render_basis);
+      render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
       RenderGroup->DefaultBasis = Basis;
       
       real32 dt = Input->dtForFrame;
@@ -1271,23 +1355,32 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 Angle = 0.1f*GameState->Time;
 //  GameState->Time = 0.0f;
   
-  v2 Origin = ScreenCenter;
-  v2 XAxis = 100.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
-  v2 YAxis = V2(-XAxis.Y, XAxis.X);
-  
+  v2 Origin = ScreenCenter+V2(5,5);;
+  //v2 XAxis = 100.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
+  v2 XAxis = 300.0f*V2(1.0f, 0.0f);
+  v2 YAxis = 300.0f*V2(0.0f, 1.0f);
+
+  #if 0
   real32 CAngle = 5.0f*Angle;
   v4 Color = V4(0.5f+0.5f*Sin(CAngle),
                 0.5f+0.5f*Sin(2.9f*CAngle),
                 0.5f+0.5f*Cos(9.9f*CAngle),
                 0.5f + 0.5f*Sin(40.0f*CAngle));
+  #else
+  
+  v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+  #endif
+
+  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis, XAxis, YAxis,
+                       Color, &GameState->Tree1, &GameState->Tree1NormalMap, 0, 0, 0);
 
   
-  render_entry_coordinate_system *C = 
-    PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis, XAxis, YAxis,
-                         Color, &GameState->Tree1, 0, 0, 0, 0);
-  
+
   
   RenderPushBuffer(RenderGroup, DrawBuffer);
+  
+  MakeSphereNormalMap(&GameState->Tree1NormalMap, 0.0f);
+  DrawBitmap(DrawBuffer, &GameState->Tree1NormalMap, 150.0f, 150.0f);
   
   world_position WorldOrigin = {};
   v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
@@ -1299,7 +1392,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   EndTemporaryMemory(SimMem);
   EndTemporaryMemory(RenderMem);
   CheckArena(&GameState->WorldArena);
-  CheckArena(&TransientState->TransientArena);
+  CheckArena(&TranState->TranArena);
 }
   
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)
