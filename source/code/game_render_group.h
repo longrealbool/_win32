@@ -1,10 +1,15 @@
 #if !defined(GAME_RENDER_GROUP_H)
 
+struct billinear_sample {
+  
+  uint32 A;
+  uint32 B;
+  uint32 C;
+  uint32 D;
+};
+
 struct environment_map {
  
-  // NOTE(Egor): LOD[0] is 2^WidthPow2 x 2^HeightPow2
-  uint32 WidthPow2; 
-  uint32 heightPow2;
   loaded_bitmap *LOD[4];
 };
 

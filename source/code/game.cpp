@@ -1090,12 +1090,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
 
   
-#if 1
+#if 0
   
-  Clear(RenderGroup, V4(0.0f, 0.0f, 0.0f, 1.0f));
+  Clear(RenderGroup, V4(0.5f, 0.5f, 0.5f, 0.0f));
   
-
-
+#else
+  
+  Clear(RenderGroup, V4(0.0f, 0.0f, 0.0f, 0.0f));
+  
 #endif
   
   uint32 TileSpanX = 17*3;
@@ -1355,10 +1357,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 Angle = 0.1f*GameState->Time;
 //  GameState->Time = 0.0f;
   
-  v2 Origin = ScreenCenter+V2(5,5);;
+  v2 Origin = ScreenCenter;
   //v2 XAxis = 100.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
-  v2 XAxis = 300.0f*V2(1.0f, 0.0f);
-  v2 YAxis = 300.0f*V2(0.0f, 1.0f);
+  v2 XAxis = 81.0f*V2(1.0f, 0.0f);
+  v2 YAxis = 115.0f*V2(0.0f, 1.0f);
 
   #if 0
   real32 CAngle = 5.0f*Angle;
