@@ -941,7 +941,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                CameraTileZ);
     GameState->CameraP = NewCameraP;
     
-    AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
+    AddMonster(GameState, CameraTileX + 20, CameraTileY + 2, CameraTileZ);
     //AddFamiliar(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
     
     
@@ -991,8 +991,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
     }
     
-    GameState->Tree1NormalMap = MakeEmptyBitmap(&TranState->TranArena, GameState->Tree1.Width, GameState->Tree1.Height);
-    MakeSphereNormalMap(&GameState->Tree1NormalMap, 0.0f);
+    GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
+    DrawRectangle(&GameState->TestDiffuse, V2(0,0), V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), V4(0.5f, 0.5f, 0.5f, 1.0f));
+    
+    GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena, GameState->TestDiffuse.Width, GameState->TestDiffuse.Height);
+    MakeSphereNormalMap(&GameState->TestNormal, 0.0f);
     
     TranState->Initialized = true;
   }
@@ -1106,7 +1109,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
 #if 1
   
-  Clear(RenderGroup, V4(0.5f, 0.5f, 0.5f, 0.0f));
+  Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 0.0f));
   
 #else
   
@@ -1371,8 +1374,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 Angle = 0.1f*GameState->Time;
   
   v2 Origin = ScreenCenter;
-  v2 XAxis = 100.0f*V2(1.0f, 0.0f);
-  v2 YAxis = 100.0f*V2(0.0f, 1.0f);
+  v2 XAxis = 300.0f*V2(1.0f, 0.0f);
+  v2 YAxis = 300.0f*V2(0.0f, 1.0f);
   
 #if 0
   
@@ -1386,6 +1389,37 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
 #endif
   
+
+  uint32 CheckerHeight = 16;
+  uint32 CheckerWidth = 16;
+  uint32 Toggle = 0;
+  
+  v4 ColorMatrix[] = 
+  { {1,0,0,1},
+    {0,1,0,1},
+    {0,0,1,1}
+  };
+    
+    
+    for(uint32 Index = 0;Index < ArrayCount(TranState->EnvMaps); ++Index) {
+      
+      environment_map *Map = TranState->EnvMaps + Index;
+      loaded_bitmap *LOD = &Map->LOD[0];
+      
+      for(uint32 Y = 0; Y < TranState->EnvMapHeight; Y += CheckerHeight, ++Toggle %= 2) {
+        for(uint32 X = 0; X < TranState->EnvMapWidth;
+            X += CheckerWidth, ++Toggle %= 2) {
+        
+        v4 CheckerColor = Toggle ? ColorMatrix[Index] : V4(0, 0, 0, 1);
+        
+        DrawRectangle(LOD,
+                      V2i(X, Y), V2i(X + CheckerWidth, Y + CheckerHeight),
+                      CheckerColor);
+      }
+    }
+  }
+
+#if 0
   DrawRectangle(TranState->EnvMaps[0].LOD + 0,
                 V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
                 V4(1.0f, 0.0f, 0.0f, 1.0f));
@@ -1397,9 +1431,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   DrawRectangle(TranState->EnvMaps[2].LOD + 0,
                 V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
                 V4(0.0f, 0.0f, 1.0f, 1.0f));
-  
+#endif
   PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis + V2(150,0), XAxis, YAxis,
-                       Color, &GameState->Tree1, &GameState->Tree1NormalMap,
+                       Color, &GameState->TestDiffuse, &GameState->TestNormal,
                        TranState->EnvMaps + 2,
                        TranState->EnvMaps + 1,
                        TranState->EnvMaps + 0);
@@ -1410,7 +1444,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       ++Index) {
     
     environment_map *Map = TranState->EnvMaps + Index;
-    
     loaded_bitmap *LOD = &Map->LOD[0];
     
     XAxis = 0.5f*V2i(LOD->Width, 0);

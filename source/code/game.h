@@ -188,7 +188,6 @@ struct game_state {
   
   loaded_bitmap Tree;
   loaded_bitmap Tree1;
-  loaded_bitmap Tree1NormalMap;
   loaded_bitmap Sword;
   loaded_bitmap Stairwell;
   
@@ -210,6 +209,9 @@ struct game_state {
   real32 Time;
   real32 Scale;
   real32 Angle;
+  
+  loaded_bitmap TestDiffuse;
+  loaded_bitmap TestNormal;
 };
 
 

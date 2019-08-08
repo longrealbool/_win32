@@ -350,8 +350,8 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, real32 Roughness, environment_
   Assert(LODIndex < ArrayCount(Map->LOD));
   loaded_bitmap *LOD = &Map->LOD[LODIndex];
   
-  real32 tX = 0.0f;
-  real32 tY = 0.0f;
+  real32 tX = LOD->Width/2 + LOD->Width/2*Normal.X;
+  real32 tY = LOD->Height/2 + LOD->Height/2*Normal.Y;
   
   int32 X = (int32)tX;
   int32 Y = (int32)tY;
@@ -517,19 +517,19 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           Normal = UnscaleAndBiasNormal(Normal);
           
           Normal.XYZ = Normalize(Normal.XYZ);
-#if 1
+          
           environment_map *FarMap = 0;
           real32 tEnvMap = Normal.Y;
           real32 tFarMap = 0.0f;
           if(tEnvMap < -0.5f) {
             
             FarMap = Bottom;
-            tFarMap = (tEnvMap + 1.0f)*2.0f;
+            tFarMap = -1.0f - tEnvMap*2.0f;
           }
           else if(tEnvMap > 0.5f) {
             
             FarMap = Top;
-            tFarMap = (tEnvMap - 0.5f)*2.0f;;
+            tFarMap = tEnvMap*2.0f - 1.0f;
           }
           
           v3 LightColor = V3(0, 0, 0); //SampleEnvironmentMap(ScreenSpaceUV, Normal.XYZ, Normal.W, Middle);
@@ -537,14 +537,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           if(FarMap) {
             
             v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.XYZ, Normal.W, FarMap);
-            LightColor = Lerp(FarMapColor, LightColor, tFarMap);
+            LightColor = Lerp(LightColor, FarMapColor, tFarMap);
           }
           
-          Texel.RGB = Texel.RGB + LightColor*Texel.A;
-#else
+#if 0
           Texel.RGB = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.RGB;
           Texel.A = 1.0f;
 #endif
+          
+          Texel.RGB = Texel.RGB + LightColor*Texel.A;
           // NOTE(Egor): end of normal processing
         }
         
