@@ -235,8 +235,7 @@ DrawBitmap(loaded_bitmap *Buffer,
 }
 
 internal void
-DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
-              v4 Color)
+DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax, v4 Color)
 {
   
   int32 MinX = RoundReal32ToInt32(vMin.X);
@@ -326,8 +325,7 @@ BillinearSample(loaded_bitmap *Texture, int32 X, int32 Y) {
 
 inline v4
 SRGBBillinearBlend(billinear_sample Sample, real32 fX, real32 fY) {
- 
-  v4 Result;
+  
   v4 TexelA  = Unpack4x8(Sample.A);
   v4 TexelB  = Unpack4x8(Sample.B);
   v4 TexelC  = Unpack4x8(Sample.C);
@@ -337,9 +335,10 @@ SRGBBillinearBlend(billinear_sample Sample, real32 fX, real32 fY) {
   TexelB = SRGB255ToLinear1(TexelB);
   TexelC = SRGB255ToLinear1(TexelC);
   TexelD = SRGB255ToLinear1(TexelD);
-  Result = Lerp(Lerp(TexelA, TexelB, fX),
-                Lerp(TexelC, TexelD, fX),
-                fY);
+  
+  v4 Result = Lerp(Lerp(TexelA, TexelB, fX),
+                   Lerp(TexelC, TexelD, fX),
+                   fY);
   
   return Result;
 }
@@ -349,7 +348,7 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, real32 Roughness, environment_
 
   uint32 LODIndex = (uint32)(Roughness*(real32)(ArrayCount(Map->LOD)-1) + 0.5f);
   Assert(LODIndex < ArrayCount(Map->LOD));
-  loaded_bitmap *LOD = Map->LOD[LODIndex];
+  loaded_bitmap *LOD = &Map->LOD[LODIndex];
   
   real32 tX = 0.0f;
   real32 tY = 0.0f;
@@ -369,10 +368,6 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, real32 Roughness, environment_
   
   return Result;
 }
-
-
-
-
 
 
 internal void
@@ -476,7 +471,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       real32 Edge2 = Inner(d, -Basis.XAxis); 
       real32 Edge3 = Inner(d, -Basis.YAxis); 
       
-#if 1
       if(Edge0 < 0 &&
          Edge1 < 0 &&
          Edge2 < 0 &&
@@ -506,7 +500,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         billinear_sample TexelSample = BillinearSample(Texture, PixelX, PixelY);
         v4 Texel = SRGBBillinearBlend(TexelSample, fX, fY);
-
         
         if(NormalMap) {
           
@@ -524,7 +517,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           Normal = UnscaleAndBiasNormal(Normal);
           
           Normal.XYZ = Normalize(Normal.XYZ);
-#if 0
+#if 1
           environment_map *FarMap = 0;
           real32 tEnvMap = Normal.Y;
           real32 tFarMap = 0.0f;
@@ -544,7 +537,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           if(FarMap) {
             
             v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.XYZ, Normal.W, FarMap);
-            LightColor = Lerp(LightColor, FarMapColor, tFarMap);
+            LightColor = Lerp(FarMapColor, LightColor, tFarMap);
           }
           
           Texel.RGB = Texel.RGB + LightColor*Texel.A;
@@ -552,7 +545,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           Texel.RGB = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.RGB;
           Texel.A = 1.0f;
 #endif
-          
           // NOTE(Egor): end of normal processing
         }
         
@@ -574,19 +566,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         v4 Blended = (1.0f - Texel.A)*Dest + Texel;
         v4 Blended255 = Linear1ToSRGB255(Blended);
         
-        
         *Pixel = (((uint32)(Blended255.A + 0.5f) << 24) |
                   ((uint32)(Blended255.R + 0.5f) << 16) |
                   ((uint32)(Blended255.G + 0.5f) << 8)  |
                   ((uint32)(Blended255.B + 0.5f) << 0));
-        
       }
-#else
-      *Pixel = PixColor;
-#endif
       
       Pixel++;
     }
+    
     Row += Buffer->Pitch;
   }
 }
@@ -650,7 +638,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         render_entry_coordinate_system *Entry = (render_entry_coordinate_system *)Data;
         BaseAddress += sizeof(*Entry);
         
-        v2 DimOrigin = V2(5, 5);
+        v2 DimOrigin = V2(2, 2);
         
         v2 P = Entry->Origin;
         DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 

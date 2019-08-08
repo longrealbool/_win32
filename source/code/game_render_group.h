@@ -6,11 +6,19 @@ struct billinear_sample {
   uint32 B;
   uint32 C;
   uint32 D;
+}; 
+
+struct loaded_bitmap {
+  int32 Height;
+  int32 Width;
+  int32 Pitch;
+  
+  void* Memory;
 };
 
 struct environment_map {
  
-  loaded_bitmap *LOD[4];
+  loaded_bitmap LOD[4];
 };
 
 struct render_basis {

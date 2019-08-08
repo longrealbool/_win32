@@ -100,18 +100,11 @@ ZeroSize(size_t Size, void *Ptr) {
 #include "game_intrinsic.h"
 #include "game_math.cpp"
 #include "game_random.h"
+#include "game_render_group.h"
 #include "game_world.h"
 #include "game_sim_region.h"
 #include "game_entity.h"
 
-
-struct loaded_bitmap {
-  int32 Height;
-  int32 Width;
-  int32 Pitch;
-  
-  void* Memory;
-};
 
 struct hero_bitmaps {
   
@@ -172,7 +165,6 @@ struct ground_buffer {
 struct game_state {
   
   memory_arena WorldArena;
-  memory_arena TransientArena;
   world* World;
   
   controlled_entity ControlledEntities[ArrayCount(((game_input *)0)->Controllers)];
@@ -220,12 +212,17 @@ struct game_state {
   real32 Angle;
 };
 
+
 struct transient_state {
   
   bool32 Initialized;
   memory_arena TranArena;
   uint32 GroundBufferCount;
   ground_buffer *GroundBuffers;
+
+  uint32 EnvMapWidth;
+  uint32 EnvMapHeight;
+  environment_map EnvMaps[3];
 };
 
 

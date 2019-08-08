@@ -1,5 +1,4 @@
 #include "game.h"
-#include "game_render_group.h"
 #include "game_render_group.cpp"
 #include "game_world.cpp"
 #include "game_sim_region.cpp"
@@ -135,7 +134,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         
         // when we will take it back from sRGB space to linear
         // they were already in premultiplied format
-
+        
         
         *SourceDest = (((uint32)(Texel.A + 0.5f) << 24) |
                        ((uint32)(Texel.R + 0.5f) << 16) |
@@ -160,7 +159,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
 
 internal void
 DrawRectangleOutline(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
-              v4 Color) {
+                     v4 Color) {
   
   real32 r = 1.0f;
   
@@ -246,7 +245,7 @@ ChunkPositionFromTilePosition(world *World, int32 AbsTileX, int32 AbsTileY,
   v3 TileDim = V3(TileSideInMeters, TileSideInMeters, TileDepthInMeters);
   
   v3 Offset = Hadamard(TileDim, V3((real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ));
-
+  
   world_position BasePos = {};
   // TODO(Egor): could produce floating point precision problems in future
   world_position Result = MapIntoChunkSpace(World, BasePos, Offset + AdditionalOffset);
@@ -547,10 +546,10 @@ MakeEmptyBitmap(memory_arena *Arena, uint32 Width, uint32 Height, bool32 ClearTo
 
 internal void
 MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
-
+  
   real32 InvWidth = 1.0f/(Bitmap->Width - 1.0f);
   real32 InvHeight = 1.0f/(Bitmap->Height - 1.0f);
-
+  
   uint8 *Row = (uint8 *)Bitmap->Memory;
   
   for(int32 Y = 0; Y < Bitmap->Height; ++Y) {
@@ -638,13 +637,13 @@ MakeSphereNormalMapDebug(loaded_bitmap *Bitmap, real32 Roughness) {
                         ((uint32)(Color.G + 0.5f) << 8)  |
                         ((uint32)(Color.B + 0.5f) << 0));
     
-
+    
     
     
     
     *Pixel = PixNormal;
-
-
+    
+    
     StaticX++;
     if(StaticX == Bitmap->Width) {
       StaticY++;
@@ -654,7 +653,7 @@ MakeSphereNormalMapDebug(loaded_bitmap *Bitmap, real32 Roughness) {
       StaticY = 0;
       StaticX = 0;
     }
-      
+    
   }
 }
 
@@ -823,7 +822,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       // TODO(Egor, TileMap): get again through logic of creating tilemap
       uint32 RandomChoice;
       
-//      if(DoorUp || DoorDown) {
+      //      if(DoorUp || DoorDown) {
       if(1) {
         RandomChoice = RollTheDice() % 2;
       }
@@ -963,7 +962,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     TranState->GroundBufferCount = 32;
     TranState->GroundBuffers = PushArray(&TranState->TranArena,
-                                              TranState->GroundBufferCount, ground_buffer); 
+                                         TranState->GroundBufferCount, ground_buffer); 
     
     for(uint32 GroundBufferIndex = 0;
         GroundBufferIndex < TranState->GroundBufferCount;
@@ -971,14 +970,29 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       ground_buffer *GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
       GroundBuffer->Bitmap = MakeEmptyBitmap(&TranState->TranArena,
-                                                             GroundBufferWidth,
-                                                             GroundBufferHeight, false);
-      
+                                             GroundBufferWidth,
+                                             GroundBufferHeight, false);
       GroundBuffer->P = NullPosition();
+      
+      TranState->EnvMapWidth = 512;
+      TranState->EnvMapHeight = 256;
+      for(uint32 MapIndex = 0; MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
+        
+        environment_map *Map = TranState->EnvMaps + MapIndex;
+        uint32 Width = TranState->EnvMapWidth;
+        uint32 Height = TranState->EnvMapHeight;
+        
+        for(uint32 LODIndex = 0; LODIndex < ArrayCount(Map->LOD); ++LODIndex) {
+          
+          Map->LOD[LODIndex] = MakeEmptyBitmap(&TranState->TranArena, Width, Height, false);
+          Width >>= 1;
+          Height >>= 1;
+        }
+      }
     }
     
     GameState->Tree1NormalMap = MakeEmptyBitmap(&TranState->TranArena, GameState->Tree1.Width, GameState->Tree1.Height);
-   // MakeSphereNormalMap(&GameState->Tree1NormalMap, 0.0f);
+    MakeSphereNormalMap(&GameState->Tree1NormalMap, 0.0f);
     
     TranState->Initialized = true;
   }
@@ -1073,11 +1087,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-
+  
   
   temporary_memory RenderMem = BeginTemporaryMemory(&TranState->TranArena);
   render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->MtP);
-
+  
   
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
@@ -1088,9 +1102,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   v2 ScreenCenter = {0.5f*DrawBuffer->Width, 0.5f*DrawBuffer->Height};
   
-
   
-#if 0
+  
+#if 1
   
   Clear(RenderGroup, V4(0.5f, 0.5f, 0.5f, 0.0f));
   
@@ -1107,7 +1121,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 ScreenWidthInMeters = Buffer->Width * PixelsToMeters;
   real32 ScreenHeightInMeters = Buffer->Height * PixelsToMeters;
   
-
+  
   rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0,0,0),
                                                   V3((real32)ScreenWidthInMeters,
                                                      (real32)ScreenHeightInMeters,
@@ -1167,7 +1181,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-
+  
   
   v3 SimBoundExpansion = V3(15.0f , 15.0f, 15.0f);
   rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundExpansion);
@@ -1177,11 +1191,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   temporary_memory SimMem = BeginTemporaryMemory(&TranState->TranArena);
   sim_region *SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World, GameState->CameraP, SimBounds, Input->dtForFrame);
-
+  
   //
   // NOTE(Egor): rudimentary render starts below
   //
-
+  
   
   // NOTE(Egor): groundbuffer scrolling
   for(uint32 Index = 0; Index < TranState->GroundBufferCount; ++Index) {
@@ -1202,7 +1216,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   ////////////////////////////////////////////////////////////////////////////////
   // NOTE(Egor): entity processing
   ////////////////////////////////////////////////////////////////////////////////
-
+  
   for(uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
     
     sim_entity *Entity = SimRegion->Entities + EntityIndex;
@@ -1355,38 +1369,68 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   GameState->Time += Input->dtForFrame/4;
   real32 Angle = 0.1f*GameState->Time;
-//  GameState->Time = 0.0f;
   
   v2 Origin = ScreenCenter;
-  //v2 XAxis = 100.0f*V2(Cos(GameState->Time), Sin(GameState->Time));
-  v2 XAxis = 81.0f*V2(1.0f, 0.0f);
-  v2 YAxis = 115.0f*V2(0.0f, 1.0f);
-
-  #if 0
+  v2 XAxis = 100.0f*V2(1.0f, 0.0f);
+  v2 YAxis = 100.0f*V2(0.0f, 1.0f);
+  
+#if 0
+  
   real32 CAngle = 5.0f*Angle;
   v4 Color = V4(0.5f+0.5f*Sin(CAngle),
                 0.5f+0.5f*Sin(2.9f*CAngle),
                 0.5f+0.5f*Cos(9.9f*CAngle),
                 0.5f + 0.5f*Sin(40.0f*CAngle));
-  #else
+#else
   
   v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
-  #endif
-
-  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis, XAxis, YAxis,
-                       Color, &GameState->Tree1, &GameState->Tree1NormalMap, 0, 0, 0);
-
+#endif
   
+  DrawRectangle(TranState->EnvMaps[0].LOD + 0,
+                V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
+                V4(1.0f, 0.0f, 0.0f, 1.0f));
+  
+  DrawRectangle(TranState->EnvMaps[1].LOD + 0,
+                V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
+                V4(0.0f, 1.0f, 0.0f, 1.0f));
+  
+  DrawRectangle(TranState->EnvMaps[2].LOD + 0,
+                V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
+                V4(0.0f, 0.0f, 1.0f, 1.0f));
+  
+  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis + V2(150,0), XAxis, YAxis,
+                       Color, &GameState->Tree1, &GameState->Tree1NormalMap,
+                       TranState->EnvMaps + 2,
+                       TranState->EnvMaps + 1,
+                       TranState->EnvMaps + 0);
+  
+  v2 MapP = V2(0,0);
+  for(uint32 Index = 0;
+      Index < ArrayCount(TranState->EnvMaps);
+      ++Index) {
+    
+    environment_map *Map = TranState->EnvMaps + Index;
+    
+    loaded_bitmap *LOD = &Map->LOD[0];
+    
+    XAxis = 0.5f*V2i(LOD->Width, 0);
+    YAxis = 0.5f*V2i(0, LOD->Height);
+    
+    PushCoordinateSystem(RenderGroup, MapP, XAxis, YAxis, V4(1.0f, 1.0f, 1.0f, 1.0f),
+                         &TranState->EnvMaps[Index].LOD[0], 0,0,0,0);
+    MapP += YAxis + V2(0.0f, 6.0f);
+  }
 
   
   RenderPushBuffer(RenderGroup, DrawBuffer);
-  
-  MakeSphereNormalMap(&GameState->Tree1NormalMap, 0.0f);
-  DrawBitmap(DrawBuffer, &GameState->Tree1NormalMap, 150.0f, 150.0f);
-  
+
+//  DrawBitmap(DrawBuffer, &GameState->Tree1NormalMap, 150.0f, 150.0f);
+ 
+  #if 0
   world_position WorldOrigin = {};
   v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
   DrawRectangle(DrawBuffer, Diff.XY, V2(10.0f, 10.0f), V4(1.0f, 1.0f, 0.0f, 1.0f));
+  #endif
   
   
   // NOTE(Egor): Ending the simulation
