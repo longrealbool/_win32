@@ -1,11 +1,16 @@
 #if !defined(GAME_RENDER_GROUP_H)
 
+struct loaded_bitmap {
+  int32 Height;
+  int32 Width;
+  int32 Pitch;
+  
+  void* Memory;
+};
+
 struct environment_map {
  
-  // NOTE(Egor): LOD[0] is 2^WidthPow2 x 2^HeightPow2
-  uint32 WidthPow2; 
-  uint32 heightPow2;
-  loaded_bitmap *LOD[4];
+  loaded_bitmap LOD[4];
 };
 
 struct render_basis {
