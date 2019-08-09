@@ -339,6 +339,12 @@ inline v2 Normalize(v2 A) {
   return Result;
 }
 
+inline v2 Perp(v2 A)
+{
+  v2 Result = {-A.Y, A.X};
+  return Result;
+}
+
 
 ///
 ////////////////////////////////////////////////
@@ -475,7 +481,7 @@ Clamp01(v3 Value) {
 }
 
 inline v3
-Lerp(v3 A, v3 B, real32 t) {
+Lerp(v3 A, real32 t, v3 B) {
   
   v3 Result = (1.0f - t)*A + t*B;
   return Result;
@@ -580,7 +586,7 @@ Hadamard(v4 A, v4 B) {
 }
 
 inline v4
-Lerp(v4 A, v4 B, real32 t) {
+Lerp(v4 A, real32 t, v4 B) {
   
   v4 Result = (1.0f - t)*A + t*B;
   return Result;

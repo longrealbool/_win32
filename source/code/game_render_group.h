@@ -1,6 +1,6 @@
 #if !defined(GAME_RENDER_GROUP_H)
 
-struct billinear_sample {
+struct bilinear_sample {
   
   uint32 A;
   uint32 B;

@@ -145,7 +145,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
       }
     }
     
-    Result.Pitch = -Result.Width*LOADED_BITMAP_BYTES_PER_PIXEL;
+    Result.Pitch = -Result.Width*BITMAP_BYTES_PER_PIXEL;
     // NOTE(Egor): bitmap was loaded bottom to top, so we reverse pitch (make him negative),
     // and shift Memory ptr to top of the image (bottom of the array)
     Result.Memory = (uint8 *)Result.Memory - (Result.Height-1)*(Result.Pitch);
@@ -521,7 +521,7 @@ internal void
 ClearBitmap(loaded_bitmap *Bitmap) {
   
   if(Bitmap->Memory) {
-    uint32 TotalBitmapSize = Bitmap->Width*Bitmap->Height*LOADED_BITMAP_BYTES_PER_PIXEL;
+    uint32 TotalBitmapSize = Bitmap->Width*Bitmap->Height*BITMAP_BYTES_PER_PIXEL;
     ZeroSize(TotalBitmapSize, Bitmap->Memory);
   }
 }
@@ -534,8 +534,8 @@ MakeEmptyBitmap(memory_arena *Arena, uint32 Width, uint32 Height, bool32 ClearTo
   
   Result.Width = Width;
   Result.Height = Height;
-  Result.Pitch = Result.Width * LOADED_BITMAP_BYTES_PER_PIXEL;
-  uint32 TotalBitmapSize = Result.Width*Result.Height * LOADED_BITMAP_BYTES_PER_PIXEL;
+  Result.Pitch = Result.Width * BITMAP_BYTES_PER_PIXEL;
+  uint32 TotalBitmapSize = Result.Width*Result.Height * BITMAP_BYTES_PER_PIXEL;
   Result.Memory = PushSize(Arena, TotalBitmapSize);
   if(ClearToZero) {
     ClearBitmap(&Result);
@@ -563,7 +563,9 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
       real32 Ny = 2.0f*BitmapUV.Y - 1.0f;
       real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
       
-      v3 Normal = V3(0, 0, 1);
+      
+      v3 Normal = V3(0, 0.70710678f, 0.70710678f);
+//      v3 Normal = V3(0, 0, 1);
       if(RootTerm >= 0.0f) {
         
         real32 Nz = SquareRoot(RootTerm); 
@@ -992,9 +994,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     
     GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
-    DrawRectangle(&GameState->TestDiffuse, V2(0,0), V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), V4(0.5f, 0.5f, 0.5f, 1.0f));
+    DrawRectangle(&GameState->TestDiffuse, V2(0,0),
+                  V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), V4(0.5f, 0.5f, 0.5f, 1.0f));
     
-    GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena, GameState->TestDiffuse.Width, GameState->TestDiffuse.Height);
+    GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena,
+                                            GameState->TestDiffuse.Width,
+                                            GameState->TestDiffuse.Height);
     MakeSphereNormalMap(&GameState->TestNormal, 0.0f);
     
     TranState->Initialized = true;
@@ -1371,7 +1376,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   }
   
   GameState->Time += Input->dtForFrame/4;
-  real32 Angle = 0.1f*GameState->Time;
+  real32 Angle = GameState->Time;
+  v2 Disp = 100.0f*V2(Cos(Angle), 0);
   
   v2 Origin = ScreenCenter;
   v2 XAxis = 300.0f*V2(1.0f, 0.0f);
@@ -1419,21 +1425,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
 
-#if 0
-  DrawRectangle(TranState->EnvMaps[0].LOD + 0,
-                V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
-                V4(1.0f, 0.0f, 0.0f, 1.0f));
-  
-  DrawRectangle(TranState->EnvMaps[1].LOD + 0,
-                V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
-                V4(0.0f, 1.0f, 0.0f, 1.0f));
-  
-  DrawRectangle(TranState->EnvMaps[2].LOD + 0,
-                V2(0,0), V2i(TranState->EnvMapWidth, TranState->EnvMapHeight),
-                V4(0.0f, 0.0f, 1.0f, 1.0f));
-#endif
-  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis + V2(150,0), XAxis, YAxis,
-                       Color, &GameState->TestDiffuse, &GameState->TestNormal,
+  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis + Disp,
+                       XAxis, YAxis, Color, 
+                       &GameState->TestDiffuse, &GameState->TestNormal,
                        TranState->EnvMaps + 2,
                        TranState->EnvMaps + 1,
                        TranState->EnvMaps + 0);
