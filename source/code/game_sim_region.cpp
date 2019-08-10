@@ -262,10 +262,10 @@ EndSim(sim_region *Region, game_state *GameState) {
 #if 0
       
       
-      if(CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters)) {
+      if(CameraFollowingEntity.High->P.x > (9.0f * World->TileSideInMeters)) {
         NewCameraP.AbsTileX += 17;
       }
-      if(CameraFollowingEntity.High->P.X < -(9.0f * World->TileSideInMeters)) {
+      if(CameraFollowingEntity.High->P.x < -(9.0f * World->TileSideInMeters)) {
         NewCameraP.AbsTileX -= 17;
       }
       if(CameraFollowingEntity.High->P.Y > (5.0f * World->TileSideInMeters)) {
@@ -276,9 +276,9 @@ EndSim(sim_region *Region, game_state *GameState) {
       }
       
 #else
-      real32 CameraZOffset = NewCameraP.Offset_.Z;
+      real32 CameraZOffset = NewCameraP.Offset_.z;
       NewCameraP = Stored->P;
-      NewCameraP.Offset_.Z = CameraZOffset;
+      NewCameraP.Offset_.z = CameraZOffset;
 #endif
       
       GameState->CameraP = NewCameraP;
@@ -507,7 +507,7 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region, v3 TestP) {
     real32 StepHeight = 0.1f;
     
     real32 Ground = GetStairGround(Region, MoverGroundPoint);
-    Result = (AbsoluteValue(MoverGroundPoint.Z - Ground) > StepHeight);
+    Result = (AbsoluteValue(MoverGroundPoint.z - Ground) > StepHeight);
   }
   
   return Result;
@@ -652,30 +652,30 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
                   
                   // TODO(Egor): idk how much it will impair perfomance, but maybe
                   // I should fix my indentation module, and use generic { }
-                  v3 MinkowskiDiameter = V3(TestVolume->Dim.X + Volume->Dim.X,
-                                            TestVolume->Dim.Y + Volume->Dim.Y,
-                                            TestVolume->Dim.Z + Volume->Dim.Z);
+                  v3 MinkowskiDiameter = V3(TestVolume->Dim.x + Volume->Dim.x,
+                                            TestVolume->Dim.y + Volume->Dim.y,
+                                            TestVolume->Dim.z + Volume->Dim.z);
                   
                   v3 MinCorner = -0.5f*MinkowskiDiameter;
                   v3 MaxCorner = 0.5f*MinkowskiDiameter;
                   v3 Rel = ((Entity->P + Volume->OffsetP) -
                             (TestEntity->P + TestVolume->OffsetP));
                   
-                  if((Rel.Z >= MinCorner.Z) &&
-                     (Rel.Z < MaxCorner.Z)) {
+                  if((Rel.z >= MinCorner.z) &&
+                     (Rel.z < MaxCorner.z)) {
                     
                     // TODO(Egor): this is junky, get rid of this or make sane speculative
                     // collision check
                     
                     test_wall Walls[] = {
-                      { V3(1.0f, 0.0f, 0.0f), MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                        MinCorner.Y, MaxCorner.Y },
-                      { V3(-1.0f, 0.0f, 0.0f), MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-                        MinCorner.Y, MaxCorner.Y },
-                      { V3(0.0f, 1.0f, 0.0f), MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                        MinCorner.X, MaxCorner.X },
-                      { V3(0.0f, -1.0f, 0.0f), MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-                        MinCorner.X, MaxCorner.X }
+                      { V3(1.0f, 0.0f, 0.0f), MaxCorner.x, Rel.x, Rel.y, PlayerDelta.x, PlayerDelta.y,
+                        MinCorner.y, MaxCorner.y },
+                      { V3(-1.0f, 0.0f, 0.0f), MinCorner.x, Rel.x, Rel.y, PlayerDelta.x, PlayerDelta.y,
+                        MinCorner.y, MaxCorner.y },
+                      { V3(0.0f, 1.0f, 0.0f), MaxCorner.y, Rel.y, Rel.x, PlayerDelta.y, PlayerDelta.x,
+                        MinCorner.x, MaxCorner.x },
+                      { V3(0.0f, -1.0f, 0.0f), MinCorner.y, Rel.y, Rel.x, PlayerDelta.y, PlayerDelta.x,
+                        MinCorner.x, MaxCorner.x }
                     };
                     
                     // NOTE(Egor): we determine if we are handling maximum distance test
@@ -829,13 +829,13 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   
   // TODO(Egor): this is no-good, should handle the ground properly
   // NOTE(Egor): right now this is ground under the abstract entity location 
-  // (half Dim.Z abot the ground under the nominal foot of the player)
-  Ground += Entity->P.Z - GetEntityGroundPoint(Entity).Z;
-  if((Entity->P.Z <= Ground) || 
-     (IsSet(Entity, EntityFlag_ZSupported) && Entity->dP.Z == 0.0f)) {
+  // (half Dim.z abot the ground under the nominal foot of the player)
+  Ground += Entity->P.z - GetEntityGroundPoint(Entity).z;
+  if((Entity->P.z <= Ground) || 
+     (IsSet(Entity, EntityFlag_ZSupported) && Entity->dP.z == 0.0f)) {
     
-    Entity->P.Z = Ground;
-    Entity->dP.Z = 0;
+    Entity->P.z = Ground;
+    Entity->dP.z = 0;
     AddFlag(Entity, EntityFlag_ZSupported);
   }
   else {
@@ -849,10 +849,10 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   }
   
   // NOTE(Egor): updating facing directions
-  if(Entity->dP.X != 0 || Entity->dP.Y != 0) {
-    if(AbsoluteValue(Entity->dP.X) > AbsoluteValue(Entity->dP.Y)) {
+  if(Entity->dP.x != 0 || Entity->dP.y != 0) {
+    if(AbsoluteValue(Entity->dP.x) > AbsoluteValue(Entity->dP.y)) {
       
-      if(Entity->dP.X > 0) {
+      if(Entity->dP.x > 0) {
         
         Entity->FacingDirection = 0;        
       }
@@ -861,9 +861,9 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
         Entity->FacingDirection = 2;      
       }
     }
-    else if(AbsoluteValue(Entity->dP.X) < AbsoluteValue(Entity->dP.Y)) {
+    else if(AbsoluteValue(Entity->dP.x) < AbsoluteValue(Entity->dP.y)) {
       
-      if(Entity->dP.Y > 0) {
+      if(Entity->dP.y > 0) {
         Entity->FacingDirection = 1;
       }
       else {

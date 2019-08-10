@@ -4,7 +4,7 @@
 union v2 {
   struct {
     
-  real32 X, Y;
+  real32 x, y;
   };
   
   real32 E[2];
@@ -13,11 +13,11 @@ union v2 {
 union v3 {
   struct {
     
-    real32 X, Y, Z;
+    real32 x, y, z;
   };
   struct {
     
-    real32 R, G, B;
+    real32 r, g, b;
   };
   struct {
     // NOTE(Egor):the best
@@ -31,31 +31,31 @@ union v4 {
   
   struct {
     
-    real32 X, Y, Z, W;
+    real32 x, y, z, w;
   };
   
   struct {
     union {
       
-      v3 XYZ;
+      v3 xyz;
       struct {
         
-        real32 X, Y , Z;
+        real32 x, y , z;
       };
     };
-      real32 W;
+      real32 w;
   };
     
   struct {
     union {
       
-      v3 RGB;
+      v3 rgb;
       struct {
         
-        real32 R, G, B;
+        real32 r, g, b;
       };
     };
-    real32 A;
+    real32 a;
   };
   
   real32 E[4];
@@ -66,8 +66,8 @@ inline v2
 V2(real32 X, real32 Y) {
   
   v2 Result;
-  Result.X = X;
-  Result.Y = Y;
+  Result.x = X;
+  Result.y = Y;
   
   return Result;
 }
@@ -90,9 +90,9 @@ inline v3
 V3(real32 X, real32 Y, real32 Z) {
   
   v3 Result;
-  Result.X = X;
-  Result.Y = Y;
-  Result.Z = Z;
+  Result.x = X;
+  Result.y = Y;
+  Result.z = Z;
   
   return Result;
 }
@@ -101,9 +101,9 @@ inline v3
 V3(v2 XY, real32 Z) {
   
   v3 Result;
-  Result.X = XY.X;
-  Result.Y = XY.Y;
-  Result.Z = Z;
+  Result.x = XY.x;
+  Result.y = XY.y;
+  Result.z = Z;
   
   return Result;
 }
@@ -112,10 +112,10 @@ inline v4
 V4(real32 X, real32 Y, real32 Z, real32 W) {
   
   v4 Result;
-  Result.X = X;
-  Result.Y = Y;
-  Result.Z = Z;
-  Result.W = W;
+  Result.x = X;
+  Result.y = Y;
+  Result.z = Z;
+  Result.w = W;
   
   return Result;
 }
@@ -209,8 +209,8 @@ operator*(real32 lambda, v2 B) {
   
   v2 Result;
   
-  Result.X = B.X * lambda;
-  Result.Y = B.Y * lambda;
+  Result.x = B.x * lambda;
+  Result.y = B.y * lambda;
   
   return Result;
   
@@ -239,8 +239,8 @@ inline v2
 operator-(v2 A) {
   
   v2 Result;
-  Result.X = -A.X;
-  Result.Y = -A.Y;
+  Result.x = -A.x;
+  Result.y = -A.y;
   
   return Result;
 }
@@ -249,8 +249,8 @@ inline v2
 operator-(v2 A, v2 B) {
   
   v2 Result;
-  Result.X = A.X - B.X; 
-  Result.Y = A.Y - B.Y;
+  Result.x = A.x - B.x; 
+  Result.y = A.y - B.y;
   
   return Result;
 }
@@ -259,8 +259,8 @@ inline v2
 operator+(v2 A, v2 B) {
   
   v2 Result;
-  Result.X = A.X + B.X;
-  Result.Y = A.Y + B.Y;
+  Result.x = A.x + B.x;
+  Result.y = A.y + B.y;
   
   return Result;
 }
@@ -282,7 +282,7 @@ operator -=(v2 &A, v2 B) {
 inline real32
 Inner(v2 A, v2 B) {
   
-  real32 Result = A.X * B.X + A.Y * B.Y;
+  real32 Result = A.x * B.x + A.y * B.y;
   return Result;
 }
 
@@ -306,8 +306,8 @@ GetBarycentric(rectangle2 A, v2 P) {
   
   v2 Result;
   
-  Result.X = SafeRatio0((P.X - A.Min.X), (A.Max.X - A.Min.X));
-  Result.Y = SafeRatio0((P.Y - A.Min.Y), (A.Max.Y - A.Min.Y));
+  Result.x = SafeRatio0((P.x - A.Min.x), (A.Max.x - A.Min.x));
+  Result.y = SafeRatio0((P.y - A.Min.y), (A.Max.y - A.Min.y));
   
   return Result;
 }
@@ -317,8 +317,8 @@ Clamp01(v2 Value) {
   
   v2 Result;
   
-  Result.X = Clamp01(Value.X);
-  Result.Y = Clamp01(Value.Y);
+  Result.x = Clamp01(Value.x);
+  Result.y = Clamp01(Value.y);
   return Result;
 }
 
@@ -326,7 +326,7 @@ Clamp01(v2 Value) {
 inline v2
 Hadamard(v2 A, v2 B) {
   
-  v2 Result = {A.X * B.X, A.Y * B.Y};
+  v2 Result = {A.x * B.x, A.y * B.y};
   
   return Result;
 }
@@ -341,7 +341,7 @@ inline v2 Normalize(v2 A) {
 
 inline v2 Perp(v2 A)
 {
-  v2 Result = {-A.Y, A.X};
+  v2 Result = {-A.y, A.x};
   return Result;
 }
 
@@ -355,9 +355,9 @@ operator*(real32 lambda, v3 B) {
   
   v3 Result;
   
-  Result.X = B.X * lambda;
-  Result.Y = B.Y * lambda;
-  Result.Z = B.Z * lambda;
+  Result.x = B.x * lambda;
+  Result.y = B.y * lambda;
+  Result.z = B.z * lambda;
   
   return Result;
 }
@@ -382,9 +382,9 @@ inline v3
 operator-(v3 A) {
   
   v3 Result;
-  Result.X = -A.X;
-  Result.Y = -A.Y;
-  Result.Z = -A.Z;
+  Result.x = -A.x;
+  Result.y = -A.y;
+  Result.z = -A.z;
   
   return Result;
 }
@@ -393,9 +393,9 @@ inline v3
 operator-(v3 A, v3 B) {
   
   v3 Result;
-  Result.X = A.X - B.X; 
-  Result.Y = A.Y - B.Y;
-  Result.Z = A.Z - B.Z;
+  Result.x = A.x - B.x; 
+  Result.y = A.y - B.y;
+  Result.z = A.z - B.z;
   
   return Result;
 }
@@ -404,9 +404,9 @@ inline v3
 operator+(v3 A, v3 B) {
   
   v3 Result;
-  Result.X = A.X + B.X;
-  Result.Y = A.Y + B.Y;
-  Result.Z = A.Z + B.Z;
+  Result.x = A.x + B.x;
+  Result.y = A.y + B.y;
+  Result.z = A.z + B.z;
   
   return Result;
 }
@@ -428,14 +428,14 @@ operator -=(v3 &A, v3 B) {
 inline real32
 Inner(v3 A, v3 B) {
   
-  real32 Result = A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+  real32 Result = A.x * B.x + A.y * B.y + A.z * B.z;
   return Result;
 }
 
 inline v3
 Hadamard(v3 A, v3 B) {
   
-  v3 Result = {A.X * B.X, A.Y * B.Y, A.Z * B.Z};
+  v3 Result = {A.x * B.x, A.y * B.y, A.z * B.z};
   
   return Result;
 }
@@ -462,9 +462,9 @@ GetBarycentric(rectangle3 A, v3 P) {
   
   v3 Result;
   
-  Result.X = SafeRatio0((P.X - A.Min.X), (A.Max.X - A.Min.X));
-  Result.Y = SafeRatio0((P.Y - A.Min.Y), (A.Max.Y - A.Min.Y));
-  Result.Z = SafeRatio0((P.Z - A.Min.Z), (A.Max.Z - A.Min.Z));
+  Result.x = SafeRatio0((P.x - A.Min.x), (A.Max.x - A.Min.x));
+  Result.y = SafeRatio0((P.y - A.Min.y), (A.Max.y - A.Min.y));
+  Result.z = SafeRatio0((P.z - A.Min.z), (A.Max.z - A.Min.z));
   
   return Result;
 }
@@ -474,9 +474,9 @@ Clamp01(v3 Value) {
   
   v3 Result;
   
-  Result.X = Clamp01(Value.X);
-  Result.Y = Clamp01(Value.Y);
-  Result.Z = Clamp01(Value.Z);
+  Result.x = Clamp01(Value.x);
+  Result.y = Clamp01(Value.y);
+  Result.z = Clamp01(Value.z);
   return Result;
 }
 
@@ -504,10 +504,10 @@ inline v4
 operator-(v4 A) {
   
   v4 Result;
-  Result.X = -A.X;
-  Result.Y = -A.Y;
-  Result.Z = -A.Z;
-  Result.W = -A.W;
+  Result.x = -A.x;
+  Result.y = -A.y;
+  Result.z = -A.z;
+  Result.w = -A.w;
   
   return Result;
 }
@@ -516,10 +516,10 @@ inline v4
 operator-(v4 A, v4 B) {
   
   v4 Result;
-  Result.X = A.X - B.X; 
-  Result.Y = A.Y - B.Y;
-  Result.Z = A.Z - B.Z;
-  Result.W = A.W - B.W;
+  Result.x = A.x - B.x; 
+  Result.y = A.y - B.y;
+  Result.z = A.z - B.z;
+  Result.w = A.w - B.w;
   
   return Result;
 }
@@ -528,10 +528,10 @@ inline v4
 operator+(v4 A, v4 B) {
   
   v4 Result;
-  Result.X = A.X + B.X;
-  Result.Y = A.Y + B.Y;
-  Result.Z = A.Z + B.Z;
-  Result.W = A.W + B.W;
+  Result.x = A.x + B.x;
+  Result.y = A.y + B.y;
+  Result.z = A.z + B.z;
+  Result.w = A.w + B.w;
   
   return Result;
 }
@@ -555,10 +555,10 @@ operator*(real32 lambda, v4 B) {
   
   v4 Result;
   
-  Result.X = B.X * lambda;
-  Result.Y = B.Y * lambda;
-  Result.Z = B.Z * lambda;
-  Result.W = B.W * lambda;
+  Result.x = B.x * lambda;
+  Result.y = B.y * lambda;
+  Result.z = B.z * lambda;
+  Result.w = B.w * lambda;
   
   return Result;
 }
@@ -581,7 +581,7 @@ operator*=(v4 &B, real32 A) {
 inline v4
 Hadamard(v4 A, v4 B) {
   
-  v4 Result = {A.X * B.X, A.Y * B.Y, A.Z * B.Z, A.W * B.W};
+  v4 Result = {A.x * B.x, A.y * B.y, A.z * B.z, A.w * B.w};
   return Result;
 }
 
@@ -595,7 +595,7 @@ Lerp(v4 A, real32 t, v4 B) {
 inline real32
 Inner(v4 A, v4 B) {
   
-  real32 Result = A.X * B.X + A.Y * B.Y + A.Z * B.Z + A.W * B.W;
+  real32 Result = A.x * B.x + A.y * B.y + A.z * B.z + A.w * B.w;
   return Result;
 }
 
@@ -672,10 +672,10 @@ RectMinDim(v2 Min, v2 Dim) {
 inline bool32
 IsInRectangle(rectangle2 Rect, v2 Test) {
   
-  bool32 Result = ((Test.X >= Rect.Min.X) &&
-                   (Test.Y >= Rect.Min.Y) &&
-                   (Test.X < Rect.Max.X) &&
-                   (Test.Y < Rect.Max.Y));
+  bool32 Result = ((Test.x >= Rect.Min.x) &&
+                   (Test.y >= Rect.Min.y) &&
+                   (Test.x < Rect.Max.x) &&
+                   (Test.y < Rect.Max.y));
   
   return Result;
 }
@@ -759,12 +759,12 @@ RectMinDim(v3 Min, v3 Dim) {
 inline bool32
 RectIntersect(rectangle3 A, rectangle3 B) {
   
-  bool32 Result = !(A.Min.X >= B.Max.X ||
-                    A.Max.X <= B.Min.X ||
-                    A.Min.Y >= B.Max.Y ||
-                    A.Max.Y <= B.Min.Y ||
-                    A.Min.Z >= B.Max.Z ||
-                    A.Max.Z <= B.Min.Z);
+  bool32 Result = !(A.Min.x >= B.Max.x ||
+                    A.Max.x <= B.Min.x ||
+                    A.Min.y >= B.Max.y ||
+                    A.Max.y <= B.Min.y ||
+                    A.Min.z >= B.Max.z ||
+                    A.Max.z <= B.Min.z);
   
   return Result;
 }
@@ -772,12 +772,12 @@ RectIntersect(rectangle3 A, rectangle3 B) {
 inline bool32
 IsInRectangle(rectangle3 Rect, v3 Test) {
   
-  bool32 Result = ((Test.X >= Rect.Min.X) &&
-                   (Test.Y >= Rect.Min.Y) &&
-                   (Test.Z >= Rect.Min.Z) &&
-                   (Test.X < Rect.Max.X) &&
-                   (Test.Y < Rect.Max.Y) &&
-                   (Test.Z < Rect.Max.Z));
+  bool32 Result = ((Test.x >= Rect.Min.x) &&
+                   (Test.y >= Rect.Min.y) &&
+                   (Test.z >= Rect.Min.z) &&
+                   (Test.x < Rect.Max.x) &&
+                   (Test.y < Rect.Max.y) &&
+                   (Test.z < Rect.Max.z));
   
   return Result;
 }

@@ -129,17 +129,17 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         // --to_sRGB--> sRGB (premultiplied)
         
         Texel = SRGB255ToLinear1(Texel);
-        Texel.RGB *= Texel.A;
+        Texel.rgb *= Texel.a;
         Texel = Linear1ToSRGB255(Texel);
         
         // when we will take it back from sRGB space to linear
         // they were already in premultiplied format
         
         
-        *SourceDest = (((uint32)(Texel.A + 0.5f) << 24) |
-                       ((uint32)(Texel.R + 0.5f) << 16) |
-                       ((uint32)(Texel.G + 0.5f) << 8)  |
-                       ((uint32)(Texel.B + 0.5f) << 0));
+        *SourceDest = (((uint32)(Texel.a + 0.5f) << 24) |
+                       ((uint32)(Texel.r + 0.5f) << 16) |
+                       ((uint32)(Texel.g + 0.5f) << 8)  |
+                       ((uint32)(Texel.b + 0.5f) << 0));
         
         SourceDest++;
       }
@@ -163,11 +163,11 @@ DrawRectangleOutline(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
   
   real32 r = 1.0f;
   
-  DrawRectangle(Buffer, V2(vMin.X - r, vMin.Y - r), V2(vMax.X + r, vMin.Y + r), Color);
-  DrawRectangle(Buffer, V2(vMin.X - r, vMin.Y - r), V2(vMin.X + r, vMax.Y + r), Color);
+  DrawRectangle(Buffer, V2(vMin.x - r, vMin.y - r), V2(vMax.x + r, vMin.y + r), Color);
+  DrawRectangle(Buffer, V2(vMin.x - r, vMin.y - r), V2(vMin.x + r, vMax.y + r), Color);
   
-  DrawRectangle(Buffer, V2(vMin.X - r, vMax.Y - r), V2(vMax.X + r, vMax.Y + r), Color);
-  DrawRectangle(Buffer, V2(vMax.X - r, vMax.Y - r), V2(vMax.X + r, vMin.Y + r), Color);
+  DrawRectangle(Buffer, V2(vMin.x - r, vMax.y - r), V2(vMax.x + r, vMax.y + r), Color);
+  DrawRectangle(Buffer, V2(vMax.x - r, vMax.y - r), V2(vMax.x + r, vMin.y + r), Color);
 }  
 
 
@@ -382,7 +382,7 @@ DrawHitpoints(sim_entity *Entity, render_group *PieceGroup) {
   if(Entity->HitPointMax) {
     
     v2 HitPointDim = {0.2f , 0.2f};
-    real32 SpacingX = 2.0f * HitPointDim.X;
+    real32 SpacingX = 2.0f * HitPointDim.x;
     real32 FirstX = (Entity->HitPointMax - 1)*0.5f*SpacingX;
     v2 HitP = {(Entity->HitPointMax - 1)*-0.5f*SpacingX, -0.4f};
     v2 dHitP = {SpacingX, 0};
@@ -559,8 +559,9 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
       
       v2 BitmapUV = V2(InvWidth*(real32)X, InvHeight*(real32)Y);
       
-      real32 Nx = 2.0f*BitmapUV.X - 1.0f;
-      real32 Ny = 2.0f*BitmapUV.Y - 1.0f;
+      real32 Nx = 2.0f*BitmapUV.x - 1.0f;
+      real32 Ny = 2.0f*BitmapUV.y - 1.0f;
+      Ny = -Ny;
       real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
       
       
@@ -573,15 +574,79 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
       }
       
       // TODO(Egor): maybe this is wrong
-      v4 Color = V4(255.0f*(0.5f*(Normal.X + 1.0f)),
-                    255.0f*(0.5f*(Normal.Y + 1.0f)),
-                    255.0f*(0.5f*(Normal.Z + 1.0f)),
+      v4 Color = V4(255.0f*(0.5f*(Normal.x + 1.0f)),
+                    255.0f*(0.5f*(Normal.y + 1.0f)),
+                    255.0f*(0.5f*(Normal.z + 1.0f)),
                     255.0f*Roughness);
       
-      uint32 PixNormal = (((uint32)(Color.A + 0.5f) << 24) |
-                          ((uint32)(Color.R + 0.5f) << 16) |
-                          ((uint32)(Color.G + 0.5f) << 8)  |
-                          ((uint32)(Color.B + 0.5f) << 0));
+      uint32 PixNormal = (((uint32)(Color.a + 0.5f) << 24) |
+                          ((uint32)(Color.r + 0.5f) << 16) |
+                          ((uint32)(Color.g + 0.5f) << 8)  |
+                          ((uint32)(Color.b + 0.5f) << 0));
+      
+      
+      *Pixel++ = PixNormal;
+    }
+    
+    Row += Bitmap->Pitch;
+  }
+}
+
+internal void
+MakePyramidNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
+  
+  real32 InvWidth = 1.0f/(Bitmap->Width - 1.0f);
+  real32 InvHeight = 1.0f/(Bitmap->Height - 1.0f);
+  
+
+  
+  uint8 *Row = (uint8 *)Bitmap->Memory;
+  
+  for(int32 Y = 0; Y < Bitmap->Height; ++Y) {
+    
+    uint32 *Pixel = (uint32 *)Row;
+    for(int32 X = 0; X < Bitmap->Width; ++X) {
+      
+      real32 Seven = 0.70710678f;
+      v3 Normal = V3(0, 0, Seven);
+      int32 InvX = (Bitmap->Width - 1) - X;
+      if(X < Y) {
+        
+        if(InvX < Y) {
+          
+          Normal.y = Seven;
+          
+        }
+        else {
+          
+          Normal.x = -Seven;
+          
+        }
+      }
+      else {
+        
+        if(InvX < Y) {
+          
+          Normal.x = Seven;
+          
+        }
+        else {
+          
+          Normal.y = -Seven;
+          
+        }
+      }
+      
+      // TODO(Egor): maybe this is wrong
+      v4 Color = V4(255.0f*(0.5f*(Normal.x + 1.0f)),
+                    255.0f*(0.5f*(Normal.y + 1.0f)),
+                    255.0f*(0.5f*(Normal.z + 1.0f)),
+                    255.0f*Roughness);
+      
+      uint32 PixNormal = (((uint32)(Color.a + 0.5f) << 24) |
+                          ((uint32)(Color.r + 0.5f) << 16) |
+                          ((uint32)(Color.g + 0.5f) << 8)  |
+                          ((uint32)(Color.b + 0.5f) << 0));
       
       
       *Pixel++ = PixNormal;
@@ -612,8 +677,8 @@ MakeSphereNormalMapDebug(loaded_bitmap *Bitmap, real32 Roughness) {
     v2 BitmapUV = V2(InvWidth*(real32)(X + 1), InvHeight*(real32)(Y + 1));
     
 #if 1
-    real32 Nx = 2.0f*BitmapUV.X - 1.0f;
-    real32 Ny = 2.0f*BitmapUV.Y - 1.0f;
+    real32 Nx = 2.0f*BitmapUV.x - 1.0f;
+    real32 Ny = 2.0f*BitmapUV.y - 1.0f;
     real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
     v3 Normal = V3(0, 0, 1);
     if(RootTerm >= 0.0f) {
@@ -623,21 +688,21 @@ MakeSphereNormalMapDebug(loaded_bitmap *Bitmap, real32 Roughness) {
     }
     
 #else
-    v3 Normal = V3(2.0f*BitmapUV.X - 1.0f, 2.0f*BitmapUV.Y - 1.0f, 0.0f); 
+    v3 Normal = V3(2.0f*BitmapUV.x - 1.0f, 2.0f*BitmapUV.y - 1.0f, 0.0f); 
     // TODO(Egor): this is ugly hack
-    Normal.Z = SquareRoot(1.0f - Min(1.0f, Square(Normal.X) + Square(Normal.Y)));
+    Normal.z = SquareRoot(1.0f - Min(1.0f, Square(Normal.x) + Square(Normal.y)));
 #endif
     
     // TODO(Egor): maybe this is wrong
-    v4 Color = V4(255.0f*(0.5f*(Normal.X + 1.0f)),
-                  255.0f*(0.5f*(Normal.Y + 1.0f)),
-                  255.0f*(0.5f*(Normal.Z + 1.0f)),
+    v4 Color = V4(255.0f*(0.5f*(Normal.x + 1.0f)),
+                  255.0f*(0.5f*(Normal.y + 1.0f)),
+                  255.0f*(0.5f*(Normal.z + 1.0f)),
                   255.0f*Roughness);
     
-    uint32 PixNormal = (((uint32)(Color.A + 0.5f) << 24) |
-                        ((uint32)(Color.R + 0.5f) << 16) |
-                        ((uint32)(Color.G + 0.5f) << 8)  |
-                        ((uint32)(Color.B + 0.5f) << 0));
+    uint32 PixNormal = (((uint32)(Color.a + 0.5f) << 24) |
+                        ((uint32)(Color.r + 0.5f) << 16) |
+                        ((uint32)(Color.g + 0.5f) << 8)  |
+                        ((uint32)(Color.b + 0.5f) << 0));
     
     
     
@@ -1001,6 +1066,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                             GameState->TestDiffuse.Width,
                                             GameState->TestDiffuse.Height);
     MakeSphereNormalMap(&GameState->TestNormal, 0.0f);
+//    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
     
     TranState->Initialized = true;
   }
@@ -1058,16 +1124,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       {
         
         if(Controller->MoveUp.EndedDown) {
-          Controlled->ddP.Y = 1.0f;
+          Controlled->ddP.y = 1.0f;
         }
         if(Controller->MoveRight.EndedDown) {
-          Controlled->ddP.X = 1.0f;
+          Controlled->ddP.x = 1.0f;
         }
         if(Controller->MoveDown.EndedDown) {
-          Controlled->ddP.Y = -1.0f;
+          Controlled->ddP.y = -1.0f;
         }
         if(Controller->MoveLeft.EndedDown) {
-          Controlled->ddP.X = -1.0f;
+          Controlled->ddP.x = -1.0f;
         }
       }
       
@@ -1217,7 +1283,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
       v2 Align = 0.5f*V2i(Bitmap->Width, Bitmap->Height);
       
-      PushBitmap(RenderGroup, Bitmap, Delta.XY, Align, Delta.Z);
+      PushBitmap(RenderGroup, Bitmap, Delta.XY, Align, Delta.z);
     }
   }
   
@@ -1267,7 +1333,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               
               if(Controlled->dZ) {
                 
-                Entity->dP.Z = Controlled->dZ;
+                Entity->dP.z = Controlled->dZ;
               }
               
               MoveSpec.Speed = 50.0f;
@@ -1275,7 +1341,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               MoveSpec.UnitMaxAccelVector = true;
               ddP = V3(Controlled->ddP, 0);
               
-              if((Controlled->dSword.X != 0.0f) || (Controlled->dSword.Y != 0.0f)) {
+              if((Controlled->dSword.x != 0.0f) || (Controlled->dSword.y != 0.0f)) {
                 
                 sim_entity *Sword = Entity->Sword.Ptr;
                 if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
@@ -1416,7 +1482,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         for(uint32 X = 0; X < TranState->EnvMapWidth;
             X += CheckerWidth, ++Toggle %= 2) {
         
-        v4 CheckerColor = Toggle ? ColorMatrix[Index] : V4(0, 0, 0, 1);
+        v4 CheckerColor = Toggle ? ColorMatrix[Index] : V4(1, 0, 0, 1);
         
         DrawRectangle(LOD,
                       V2i(X, Y), V2i(X + CheckerWidth, Y + CheckerHeight),
