@@ -278,7 +278,7 @@ AddStair(game_state *GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTile
                                                    GameState->StairCollision);
   AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
   // TODO(Egor): maybe I should reconsider this approach, and tie up to entity dim 
-  Entity.Low->Sim.WalkableDim = Entity.Low->Sim.Collision->TotalVolume.Dim.XY;
+  Entity.Low->Sim.WalkableDim = Entity.Low->Sim.Collision->TotalVolume.Dim.xy;
   Entity.Low->Sim.WalkableHeight = GameState->FloorHeight;
   
   return Entity;
@@ -545,7 +545,7 @@ MakeEmptyBitmap(memory_arena *Arena, uint32 Width, uint32 Height, bool32 ClearTo
 }
 
 internal void
-MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
+MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness, real32 NxC, real32 NyC) {
   
   real32 InvWidth = 1.0f/(Bitmap->Width - 1.0f);
   real32 InvHeight = 1.0f/(Bitmap->Height - 1.0f);
@@ -561,7 +561,10 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
       
       real32 Nx = 2.0f*BitmapUV.x - 1.0f;
       real32 Ny = 2.0f*BitmapUV.y - 1.0f;
-      Ny = -Ny;
+      
+      Nx *= NxC;
+      Ny *= NyC;
+
       real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
       
       
@@ -1065,7 +1068,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena,
                                             GameState->TestDiffuse.Width,
                                             GameState->TestDiffuse.Height);
-    MakeSphereNormalMap(&GameState->TestNormal, 0.0f);
+    MakeSphereNormalMap(&GameState->TestNormal, 0.0f, 1.0f, 1.0f);
 //    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
     
     TranState->Initialized = true;
@@ -1229,7 +1232,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             else if (IsValid(GroundBuffer->P)) {
               
               v3 Rel = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
-              real32 DistanceLenSq = LengthSq(Rel.XY);
+              real32 DistanceLenSq = LengthSq(Rel.xy);
               if(DistanceLenSq > FurthestBufferLenSq) {
                 
                 FurthestBufferLenSq = DistanceLenSq;
@@ -1248,7 +1251,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
-          PushRectOutline(RenderGroup, RelP.XY, World->ChunkDimInMeters.XY, V4(1.0f, 1.0f, 0.0f, 1.0f));
+          PushRectOutline(RenderGroup, RelP.xy, World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
 #endif
         }
       }
@@ -1283,7 +1286,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
       v2 Align = 0.5f*V2i(Bitmap->Width, Bitmap->Height);
       
-      PushBitmap(RenderGroup, Bitmap, Delta.XY, Align, Delta.z);
+      PushBitmap(RenderGroup, Bitmap, Delta.xy, Align, Delta.z);
     }
   }
   
@@ -1357,7 +1360,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           PushBitmap(RenderGroup, &Hero->HeroTorso, V2(0, 0), Hero->Align);
           PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), Hero->Align);
           PushBitmap(RenderGroup, &Hero->HeroCape, V2(0, 0), Hero->Align);
-          PushRect(RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           
           DrawHitpoints(Entity, RenderGroup);
         } break;
@@ -1369,7 +1372,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               ++VolumeIndex) {
             
             sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
-            PushRectOutline(RenderGroup, Volume->OffsetP.XY, Volume->Dim.XY, V4(0.0f, 0.0f, 1.0f, 1.0f)); 
+            PushRectOutline(RenderGroup, Volume->OffsetP.xy, Volume->Dim.xy, V4(0.0f, 0.0f, 1.0f, 1.0f)); 
           }
 #endif
           
@@ -1446,8 +1449,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   v2 Disp = 100.0f*V2(Cos(Angle), 0);
   
   v2 Origin = ScreenCenter;
-  v2 XAxis = 300.0f*V2(1.0f, 0.0f);
-  v2 YAxis = 300.0f*V2(0.0f, 1.0f);
+  v2 XAxis = 100.0f*V2(Cos(Angle), Sin(Angle));
+  v2 YAxis = Perp(XAxis);
   
 #if 0
   
@@ -1482,7 +1485,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         for(uint32 X = 0; X < TranState->EnvMapWidth;
             X += CheckerWidth, ++Toggle %= 2) {
         
-        v4 CheckerColor = Toggle ? ColorMatrix[Index] : V4(1, 0, 0, 1);
+        v4 CheckerColor = Toggle ? ColorMatrix[Index] : V4(0, 0, 0, 1);
         
         DrawRectangle(LOD,
                       V2i(X, Y), V2i(X + CheckerWidth, Y + CheckerHeight),

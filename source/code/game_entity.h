@@ -63,9 +63,9 @@ GetStairGround(sim_entity *Entity, v3 AtGroundPoint) {
 
   Assert(Entity->Type == EntityType_Stairwell);
   
-  rectangle2 EntityRect = RectCenterDim(Entity->P.XY, Entity->WalkableDim);
+  rectangle2 EntityRect = RectCenterDim(Entity->P.xy, Entity->WalkableDim);
   // NOTE(Egor): get local normalized over axis coordinates inside AABB
-  v2 Bary = Clamp01(GetBarycentric(EntityRect, AtGroundPoint.XY));
+  v2 Bary = Clamp01(GetBarycentric(EntityRect, AtGroundPoint.xy));
   real32 Ground = Entity->P.z + Bary.y*Entity->WalkableHeight;
   
   return Ground;

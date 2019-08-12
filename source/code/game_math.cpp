@@ -21,7 +21,7 @@ union v3 {
   };
   struct {
     // NOTE(Egor):the best
-    v2 XY;
+    v2 xy;
     real32 Ignored0_;
   };
   real32 E[3];
@@ -56,6 +56,13 @@ union v4 {
       };
     };
     real32 a;
+  };
+  
+  struct {
+    // NOTE(Egor):the best
+    v2 xy;
+    real32 Ignored0_;
+    real32 Ignored1_;
   };
   
   real32 E[4];

@@ -345,20 +345,24 @@ SRGBBilinearBlend(bilinear_sample Sample, real32 fX, real32 fY) {
 
 
 inline v3
-SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness, environment_map *Map) {
+SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness, 
+                     environment_map *Map, real32 DistanceFromMapInZ) {
   
   uint32 LODIndex = (uint32)(Roughness*(real32)(ArrayCount(Map->LOD)-1) + 0.5f);
   Assert(LODIndex < ArrayCount(Map->LOD));
   loaded_bitmap *LOD = &Map->LOD[LODIndex];
+
   
-  Assert(SampleDirection.y > 0.0f); 
-  
-  real32 DistanceFromMapInZ = 1.0f;
+  // NOTE(Egor): Compute the distance to the map
+  // (thing that have image on it we want to reflect)
+  // UV is a scaling factor from relative coordinates to real world distance
   real32 UVsPerMeter = 0.01f;
   real32 c = (UVsPerMeter*DistanceFromMapInZ) / SampleDirection.y;
-  // TODO(Egor): maybe I should revert coordinates in normal map
-  v2 Offset = c * V2(SampleDirection.x, SampleDirection.z);
   
+  // NOTE(Egor): find the place we take color from
+  // we use Z coordinate instead of Y because Y is our top-to-bottom coordinate
+  // and Z is our out of the screen coordinate
+  v2 Offset = c * V2(SampleDirection.x, SampleDirection.z);
   v2 UV = Offset + ScreenSpaceUV;
   
   UV.x = Clamp01(UV.x);
@@ -366,14 +370,11 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness, env
   
   real32 tX = (UV.x * (real32)(LOD->Width - 2));
   real32 tY = (UV.y * (real32)(LOD->Height - 2));
-  
   int32 X = (int32)tX;
   int32 Y = (int32)tY;
-  
   // NOTE(Egor): take the fractional part of tX and tY
   real32 fX = tX - (real32)X;
   real32 fY = tY - (real32)Y;
-  
   Assert(X >= 0 && X <= (LOD->Width));
   Assert(Y >= 0 && Y <= (LOD->Height));
   
@@ -390,6 +391,14 @@ internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                     loaded_bitmap *Texture, loaded_bitmap *NormalMap,
                     environment_map *Top, environment_map *Middle, environment_map *Bottom) {
+  
+  real32 XAxisLength = Length(Basis.XAxis);
+  real32 YAxisLength = Length(Basis.YAxis);
+  
+  v2 NXAxis = YAxisLength/XAxisLength * Basis.XAxis;
+  v2 NYAxis = XAxisLength/YAxisLength * Basis.YAxis;
+  
+  real32 NZScale = (XAxisLength + YAxisLength)*0.5f;
   
   //NOTE(Egor): premultiply color
   Color.rgb *= Color.a;
@@ -501,6 +510,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                            Lerp(NormalC, fX, NormalD));
           
           Normal = UnscaleAndBiasNormal(Normal);
+          
+          Normal.xy = NXAxis*Normal.x + NYAxis*Normal.y;
+          Normal.z *= NZScale;
+          
           Normal.xyz = Normalize(Normal.xyz);
           
           // NOTE(Egor): this vector is pointing straing out of monitor
@@ -509,14 +522,19 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           v3 BounceDirection = 2.0f*Normal.z*Normal.xyz;
           BounceDirection.z -= 1.0f;
           
+          
+          BounceDirection.z = -BounceDirection.z;
+          
           environment_map *FarMap = 0;
           real32 tEnvMap = BounceDirection.y;
           real32 tFarMap = 0.0f;
+          real32 DistanceFromMapInZ = 4.0f;
           if(tEnvMap < -0.5f) {
             
             FarMap = Bottom;
             tFarMap = -1.0f - tEnvMap*2.0f;
-            BounceDirection.y = -BounceDirection.y;
+            DistanceFromMapInZ = -DistanceFromMapInZ;
+            
           }
           else if(tEnvMap > 0.5f) {
             
@@ -527,7 +545,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           v3 LightColor = V3(0, 0, 0); //SampleEnvironmentMap(ScreenSpaceUV, Normal.xYZ, Normal.w, Middle);
           if(FarMap) {
             
-            v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection, Normal.w, FarMap);
+            v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection,
+                                                  Normal.w, FarMap, DistanceFromMapInZ);
             LightColor = Lerp(LightColor, tFarMap, FarMapColor);
           }
 #if 0
