@@ -45,7 +45,7 @@ UnscaleAndBiasNormal(v4 Normal) {
 
 internal render_group *
 AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, real32 MtP) {
- 
+  
   render_group *Result = PushStruct(Arena, render_group);
   Result->PushBufferBase = (uint8 *)PushSize(Arena, MaxPushBufferSize);
   Result->PushBufferSize = 0;
@@ -62,13 +62,13 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, real32 MtP) {
 
 internal void*
 PushRenderElement_(render_group *Group, uint32 Size, render_group_entry_type Type) {
- 
+  
   void *Result = 0;
-
+  
   Size += sizeof(render_group_entry_header);
   
   if((Group->PushBufferSize + Size) < Group->MaxPushBufferSize) {
-   
+    
     render_group_entry_header *Header = (render_group_entry_header *)(Group->PushBufferBase + Group->PushBufferSize);
     Header->Type = Type;
     Result = (Header + 1);
@@ -175,11 +175,11 @@ DrawBitmap(loaded_bitmap *Buffer,
   // NOTE(Egor): just example
   // uint8 *EndOfBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch*Buffer->Height;
   
-
+  
   
   uint8 *Test = (uint8 *)Bitmap->Memory;
   uint8 *SourceRow = (uint8 *)Bitmap->Memory + SourceOffsetY*Bitmap->Pitch
-                      + BITMAP_BYTES_PER_PIXEL*SourceOffsetX;
+    + BITMAP_BYTES_PER_PIXEL*SourceOffsetX;
   
   // go to line to draw
   uint8 *DestRow = ((uint8 *)Buffer->Memory + MinY*Buffer->Pitch + MinX*BITMAP_BYTES_PER_PIXEL);
@@ -190,7 +190,7 @@ DrawBitmap(loaded_bitmap *Buffer,
     uint32 *Source = (uint32 *)SourceRow;
     for(int X = MinX; X < MaxX; ++X)
     {
-
+      
       
       v4 Texel = V4((real32)((*Source >> 16) & 0xFF),
                     (real32)((*Source >> 8) & 0xFF),
@@ -206,7 +206,7 @@ DrawBitmap(loaded_bitmap *Buffer,
                 (real32)((*Dest >> 24) & 0xFF));
       
       D = SRGB255ToLinear1(D);
-                   
+      
       real32 RAsComplement = (1 - Texel.a);
       
       // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
@@ -351,7 +351,6 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
   uint32 LODIndex = (uint32)(Roughness*(real32)(ArrayCount(Map->LOD)-1) + 0.5f);
   Assert(LODIndex < ArrayCount(Map->LOD));
   loaded_bitmap *LOD = &Map->LOD[LODIndex];
-
   
   // NOTE(Egor): Compute the distance to the map
   // (thing that have image on it we want to reflect)
@@ -378,6 +377,11 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
   Assert(X >= 0 && X <= (LOD->Width));
   Assert(Y >= 0 && Y <= (LOD->Height));
   
+#if 0  
+  uint8 *TexelPtr = ((uint8 *)LOD->Memory) + Y*LOD->Pitch + X*BITMAP_BYTES_PER_PIXEL;
+  *(uint32 *)TexelPtr = 0xFFFFFFFF;
+#endif
+  
   bilinear_sample Sample = BilinearSample(LOD, X, Y);
   v3 Result = SRGBBilinearBlend(Sample, fX, fY).rgb;
   
@@ -390,7 +394,8 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                     loaded_bitmap *Texture, loaded_bitmap *NormalMap,
-                    environment_map *Top, environment_map *Middle, environment_map *Bottom) {
+                    environment_map *Top, environment_map *Middle, environment_map *Bottom,
+                    real32 PtM) {
   
   real32 XAxisLength = Length(Basis.XAxis);
   real32 YAxisLength = Length(Basis.YAxis);
@@ -405,9 +410,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   int32 Width = Buffer->Width - 1;
   int32 Height = Buffer->Height - 1;
-  
   real32 InvWidth = 1.0f/(real32)Width;
   real32 InvHeight = 1.0f/(real32)Height;
+  
+  real32 OriginZ = 0.0f;
+  real32 OriginY = (Basis.Origin + 0.5f*Basis.YAxis + 0.5f*Basis.XAxis).y;
+  real32 FixedCastY = InvHeight*OriginY;
   
   int32 YMin = Height;
   int32 XMin = Width;
@@ -471,7 +479,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
          Edge2 < 0 &&
          Edge3 < 0) {
         
-        v2 ScreenSpaceUV = V2((real32)X*InvWidth, (real32)Y*InvHeight);
+        v2 ScreenSpaceUV = V2((real32)X*InvWidth, FixedCastY);
+        
+        real32 ZDiff = PtM*((real32)Y - OriginY);
         
         v2 UV =  V2(InvXAxisLengthSq * Inner(Basis.XAxis,d),
                     InvYAxisLengthSq * Inner(Basis.YAxis,d));
@@ -513,28 +523,28 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           
           Normal.xy = NXAxis*Normal.x + NYAxis*Normal.y;
           Normal.z *= NZScale;
-          
           Normal.xyz = Normalize(Normal.xyz);
           
           // NOTE(Egor): this vector is pointing straing out of monitor
           // EyeVector = (0, 0, 1) 
           // NOTE(Egor): simplified version of <EyeVector, NormalVector>*NormalVecor*2 - EyeVector
+          // TODO(Egor): reconstruct the math, to have The EYE casting EYE vector,
+          // not the positioning vector of EYE
+          
           v3 BounceDirection = 2.0f*Normal.z*Normal.xyz;
           BounceDirection.z -= 1.0f;
-          
-          
           BounceDirection.z = -BounceDirection.z;
+#if 1
           
           environment_map *FarMap = 0;
-          real32 tEnvMap = BounceDirection.y;
+          real32 Pz = OriginZ + ZDiff;
+          real32 MapZ = 2.0f;          
           real32 tFarMap = 0.0f;
-          real32 DistanceFromMapInZ = 4.0f;
+          real32 tEnvMap = BounceDirection.y;
           if(tEnvMap < -0.5f) {
             
             FarMap = Bottom;
             tFarMap = -1.0f - tEnvMap*2.0f;
-            DistanceFromMapInZ = -DistanceFromMapInZ;
-            
           }
           else if(tEnvMap > 0.5f) {
             
@@ -545,17 +555,47 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           v3 LightColor = V3(0, 0, 0); //SampleEnvironmentMap(ScreenSpaceUV, Normal.xYZ, Normal.w, Middle);
           if(FarMap) {
             
+            real32 DistanceFromMapInZ = FarMap->Pz - Pz;
             v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection,
                                                   Normal.w, FarMap, DistanceFromMapInZ);
             LightColor = Lerp(LightColor, tFarMap, FarMapColor);
           }
-#if 0
-          
-          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.rgb;
-          Texel.a = 1.0f;
-#endif
           
           Texel.rgb = Texel.rgb + LightColor*Texel.a;
+          
+#if 0
+          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*BounceDirection;
+          Texel.rgb *= Texel.a;
+#endif
+          
+#else
+          
+          /*real32 IsoLine = -0.9f;
+          
+          if(BounceDirection.y >= IsoLine - 0.05f &&
+             BounceDirection.y <= IsoLine + 0.05f) {
+            
+            Texel.rgb = V3(1, 1, 1); 
+          }
+          else {
+            
+            Texel.rgb = V3(0, 0, 0);
+          }*/
+
+          /*
+          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*BounceDirection;
+          Texel.r = 0.0f;
+          Texel.b = 0.0f;
+          Texel.a = 1.0f;
+          */
+
+          /*
+          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.rgb;
+          Texel.a = 1.0f;
+          */
+#endif
+          
+
           // NOTE(Egor): end of normal processing
         }
         // NOTE(Egor): color tinting and external opacity
@@ -668,7 +708,8 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
 #if 1
         DrawRectangleSlowly(Output, V2Basis, Entry->Color,
                             Entry->Texture, Entry->NormalMap,
-                            Entry->Top, Entry->Middle, Entry->Bottom);
+                            Entry->Top, Entry->Middle, Entry->Bottom,
+                            1.0f/MtP);
 #endif
         
 #if 0

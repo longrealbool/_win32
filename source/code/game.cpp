@@ -596,6 +596,57 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness, real32 NxC, real32 
 }
 
 internal void
+MakeSphereDiffuseMap(loaded_bitmap *Bitmap, real32 NxC = 1.0f, real32 NyC = 1.0f) {
+  
+  real32 InvWidth = 1.0f/(Bitmap->Width - 1.0f);
+  real32 InvHeight = 1.0f/(Bitmap->Height - 1.0f);
+  
+  v3 BaseColor = V3(0, 0, 0);
+  
+  uint8 *Row = (uint8 *)Bitmap->Memory;
+  
+  for(int32 Y = 0; Y < Bitmap->Height; ++Y) {
+    
+    uint32 *Pixel = (uint32 *)Row;
+    for(int32 X = 0; X < Bitmap->Width; ++X) {
+      
+      v2 BitmapUV = V2(InvWidth*(real32)X, InvHeight*(real32)Y);
+      
+      real32 Nx = 2.0f*BitmapUV.x - 1.0f;
+      real32 Ny = 2.0f*BitmapUV.y - 1.0f;
+      
+      Nx *= NxC;
+      Ny *= NyC;
+      
+      real32 Alpha = 0.0f;
+      real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
+      if(RootTerm >= 0.0f) {
+        
+        Alpha = 1.0f;
+      }
+      
+      Alpha *= 255.0f;
+      // TODO(Egor): maybe this is wrong
+      v4 Color = V4((Alpha*BaseColor.r),
+                    (Alpha*BaseColor.g),
+                    (Alpha*BaseColor.b),
+                    (Alpha));
+      
+      uint32 PixNormal = (((uint32)(Color.a + 0.5f) << 24) |
+                          ((uint32)(Color.r + 0.5f) << 16) |
+                          ((uint32)(Color.g + 0.5f) << 8)  |
+                          ((uint32)(Color.b + 0.5f) << 0));
+      
+      
+      *Pixel++ = PixNormal;
+    }
+    
+    Row += Bitmap->Pitch;
+  }
+}
+
+
+internal void
 MakePyramidNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
   
   real32 InvWidth = 1.0f/(Bitmap->Width - 1.0f);
@@ -1062,13 +1113,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     
     GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
+#if 0
     DrawRectangle(&GameState->TestDiffuse, V2(0,0),
                   V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), V4(0.5f, 0.5f, 0.5f, 1.0f));
+#endif
     
     GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena,
                                             GameState->TestDiffuse.Width,
                                             GameState->TestDiffuse.Height);
     MakeSphereNormalMap(&GameState->TestNormal, 0.0f, 1.0f, 1.0f);
+    MakeSphereDiffuseMap(&GameState->TestDiffuse, 1.0f, 1.0f);
 //    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
     
     TranState->Initialized = true;
@@ -1444,12 +1498,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-  GameState->Time += Input->dtForFrame/4;
-  real32 Angle = GameState->Time;
-  v2 Disp = 100.0f*V2(Cos(Angle), 0);
+  GameState->Time += Input->dtForFrame;
+  real32 Angle = 0.1f*GameState->Time;
+  v2 Disp = 100.0f*V2(Cos(5.0f*Angle), Sin(3.0f*Angle));
   
-  v2 Origin = ScreenCenter;
+  v2 Origin = ScreenCenter + Disp;
   v2 XAxis = 100.0f*V2(Cos(Angle), Sin(Angle));
+//  v2 XAxis = 100.0f*V2(1.0f, 0.0f);
   v2 YAxis = Perp(XAxis);
   
 #if 0
@@ -1493,8 +1548,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
     }
   }
+  TranState->EnvMaps[0].Pz = -2.0f;
+  TranState->EnvMaps[1].Pz = 0.0f;
+  TranState->EnvMaps[2].Pz = 2.0f;
 
-  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis + Disp,
+  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis,
                        XAxis, YAxis, Color, 
                        &GameState->TestDiffuse, &GameState->TestNormal,
                        TranState->EnvMaps + 2,
