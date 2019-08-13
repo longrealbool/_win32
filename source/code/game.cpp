@@ -1500,7 +1500,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   GameState->Time += Input->dtForFrame;
   real32 Angle = 0.1f*GameState->Time;
-  v2 Disp = 100.0f*V2(Cos(5.0f*Angle), Sin(3.0f*Angle));
+  v2 Disp = 100.0f*V2(0.0f, Sin(3.0f*Angle));
   
   v2 Origin = ScreenCenter + Disp;
   v2 XAxis = 100.0f*V2(Cos(Angle), Sin(Angle));
@@ -1548,9 +1548,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
     }
   }
-  TranState->EnvMaps[0].Pz = -2.0f;
+  TranState->EnvMaps[0].Pz = -8.0f;
   TranState->EnvMaps[1].Pz = 0.0f;
-  TranState->EnvMaps[2].Pz = 2.0f;
+  TranState->EnvMaps[2].Pz = 8.0f;
 
   PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis,
                        XAxis, YAxis, Color, 

@@ -552,6 +552,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
             tFarMap = tEnvMap*2.0f - 1.0f;
           }
           
+          tFarMap *= tFarMap;
+          tFarMap *= tFarMap;
+          
           v3 LightColor = V3(0, 0, 0); //SampleEnvironmentMap(ScreenSpaceUV, Normal.xYZ, Normal.w, Middle);
           if(FarMap) {
             
