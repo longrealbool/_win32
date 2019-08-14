@@ -1,5 +1,16 @@
 #if !defined(GAME_RENDER_GROUP_H)
 
+/* NOTE(Egor):
+
+   1. Everywhere Y always _must_ goes upward, X goes to the right
+   2. All bitmaps including the render target assumed to be bottom-up
+   3. All inputs to the rendere are in world coordinate "meters", _NOT_ in pixels.
+      If something is in pixels values, it will be explicitly marked as such.
+   4. Z is a special coordinate that represents discrete slices of world.
+   
+*/
+
+
 struct bilinear_sample {
   
   uint32 A;
@@ -17,7 +28,7 @@ struct loaded_bitmap {
 };
 
 struct environment_map {
- 
+  
   loaded_bitmap LOD[4];
   real32 Pz;
 };
@@ -51,7 +62,7 @@ struct render_group_entry_header {
 };
 
 struct render_entry_clear {
-
+  
   v4 Color;
 };
 
@@ -71,12 +82,24 @@ struct render_entry_rectangle {
 
 
 struct render_v2_basis {
- 
+  
   v2 Origin;
   v2 XAxis;
   v2 YAxis;
 };
 
+
+struct render_group {
+
+  render_basis *DefaultBasis;
+  real32 MtP;
+
+  uint32 MaxPushBufferSize;
+  uint32 PushBufferSize;
+  uint8 *PushBufferBase;
+};
+
+// NOTE(Egor): for test only
 struct render_entry_coordinate_system {
   
   render_entity_basis EntityBasis;
@@ -90,17 +113,6 @@ struct render_entry_coordinate_system {
   environment_map *Top;
   environment_map *Middle;
   environment_map *Bottom;
-};
-
-
-struct render_group {
-
-  render_basis *DefaultBasis;
-  real32 MtP;
-
-  uint32 MaxPushBufferSize;
-  uint32 PushBufferSize;
-  uint8 *PushBufferBase;
 };
 
 

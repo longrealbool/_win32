@@ -91,7 +91,7 @@ PushPiece(render_group *Group, loaded_bitmap *Bitmap,
     
     render_entity_basis EntityBasis;
     EntityBasis.Basis = Group->DefaultBasis;
-    EntityBasis.Offset = Group->MtP*V2(Offset.x, -Offset.y) - Align;
+    EntityBasis.Offset = Group->MtP*V2(Offset.x, Offset.y) - Align;
     EntityBasis.OffsetZ = OffsetZ;
     EntityBasis.OffsetZC = OffsetZC;
     
@@ -282,16 +282,13 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
   v3 EntityBaseP = EntityBasis->Basis->P;
   real32 ZFudge = (1.0f + 0.05f*(EntityBaseP.z + EntityBasis->OffsetZ));
   
-  real32 EntityGroundPointX = ScreenCenter.x + EntityBaseP.x*MtP*ZFudge;
-  real32 EntityGroundPointY = ScreenCenter.y - EntityBaseP.y*MtP*ZFudge;
-  real32 EntityZ = -EntityBaseP.z*MtP;
+  // TODO(Egor): ZHANDLING
+  v2 EntityGroundPoint = ScreenCenter + EntityBaseP.xy*MtP*ZFudge;
+  real32 EntityZ = EntityBaseP.z*MtP;
+
+  v2 Center = EntityGroundPoint + EntityBasis->Offset + V2( 0, EntityZ*EntityBasis->OffsetZC);
   
-  v2 Cen = {
-    EntityGroundPointX + EntityBasis->Offset.x,
-    EntityGroundPointY + EntityBasis->Offset.y  + EntityZ*EntityBasis->OffsetZC
-  };
-  
-  return Cen;
+  return Center;
 }
 
 
@@ -670,7 +667,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
         
         Assert(Entry->Bitmap);
-        //DrawBitmap(Output, Entry->Bitmap, P.x, P.y, 1.0f);
+        DrawBitmap(Output, Entry->Bitmap, P.x, P.y, 1.0f);
         
       } break;
       case RenderGroupEntryType_render_entry_rectangle: {
@@ -731,6 +728,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
     }
   }
 }
+
 
 inline void
 Clear(render_group *Group, v4 Color) {

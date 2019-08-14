@@ -82,6 +82,8 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
     Result.Memory = Pixel;
     Result.Height = Header->Height;
+    
+    Assert(Result.Height > 0);
     Result.Width = Header->Width;
     
     // NOTE(Egor, bitmap_loading): we have to account all color masks in header,
@@ -144,11 +146,16 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         SourceDest++;
       }
     }
+  
     
-    Result.Pitch = -Result.Width*BITMAP_BYTES_PER_PIXEL;
+    Result.Pitch = Result.Width*BITMAP_BYTES_PER_PIXEL;
+#if 0
+
     // NOTE(Egor): bitmap was loaded bottom to top, so we reverse pitch (make him negative),
     // and shift Memory ptr to top of the image (bottom of the array)
-    Result.Memory = (uint8 *)Result.Memory - (Result.Height-1)*(Result.Pitch);
+    Result.Memory = (uint8 *)Result.Memory + (Result.Height-1)*(Result.Pitch);
+    Result.Pitch = -Result.Width*BITMAP_BYTES_PER_PIXEL;
+#endif
   }
   
   return Result;
@@ -487,29 +494,39 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
         Stamp = GameState->Slumps + RandomChoice(&Series, ArrayCount(GameState->Slumps));
         
 #endif
-        
         v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height) ;
-        
         v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
                        Height*RollTheDiceUnilateral(&Series));
         
         v2 P = Offset - BitmapCenter + OffsetG ;
         PushBitmap(GroundGroup, Stamp, P, V2(0,0), 1.0f);
       }
-      
-#if 0
-      for(uint32 Index = 0; Index < 5; ++Index) {
+    }
+    
+    for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+      for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
         
-        Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
         
-        v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-        v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
-                       Height*RollTheDiceUnilateral(&Series));
-        v2 P = Offset - BitmapCenter + OffsetG;
-        PushBitmap(Buffer, Stamp, P, 1.0f);
+        int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
+        int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
+        int32 ChunkZ = Pos->ChunkZ;
+        
+        // TODO(Egor): this is nuts, make sane spatial hashing
+        random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
+        v2 OffsetG = V2(Width*ChunkOffsetX, Height*ChunkOffsetY);
+        loaded_bitmap *Stamp = 0;
+        
+        for(uint32 Index = 0; Index < 5; ++Index) {
+          
+          Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+          
+          v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+          v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
+                         Height*RollTheDiceUnilateral(&Series));
+          v2 P = Offset - BitmapCenter + OffsetG;
+          PushBitmap(GroundGroup, Stamp, P, V2(0,0), 1.0f);
+        }
       }
-#endif
-      
     }
   }
   
@@ -564,12 +581,12 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness, real32 NxC, real32 
       
       Nx *= NxC;
       Ny *= NyC;
-
+      
       real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
       
       
       v3 Normal = V3(0, 0.70710678f, 0.70710678f);
-//      v3 Normal = V3(0, 0, 1);
+      //      v3 Normal = V3(0, 0, 1);
       if(RootTerm >= 0.0f) {
         
         real32 Nz = SquareRoot(RootTerm); 
@@ -652,7 +669,7 @@ MakePyramidNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
   real32 InvWidth = 1.0f/(Bitmap->Width - 1.0f);
   real32 InvHeight = 1.0f/(Bitmap->Height - 1.0f);
   
-
+  
   
   uint8 *Row = (uint8 *)Bitmap->Memory;
   
@@ -797,6 +814,14 @@ RequestGroundBuffers(world_position CenterP, rectangle3 Bounds) {
 #endif
 
 
+internal v2
+ConvertToBottomUpAlign(loaded_bitmap *Bitmap, v2 Align) {
+ 
+  Align.y = (Bitmap->Height - 1) - Align.y;
+  return Align;
+}
+
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
   Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
@@ -872,7 +897,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//figurine.bmp");
     Bitmap->HeroCape = 
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_right.bmp");
-    Bitmap->Align = V2(51, 112);
+    Bitmap->Align = ConvertToBottomUpAlign(&Bitmap->HeroHead,V2(51, 112));
     
     
     Bitmap[1] = Bitmap[0];
@@ -1123,7 +1148,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                             GameState->TestDiffuse.Height);
     MakeSphereNormalMap(&GameState->TestNormal, 0.0f, 1.0f, 1.0f);
     MakeSphereDiffuseMap(&GameState->TestDiffuse, 1.0f, 1.0f);
-//    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
+    //    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
     
     TranState->Initialized = true;
   }
@@ -1305,7 +1330,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
-          PushRectOutline(RenderGroup, RelP.xy, World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+          //PushRectOutline(RenderGroup, RelP.xy, World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
 #endif
         }
       }
@@ -1377,7 +1402,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             MakeEntityNonSpatial(Entity);
           }
           
-          PushBitmap(RenderGroup, &GameState->Sword, V2(0, 0), V2(26, 37), 0, 1.0f);
+          v2 Alignment = ConvertToBottomUpAlign(&GameState->Sword, V2(26, 37));
+          PushBitmap(RenderGroup, &GameState->Sword, V2(0, 0), Alignment, 0, 1.0f);
           
         } break;
         case EntityType_Hero: {
@@ -1433,8 +1459,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Wall: {
           
-          PushBitmap(RenderGroup, &GameState->Tree1, V2(0, 0), V2(30, 30));
+          v2 Alignment = ConvertToBottomUpAlign(&GameState->Sword, V2(30, 30));
           //PushRect(&RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          PushBitmap(RenderGroup, &GameState->Tree, V2(0, 0), Alignment);
+          
         } break;
         case EntityType_Stairwell: {
           
@@ -1498,13 +1526,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
+  
+#if 0
   GameState->Time += Input->dtForFrame;
   real32 Angle = 0.1f*GameState->Time;
   v2 Disp = 100.0f*V2(0.0f, Sin(3.0f*Angle));
   
   v2 Origin = ScreenCenter + Disp;
   v2 XAxis = 100.0f*V2(Cos(Angle), Sin(Angle));
-//  v2 XAxis = 100.0f*V2(1.0f, 0.0f);
+  //  v2 XAxis = 100.0f*V2(1.0f, 0.0f);
   v2 YAxis = Perp(XAxis);
   
 #if 0
@@ -1519,7 +1549,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
 #endif
   
-
+  
   uint32 CheckerHeight = 16;
   uint32 CheckerWidth = 16;
   uint32 Toggle = 0;
@@ -1529,16 +1559,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     {0,1,0,1},
     {0,0,1,1}
   };
+  
+  
+  for(uint32 Index = 0;Index < ArrayCount(TranState->EnvMaps); ++Index) {
     
+    environment_map *Map = TranState->EnvMaps + Index;
+    loaded_bitmap *LOD = &Map->LOD[0];
     
-    for(uint32 Index = 0;Index < ArrayCount(TranState->EnvMaps); ++Index) {
-      
-      environment_map *Map = TranState->EnvMaps + Index;
-      loaded_bitmap *LOD = &Map->LOD[0];
-      
-      for(uint32 Y = 0; Y < TranState->EnvMapHeight; Y += CheckerHeight, ++Toggle %= 2) {
-        for(uint32 X = 0; X < TranState->EnvMapWidth;
-            X += CheckerWidth, ++Toggle %= 2) {
+    for(uint32 Y = 0; Y < TranState->EnvMapHeight; Y += CheckerHeight, ++Toggle %= 2) {
+      for(uint32 X = 0; X < TranState->EnvMapWidth;
+          X += CheckerWidth, ++Toggle %= 2) {
         
         v4 CheckerColor = Toggle ? ColorMatrix[Index] : V4(0, 0, 0, 1);
         
@@ -1551,7 +1581,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   TranState->EnvMaps[0].Pz = -8.0f;
   TranState->EnvMaps[1].Pz = 0.0f;
   TranState->EnvMaps[2].Pz = 8.0f;
-
+  
   PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis,
                        XAxis, YAxis, Color, 
                        &GameState->TestDiffuse, &GameState->TestNormal,
@@ -1574,11 +1604,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                          &TranState->EnvMaps[Index].LOD[0], 0,0,0,0);
     MapP += YAxis + V2(0.0f, 6.0f);
   }
-
   
+#endif
   RenderPushBuffer(RenderGroup, DrawBuffer);
-
-//  DrawBitmap(DrawBuffer, &GameState->Tree1NormalMap, 150.0f, 150.0f);
  
   #if 0
   world_position WorldOrigin = {};
