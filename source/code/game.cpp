@@ -68,7 +68,7 @@ struct bitmap_header {
 
 internal loaded_bitmap
 DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
-             thread_context *Thread, char *FileName)
+             thread_context *Thread, char *FileName, int32 AlignX = 0, int32 AlignY = 0)
 {
   loaded_bitmap Result = {};
   debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
@@ -82,8 +82,12 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
     Result.Memory = Pixel;
     Result.Height = Header->Height;
+
     
     Assert(Result.Height > 0);
+    
+    Result.AlignX = AlignX;
+    Result.AlignY = (Result.Height - 1) - AlignY;
     Result.Width = Header->Width;
     
     // NOTE(Egor, bitmap_loading): we have to account all color masks in header,
@@ -453,6 +457,9 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), 1.0f);
   
   loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
+  
+  Buffer->AlignX = (int32)((real32)Buffer->Width*0.5f);
+  Buffer->AlignY = (int32)((real32)Buffer->Height*0.5f);
   GroundBuffer->P = *Pos;
   
   // NOTE(Egor): the idea is: 
@@ -499,7 +506,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
                        Height*RollTheDiceUnilateral(&Series));
         
         v2 P = Offset - BitmapCenter + OffsetG ;
-        PushBitmap(GroundGroup, Stamp, P, V2(0,0), 1.0f);
+        PushBitmap(GroundGroup, Stamp, P, 0.0f);
       }
     }
     
@@ -524,7 +531,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
                          Height*RollTheDiceUnilateral(&Series));
           v2 P = Offset - BitmapCenter + OffsetG;
-          PushBitmap(GroundGroup, Stamp, P, V2(0,0), 1.0f);
+          PushBitmap(GroundGroup, Stamp, P, 0.0f);
         }
       }
     }
@@ -884,33 +891,33 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     
     GameState->Backdrop = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
-    GameState->Sword = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//dagger.bmp");
+    GameState->Sword = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//dagger.bmp", 30, 30);
     GameState->Tree1 = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
-    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//tree.bmp");
+    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//tree.bmp", 30, 30);
     
     GameState->Stairwell = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp");
     
     hero_bitmaps *Bitmap = GameState->Hero;
     
     Bitmap->HeroHead = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//figurine.bmp");
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//figurine.bmp", 51, 112);
     Bitmap->HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_right.bmp");
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_right.bmp", 51, 112);
     Bitmap->Align = ConvertToBottomUpAlign(&Bitmap->HeroHead,V2(51, 112));
     
     
     Bitmap[1] = Bitmap[0];
     Bitmap[1].HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp");
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp", 51, 112);
     
     Bitmap[2] = Bitmap[0];
     Bitmap[2].HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_left.bmp");
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_left.bmp", 51, 112);
     
     Bitmap[3] = Bitmap[0];
     Bitmap[3].HeroCape = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_down.bmp");
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_down.bmp", 51, 112);
     
     
     //    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
@@ -1330,7 +1337,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
-          //PushRectOutline(RenderGroup, RelP.xy, World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+          
+          //RelP.y = -RelP.y;
+          PushRectOutline(RenderGroup, RelP.xy, World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
 #endif
         }
       }
@@ -1365,7 +1374,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
       v2 Align = 0.5f*V2i(Bitmap->Width, Bitmap->Height);
       
-      PushBitmap(RenderGroup, Bitmap, Delta.xy, Align, Delta.z);
+      //PushBitmap(RenderGroup, Bitmap, Delta.xy, 0.0f);
     }
   }
   
@@ -1403,7 +1412,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           }
           
           v2 Alignment = ConvertToBottomUpAlign(&GameState->Sword, V2(26, 37));
-          PushBitmap(RenderGroup, &GameState->Sword, V2(0, 0), Alignment, 0, 1.0f);
+          PushBitmap(RenderGroup, &GameState->Sword, V2(0, 0), 0.0f);
           
         } break;
         case EntityType_Hero: {
@@ -1437,9 +1446,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
           }
           
-          PushBitmap(RenderGroup, &Hero->HeroTorso, V2(0, 0), Hero->Align);
-          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), Hero->Align);
-          PushBitmap(RenderGroup, &Hero->HeroCape, V2(0, 0), Hero->Align);
+          PushBitmap(RenderGroup, &Hero->HeroTorso, V2(0, 0), 0.0f);
+          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), 0.0f);
+          PushBitmap(RenderGroup, &Hero->HeroCape, V2(0, 0), 0.0f);
           PushRect(RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           
           DrawHitpoints(Entity, RenderGroup);
@@ -1459,9 +1468,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Wall: {
           
-          v2 Alignment = ConvertToBottomUpAlign(&GameState->Sword, V2(30, 30));
           //PushRect(&RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
-          PushBitmap(RenderGroup, &GameState->Tree, V2(0, 0), Alignment);
+          PushBitmap(RenderGroup, &GameState->Tree, V2(0, 0), 0.0f);
           
         } break;
         case EntityType_Stairwell: {
@@ -1475,7 +1483,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Monster: {
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), Hero->Align);
+          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), 0.0f);
           DrawHitpoints(Entity, RenderGroup);
         } break;
         case EntityType_Familiar: {
@@ -1509,7 +1517,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           MoveSpec.Drag = 8.0f;
           MoveSpec.UnitMaxAccelVector = true;
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), Hero->Align, 1.0f);
+          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), 0.0f);
         } break;
         default: {
           InvalidCodePath;

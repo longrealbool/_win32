@@ -102,10 +102,25 @@ PushPiece(render_group *Group, loaded_bitmap *Bitmap,
 }
 
 internal void 
-PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset,
-           v2 Align, real32 A = 1.0f,  real32 OffsetZ = 0.0f, real32 OffsetZC = 1.0f) {
+PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, real32 OffsetZ,
+           v4 Color = V4(1,1,1,1), real32 OffsetZC = 1.0f) {
+
   
-  PushPiece(Group, Bitmap, Offset, OffsetZ, OffsetZC,  Align, V2(0,0), V4(1.0f, 1.0f, 1.0f, A));
+  render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
+  if(Piece) {
+    
+    v2 Align = V2i(Bitmap->AlignX, Bitmap->AlignY);
+    
+    render_entity_basis EntityBasis;
+    EntityBasis.Basis = Group->DefaultBasis;
+    EntityBasis.Offset = Group->MtP*V2(Offset.x, Offset.y) - Align;
+    EntityBasis.OffsetZ = OffsetZ;
+    EntityBasis.OffsetZC = OffsetZC;
+    
+    Piece->EntityBasis = EntityBasis;
+    Piece->Bitmap = Bitmap;
+    Piece->Color = Color;
+  }
 }
 
 internal void 
