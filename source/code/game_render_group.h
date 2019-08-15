@@ -46,7 +46,6 @@ struct render_entity_basis {
   render_basis *Basis;
   v2 Offset;
   real32 OffsetZ;
-  real32 OffsetZC;
 };
 
 

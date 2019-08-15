@@ -588,7 +588,6 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   v3 PlayerDelta = (0.5f * ddP * Square(dT) + Entity->dP*dT);
   Entity->dP = ddP*dT + Entity->dP;
   Assert(LengthSq(Entity->dP) <= Square(SimRegion->MaxEntityVelocity));
-  v3 NewPlayerP = OldPlayerP + PlayerDelta;
   
   real32 DistanceRemaining = Entity->DistanceLimit;
   if(DistanceRemaining == 0.0f) {
@@ -827,7 +826,6 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   // ---------------------------------------------------
   
   
-  // TODO(Egor): this is no-good, should handle the ground properly
   // NOTE(Egor): right now this is ground under the abstract entity location 
   // (half Dim.z abot the ground under the nominal foot of the player)
   Ground += Entity->P.z - GetEntityGroundPoint(Entity).z;

@@ -84,7 +84,7 @@ PushRenderElement_(render_group *Group, uint32 Size, render_group_entry_type Typ
 
 inline void
 PushPiece(render_group *Group, loaded_bitmap *Bitmap,
-          v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Align, v2 Dim, v4 Color) {
+          v2 Offset, real32 OffsetZ, v2 Align, v2 Dim, v4 Color) {
   
   render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
   if(Piece) {
@@ -93,7 +93,6 @@ PushPiece(render_group *Group, loaded_bitmap *Bitmap,
     EntityBasis.Basis = Group->DefaultBasis;
     EntityBasis.Offset = Group->MtP*V2(Offset.x, Offset.y) - Align;
     EntityBasis.OffsetZ = OffsetZ;
-    EntityBasis.OffsetZC = OffsetZC;
     
     Piece->EntityBasis = EntityBasis;
     Piece->Bitmap = Bitmap;
@@ -103,7 +102,7 @@ PushPiece(render_group *Group, loaded_bitmap *Bitmap,
 
 internal void 
 PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, real32 OffsetZ,
-           v4 Color = V4(1,1,1,1), real32 OffsetZC = 1.0f) {
+           v4 Color = V4(1,1,1,1)) {
 
   
   render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
@@ -115,7 +114,6 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, real32 OffsetZ
     EntityBasis.Basis = Group->DefaultBasis;
     EntityBasis.Offset = Group->MtP*V2(Offset.x, Offset.y) - Align;
     EntityBasis.OffsetZ = OffsetZ;
-    EntityBasis.OffsetZC = OffsetZC;
     
     Piece->EntityBasis = EntityBasis;
     Piece->Bitmap = Bitmap;
@@ -124,7 +122,7 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v2 Offset, real32 OffsetZ
 }
 
 internal void 
-PushRect(render_group *Group, v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Dim, v4 Color) {
+PushRect(render_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 Color) {
   
   render_entry_rectangle *Piece = PushRenderElement(Group, render_entry_rectangle);
   if(Piece) {
@@ -135,7 +133,6 @@ PushRect(render_group *Group, v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Dim
     EntityBasis.Basis = Group->DefaultBasis;
     EntityBasis.Offset = Group->MtP*V2(Offset.x, -Offset.y) - HalfDim;
     EntityBasis.OffsetZ = OffsetZ;
-    EntityBasis.OffsetZC = OffsetZC;
     
     Piece->EntityBasis = EntityBasis;
     Piece->Dim = Dim*Group->MtP;
@@ -146,16 +143,15 @@ PushRect(render_group *Group, v2 Offset, real32 OffsetZ, real32 OffsetZC, v2 Dim
 }
 
 internal void 
-PushRectOutline(render_group *Group, v2 Offset, v2 Dim, v4 Color,
-                real32 OffsetZ = 0.0f, real32 OffsetZC = 1.0f ) {
+PushRectOutline(render_group *Group, v2 Offset, real32 OffsetZ, v2 Dim, v4 Color) {
   
   real32 Thickness = 0.05f;
   
-  PushRect(Group, Offset - V2(0, Dim.y)*0.5f, OffsetZ, OffsetZC, V2(Dim.x, Thickness), Color);
-  PushRect(Group, Offset + V2(0, Dim.y)*0.5f, OffsetZ, OffsetZC, V2(Dim.x, Thickness), Color);
+  PushRect(Group, Offset - V2(0, Dim.y)*0.5f, OffsetZ, V2(Dim.x, Thickness), Color);
+  PushRect(Group, Offset + V2(0, Dim.y)*0.5f, OffsetZ, V2(Dim.x, Thickness), Color);
   
-  PushRect(Group, Offset - V2(Dim.x, 0)*0.5f, OffsetZ, OffsetZC, V2(Thickness, Dim.y), Color);
-  PushRect(Group, Offset + V2(Dim.x, 0)*0.5f, OffsetZ, OffsetZC, V2(Thickness, Dim.y), Color);
+  PushRect(Group, Offset - V2(Dim.x, 0)*0.5f, OffsetZ, V2(Thickness, Dim.y), Color);
+  PushRect(Group, Offset + V2(Dim.x, 0)*0.5f, OffsetZ, V2(Thickness, Dim.y), Color);
 }
 
 
@@ -301,7 +297,7 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
   v2 EntityGroundPoint = ScreenCenter + EntityBaseP.xy*MtP*ZFudge;
   real32 EntityZ = EntityBaseP.z*MtP;
 
-  v2 Center = EntityGroundPoint + EntityBasis->Offset + V2( 0, EntityZ*EntityBasis->OffsetZC);
+  v2 Center = EntityGroundPoint + EntityBasis->Offset + V2(0, EntityZ);
   
   return Center;
 }
