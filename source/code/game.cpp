@@ -970,8 +970,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       // TODO(Egor, TileMap): get again through logic of creating tilemap
       uint32 RandomChoice;
       
-      //      if(DoorUp || DoorDown) {
-      if(1) {
+      if(DoorUp || DoorDown) {
         RandomChoice = RollTheDice() % 2;
       }
       else {
@@ -1344,7 +1343,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           if(FurthestBuffer) {
             
-            FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
+            //FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
           
@@ -1382,9 +1381,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       // NOTE(Egor): recreate bitmap from template
       loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
-      v2 Align = 0.5f*V2i(Bitmap->Width, Bitmap->Height);
       
-      PushBitmap(RenderGroup, Bitmap, Delta);
+      render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
+      RenderGroup->DefaultBasis = Basis;
+      Basis->P = Delta + V3(0, 0, GameState->OffsetZ);
+      
+      //      PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0));
     }
   }
   
@@ -1459,7 +1461,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           PushBitmap(RenderGroup, &Hero->HeroTorso, V3(0, 0, 0));
           PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0));
           PushBitmap(RenderGroup, &Hero->HeroCape, V3(0, 0, 0));
-          PushRect(RenderGroup, V3(0, 0, 0), Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          //PushRect(RenderGroup, V3(0, 0, 0), Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           
           DrawHitpoints(Entity, RenderGroup);
         } break;
@@ -1484,12 +1486,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Stairwell: {
           
-          PushRect(RenderGroup, V3(0,0, 0.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0,0, 1.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.2f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0,0, 2.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.4f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0,0, 3.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.6f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0,0, 4.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.8f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0,0, 5.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0.0f, 0.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0.1f, 1.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.2f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0.2f, 2.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.4f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0.3f, 3.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.6f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0.4f, 4.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.8f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0.5f, 5.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Monster: {
           

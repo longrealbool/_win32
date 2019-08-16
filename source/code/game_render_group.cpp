@@ -275,12 +275,11 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
   entity_basis_p_result Result;
   // TODO(Egor): ZHANDLING
   real32 MtP = Group->MtP;
-  
   v3 EntityBaseP = MtP*EntityBasis->Basis->P;
-  real32 ZFudge = (1.0f + 0.01f*(EntityBaseP.z));
+  real32 ZFudge = (1.0f + 0.0015f*(EntityBaseP.z));
+  v2 EntityGroundPoint = ScreenCenter +  ZFudge*(EntityBaseP.xy + EntityBasis->Offset.xy);
   
-  v2 EntityGroundPoint = ScreenCenter + EntityBaseP.xy*ZFudge + EntityBasis->Offset.xy;
-  Result.P = EntityGroundPoint + V2(0, EntityBaseP.z + EntityBasis->Offset.z);
+  Result.P = EntityGroundPoint;// + V2(0, EntityBaseP.z + EntityBasis->Offset.z);
   Result.Scale = ZFudge;
   
   return Result;
@@ -686,7 +685,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         BaseAddress += sizeof(*Entry);
         
         entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
-        DrawRectangle(Output, BasisP.P, BasisP.P + Entry->Dim, Entry->Color); 
+        DrawRectangle(Output, BasisP.P, BasisP.P + BasisP.Scale*Entry->Dim, Entry->Color); 
       } break;
       case RenderGroupEntryType_render_entry_coordinate_system: {
         
