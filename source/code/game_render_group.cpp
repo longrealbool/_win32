@@ -86,12 +86,12 @@ PushRenderElement_(render_group *Group, uint32 Size, render_group_entry_type Typ
 internal void 
 PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset,
            v4 Color = V4(1,1,1,1)) {
-
+  
   
   render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
   if(Piece) {
     
-    v2 Align = V2i(Bitmap->AlignX, Bitmap->AlignY);
+    v2 Align = Bitmap->Align;
     
     render_entity_basis EntityBasis;
     EntityBasis.Basis = Group->DefaultBasis;
@@ -263,19 +263,27 @@ DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax, v4 Color)
 }
 
 
+struct entity_basis_p_result {
+  
+  v2 P;
+  real32 Scale;
+};
 
-inline v2
+inline entity_basis_p_result
 GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenCenter) {
-
+  
+  entity_basis_p_result Result;
   // TODO(Egor): ZHANDLING
   real32 MtP = Group->MtP;
   
   v3 EntityBaseP = MtP*EntityBasis->Basis->P;
-  real32 ZFudge = (1.0f + 0.05f*(EntityBaseP.z));
-  v2 EntityGroundPoint = ScreenCenter + EntityBaseP.xy*ZFudge + EntityBasis->Offset.xy;
-  v2 Center = EntityGroundPoint + V2(0, EntityBaseP.z + EntityBasis->Offset.z);
+  real32 ZFudge = (1.0f + 0.01f*(EntityBaseP.z));
   
-  return Center;
+  v2 EntityGroundPoint = ScreenCenter + EntityBaseP.xy*ZFudge + EntityBasis->Offset.xy;
+  Result.P = EntityGroundPoint + V2(0, EntityBaseP.z + EntityBasis->Offset.z);
+  Result.Scale = ZFudge;
+  
+  return Result;
 }
 
 
@@ -561,28 +569,28 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           
           if(BounceDirection.y >= IsoLine - 0.05f &&
              BounceDirection.y <= IsoLine + 0.05f) {
-            
+             
             Texel.rgb = V3(1, 1, 1); 
           }
           else {
-            
+          
             Texel.rgb = V3(0, 0, 0);
           }*/
-
+          
           /*
           Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*BounceDirection;
           Texel.r = 0.0f;
           Texel.b = 0.0f;
           Texel.a = 1.0f;
           */
-
+          
           /*
           Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.rgb;
           Texel.a = 1.0f;
           */
 #endif
           
-
+          
           // NOTE(Egor): end of normal processing
         }
         // NOTE(Egor): color tinting and external opacity
@@ -619,7 +627,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
-  real32 MtP = Group->MtP;
+  real32 MtP = Group->MtP; // NOTE(Egor): meters to pixels
+  real32 PtM = 1.0f/Group->MtP; // NOTE(Egor): pixel to meters
   
   v2 ScreenCenter = V2i(Output->Width, Output->Height)*0.5f;
   
@@ -647,14 +656,27 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       } break;
       case RenderGroupEntryType_render_entry_bitmap: {
         
-        
         render_entry_bitmap *Entry = (render_entry_bitmap *)Data;
         BaseAddress += sizeof(*Entry);
         
-        v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
-        
+        entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
         Assert(Entry->Bitmap);
+#if 0        
+
         DrawBitmap(Output, Entry->Bitmap, P.x, P.y, 1.0f);
+#else
+        
+        render_v2_basis Basis;
+        Basis.Origin = BasisP.P;
+        Basis.XAxis = V2(1.0f, 0.0f);
+        Basis.YAxis = Perp(Basis.XAxis);
+        Basis.XAxis *= BasisP.Scale*(real32)Entry->Bitmap->Width;
+        Basis.YAxis *= BasisP.Scale*(real32)Entry->Bitmap->Height;
+        
+        
+        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, 
+                            0, 0, 0, 0, PtM);
+#endif
         
       } break;
       case RenderGroupEntryType_render_entry_rectangle: {
@@ -663,8 +685,8 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         render_entry_rectangle *Entry = (render_entry_rectangle *)Data;
         BaseAddress += sizeof(*Entry);
         
-        v2 P = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
-        DrawRectangle(Output, P, P + Entry->Dim, Entry->Color); 
+        entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
+        DrawRectangle(Output, BasisP.P, BasisP.P + Entry->Dim, Entry->Color); 
       } break;
       case RenderGroupEntryType_render_entry_coordinate_system: {
         

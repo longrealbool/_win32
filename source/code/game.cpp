@@ -82,12 +82,10 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
     Result.Memory = Pixel;
     Result.Height = Header->Height;
-
     
     Assert(Result.Height > 0);
     
-    Result.AlignX = AlignX;
-    Result.AlignY = (Result.Height - 1) - AlignY;
+    Result.Align = V2i(AlignX, (Result.Height - 1) - AlignY);
     Result.Width = Header->Width;
     
     // NOTE(Egor, bitmap_loading): we have to account all color masks in header,
@@ -150,11 +148,11 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         SourceDest++;
       }
     }
-  
+    
     
     Result.Pitch = Result.Width*BITMAP_BYTES_PER_PIXEL;
 #if 0
-
+    
     // NOTE(Egor): bitmap was loaded bottom to top, so we reverse pitch (make him negative),
     // and shift Memory ptr to top of the image (bottom of the array)
     Result.Memory = (uint8 *)Result.Memory + (Result.Height-1)*(Result.Pitch);
@@ -164,8 +162,6 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
   
   return Result;
 }
-
-
 
 
 internal void
@@ -458,8 +454,6 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   
   loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
   
-  Buffer->AlignX = (int32)((real32)Buffer->Width*0.5f);
-  Buffer->AlignY = (int32)((real32)Buffer->Height*0.5f);
   GroundBuffer->P = *Pos;
   
   // NOTE(Egor): the idea is: 
@@ -469,6 +463,8 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   
   real32 Width = (real32)Buffer->Width;
   real32 Height = (real32)Buffer->Height;
+  
+  Buffer->Align = V2(Width*0.5f, Height*0.5f);
   
   for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
     for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
@@ -485,7 +481,6 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       
       loaded_bitmap *Stamp = 0;
       for(uint32 Index = 0; Index < 50; ++Index) {
-        
         
 #if 1
         if(RandomChoice(&Series, 2)) {
@@ -823,7 +818,7 @@ RequestGroundBuffers(world_position CenterP, rectangle3 Bounds) {
 
 internal v2
 ConvertToBottomUpAlign(loaded_bitmap *Bitmap, v2 Align) {
- 
+  
   Align.y = (Bitmap->Height - 1) - Align.y;
   return Align;
 }
@@ -1230,6 +1225,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Controlled->dZ = 3.0f;
       }
       
+#if 0
       Controlled->dSword = {};
       if(Controller->ActionUp.EndedDown) {
         
@@ -1247,6 +1243,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
         Controlled->dSword = V2(1.0f, 0.0f);
       }
+#else
+      real32 ZoomRate = 0.0f;
+      if(Controller->ActionUp.EndedDown) {
+        
+        ZoomRate = 0.1f;
+      }
+      if(Controller->ActionDown.EndedDown) {
+        
+        ZoomRate = -0.1f;
+      }
+      
+      GameState->OffsetZ += ZoomRate*Input->dtForFrame;
+      
+#endif
     }
   }
   
@@ -1530,7 +1540,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
       }
       
-      Basis->P = GetEntityGroundPoint(Entity);
+      Basis->P = GetEntityGroundPoint(Entity) + V3(0, 0, (real32)GameState->OffsetZ);
     }
   }
   

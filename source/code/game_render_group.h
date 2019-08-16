@@ -21,7 +21,7 @@ struct bilinear_sample {
 
 struct loaded_bitmap {
   
-  int32 AlignX, AlignY;
+  v2 Align;
   
   int32 Height;
   int32 Width;

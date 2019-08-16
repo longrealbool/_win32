@@ -206,6 +206,8 @@ struct game_state {
   
   real32 FloorHeight;
   
+  real32 OffsetZ;
+  
   real32 Time;
   real32 Scale;
   real32 Angle;
