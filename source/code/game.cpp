@@ -408,7 +408,7 @@ DrawHitpoints(sim_entity *Entity, render_group *PieceGroup) {
         Color = V4(0.2f, 0.2f, 0.2f, 1.0f);
       }
       
-      PushRect(PieceGroup, HitP, 0.0f, HitPointDim, Color); 
+      PushRect(PieceGroup, V3(HitP, 0.0f), HitPointDim, Color); 
       HitP += dHitP;
     }
   }
@@ -506,7 +506,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
                        Height*RollTheDiceUnilateral(&Series));
         
         v2 P = Offset - BitmapCenter + OffsetG ;
-        PushBitmap(GroundGroup, Stamp, P, 0.0f);
+        PushBitmap(GroundGroup, Stamp, V3(P, 0.0f));
       }
     }
     
@@ -531,7 +531,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
                          Height*RollTheDiceUnilateral(&Series));
           v2 P = Offset - BitmapCenter + OffsetG;
-          PushBitmap(GroundGroup, Stamp, P, 0.0f);
+          PushBitmap(GroundGroup, Stamp, V3(P, 0.0f));
         }
       }
     }
@@ -1227,7 +1227,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
       
       if(Controller->Start.EndedDown) {
-        Controlled->dZ = 5.0f;
+        Controlled->dZ = 3.0f;
       }
       
       Controlled->dSword = {};
@@ -1374,7 +1374,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
       v2 Align = 0.5f*V2i(Bitmap->Width, Bitmap->Height);
       
-      PushBitmap(RenderGroup, Bitmap, Delta.xy, 0.0f);
+      PushBitmap(RenderGroup, Bitmap, Delta);
     }
   }
   
@@ -1412,7 +1412,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           }
           
           v2 Alignment = ConvertToBottomUpAlign(&GameState->Sword, V2(26, 37));
-          PushBitmap(RenderGroup, &GameState->Sword, V2(0, 0), 0.0f);
+          PushBitmap(RenderGroup, &GameState->Sword, V3(0, 0, 0));
           
         } break;
         case EntityType_Hero: {
@@ -1446,10 +1446,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
           }
           
-          PushBitmap(RenderGroup, &Hero->HeroTorso, V2(0, 0), 0.0f);
-          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), 0.0f);
-          PushBitmap(RenderGroup, &Hero->HeroCape, V2(0, 0), 0.0f);
-          PushRect(RenderGroup, V2(0,0), 0.0f, Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          PushBitmap(RenderGroup, &Hero->HeroTorso, V3(0, 0, 0));
+          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0));
+          PushBitmap(RenderGroup, &Hero->HeroCape, V3(0, 0, 0));
+          PushRect(RenderGroup, V3(0, 0, 0), Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           
           DrawHitpoints(Entity, RenderGroup);
         } break;
@@ -1461,7 +1461,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               ++VolumeIndex) {
             
             sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
-            PushRectOutline(RenderGroup, Volume->OffsetP.xy, 0.0f, Volume->Dim.xy, V4(0.0f, 0.0f, 1.0f, 1.0f)); 
+            PushRectOutline(RenderGroup, Volume->OffsetP - V3(0,0, 0.5f*Volume->Dim.z), Volume->Dim.xy, V4(0.0f, 0.0f, 1.0f, 1.0f)); 
           }
 #endif
           
@@ -1469,21 +1469,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         case EntityType_Wall: {
           
           //PushRect(&RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
-          PushBitmap(RenderGroup, &GameState->Tree, V2(0, 0), 0.0f);
+          PushBitmap(RenderGroup, &GameState->Tree, V3(0, 0, 0));
           
         } break;
         case EntityType_Stairwell: {
           
-          PushRect(RenderGroup, V2(0,0), 0.0f * Entity->WalkableHeight/5, Entity->WalkableDim, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V2(0,0), 1.0f * Entity->WalkableHeight/5, Entity->WalkableDim, V4(1.0f, 0.2f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V2(0,0), 2.0f * Entity->WalkableHeight/5, Entity->WalkableDim, V4(1.0f, 0.4f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V2(0,0), 3.0f * Entity->WalkableHeight/5, Entity->WalkableDim, V4(1.0f, 0.6f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V2(0,0), 4.0f * Entity->WalkableHeight/5, Entity->WalkableDim, V4(1.0f, 0.8f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V2(0,0), 5.0f * Entity->WalkableHeight/5, Entity->WalkableDim, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0,0, 0.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0,0, 1.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.2f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0,0, 2.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.4f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0,0, 3.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.6f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0,0, 4.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 0.8f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0,0, 5.0f * Entity->WalkableHeight/5), Entity->WalkableDim, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Monster: {
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), 0.0f);
+          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0));
           DrawHitpoints(Entity, RenderGroup);
         } break;
         case EntityType_Familiar: {
@@ -1517,7 +1517,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           MoveSpec.Drag = 8.0f;
           MoveSpec.UnitMaxAccelVector = true;
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V2(0, 0), 0.0f);
+          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0));
         } break;
         default: {
           InvalidCodePath;
