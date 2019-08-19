@@ -54,6 +54,7 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, real32 MtP) {
   Result->DefaultBasis = PushStruct(Arena, render_basis);
   Result->DefaultBasis->P = V3(0.0f, 0.0f, 0.0f);
   Result->MtP = MtP;
+  Result->GlobalAlpha = 1.0f;
   
   return Result;
 }
@@ -100,6 +101,7 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset,
     Piece->EntityBasis = EntityBasis;
     Piece->Bitmap = Bitmap;
     Piece->Color = Color;
+    Piece->Color.a *= Group->GlobalAlpha;
   }
 }
 
@@ -671,7 +673,6 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         Basis.YAxis = Perp(Basis.XAxis);
         Basis.XAxis *= BasisP.Scale*(real32)Entry->Bitmap->Width;
         Basis.YAxis *= BasisP.Scale*(real32)Entry->Bitmap->Height;
-        
         
         DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, 
                             0, 0, 0, 0, PtM);

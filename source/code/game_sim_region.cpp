@@ -165,9 +165,10 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
   real32 UpdateSafetyMargin =  MaxEntityRadius + dt* MaxEntityVelocity;
   real32 UpdateSafetyMarginZ = 1.0f;
   
-  
   SimRegion->World = World;
   SimRegion->Origin = Origin;
+  
+  
   SimRegion->UpdateBounds = AddRadiusTo(Bounds, V3(MaxEntityRadius,
                                                    MaxEntityRadius,
                                                    MaxEntityRadius));
@@ -261,7 +262,6 @@ EndSim(sim_region *Region, game_state *GameState) {
       NewCameraP.ChunkZ = Stored->P.ChunkZ;
 #if 0
       
-      
       if(CameraFollowingEntity.High->P.x > (9.0f * World->TileSideInMeters)) {
         NewCameraP.AbsTileX += 17;
       }
@@ -276,9 +276,9 @@ EndSim(sim_region *Region, game_state *GameState) {
       }
       
 #else
-      real32 CameraZOffset = NewCameraP.Offset_.z;
+//      real32 CameraZOffset = NewCameraP.Offset_.z;
       NewCameraP = Stored->P;
-      NewCameraP.Offset_.z = CameraZOffset;
+//      NewCameraP.Offset_.z = CameraZOffset;
 #endif
       
       GameState->CameraP = NewCameraP;

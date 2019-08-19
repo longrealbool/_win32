@@ -93,6 +93,7 @@ struct render_v2_basis {
 struct render_group {
 
   render_basis *DefaultBasis;
+  real32 GlobalAlpha;
   real32 MtP;
 
   uint32 MaxPushBufferSize;

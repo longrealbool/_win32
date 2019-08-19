@@ -947,7 +947,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
 #endif 
     
-    
+    random_series Series = Seed(RollTheDice());
     
     int32 ScreenBaseX = 0;
     int32 ScreenBaseY = 0;
@@ -967,19 +967,24 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     for(uint32 ScreenIndex = 0; ScreenIndex < 100; ++ScreenIndex) {
       
+#if 0
       // TODO(Egor, TileMap): get again through logic of creating tilemap
       uint32 RandomChoice;
       
       if(DoorUp || DoorDown) {
-        RandomChoice = RollTheDice() % 2;
+        Choice = RollTheDice() % 2;
       }
       else {
-        RandomChoice = RollTheDice() % 3;
+        Choice = RollTheDice() % 3;
       }
+#else
+      
+      uint32 Choice = RandomChoice(&Series, ((DoorUp || DoorDown)? 2 : 3));
+#endif
       
       // NOTE(Egor): keep track of is there a need to create another stairwell
       bool32 CreatedZDoor = false;
-      if (RandomChoice == 2) {
+      if (Choice == 2) {
         
         CreatedZDoor = true;
         if(AbsTileZ == ScreenBaseZ) 
@@ -988,7 +993,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           DoorDown = true;
         
       }
-      else if(RandomChoice == 0) {
+      else if(Choice == 0) {
         DoorToRight = true;
       }
       else {
@@ -1064,17 +1069,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DoorDown = false;
       }
       
-      if(RandomChoice == 2) {
+      if(Choice == 2) {
         
         if(AbsTileZ == ScreenBaseZ) 
           AbsTileZ = ScreenBaseZ + 1;
         else
           AbsTileZ = ScreenBaseZ;
       }
-      else if(RandomChoice == 0) {
+      else if(Choice == 0) {
         ScreenX++;
       }
-      else if(RandomChoice == 1) {
+      else if(Choice == 1) {
         ScreenY++;
       }
       
@@ -1362,13 +1367,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   memory_arena SimArena;
   InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
-  
   temporary_memory SimMem = BeginTemporaryMemory(&TranState->TranArena);
-  sim_region *SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World, GameState->CameraP, SimBounds, Input->dtForFrame);
   
-  //
-  // NOTE(Egor): rudimentary render starts below
-  //
+  
+  world_position SimCenterP = GameState->CameraP;
+  sim_region *SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World,
+                                   SimCenterP, SimBounds, Input->dtForFrame);
   
   
   // NOTE(Egor): groundbuffer scrolling
@@ -1394,20 +1398,44 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   // NOTE(Egor): entity processing
   ////////////////////////////////////////////////////////////////////////////////
   
+  real32 dt = Input->dtForFrame;
+  
+  // NOTE(Egor): Relative coordinate of camera to sim_region Origin
+  v3 CameraP = Subtract(World, &GameState->CameraP, &SimCenterP);
+  
   for(uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
     
     sim_entity *Entity = SimRegion->Entities + EntityIndex;
     
     if(Entity->Updatable) {
       
-      move_spec MoveSpec = DefaultMoveSpec();
-      v3 ddP = {};
-      
       render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
       RenderGroup->DefaultBasis = Basis;
       
-      real32 dt = Input->dtForFrame;
+      move_spec MoveSpec = DefaultMoveSpec();
+      v3 ddP = {};
+
       
+      v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
+      
+      real32 FadeTopEnd = 0.75f*GameState->FloorHeight;
+      real32 FadeTopStart = 0.5f*GameState->FloorHeight;
+      real32 FadeBottomStart = -2.0f*GameState->FloorHeight;
+      real32 FadeBottomEnd = -2.25f*GameState->FloorHeight;
+      
+      RenderGroup->GlobalAlpha = 1.0f;
+      
+      if(CameraRelativeGroundP.z > FadeTopStart) {
+        
+        RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeTopStart, CameraRelativeGroundP.z, FadeTopEnd);
+      }
+      else if(CameraRelativeGroundP.z < FadeBottomStart) {
+        
+        RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
+      }
+      
+      
+      // NOTE(Egor): entity processing here
       hero_bitmaps *Hero = &GameState->Hero[Entity->FacingDirection];    
       switch(Entity->Type) {
         
