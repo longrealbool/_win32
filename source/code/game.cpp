@@ -979,24 +979,29 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
 #else
       
-      uint32 Choice = RandomChoice(&Series, ((DoorUp || DoorDown)? 2 : 3));
+      uint32 Choice = RandomChoice(&Series, ((DoorUp || DoorDown)? 2 : 4));
 #endif
+      Choice = 3;
       
       // NOTE(Egor): keep track of is there a need to create another stairwell
       bool32 CreatedZDoor = false;
-      if (Choice == 2) {
+      if(Choice == 3) {
         
         CreatedZDoor = true;
-        if(AbsTileZ == ScreenBaseZ) 
-          DoorUp = true;
-        else
-          DoorDown = true;
+        DoorDown = true;
+      }
+      else if(Choice == 2) {
+        
+        CreatedZDoor = true;
+        DoorUp = true;
         
       }
       else if(Choice == 0) {
+        
         DoorToRight = true;
       }
       else {
+        
         DoorToTop = true;
       }
       
@@ -1069,17 +1074,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         DoorDown = false;
       }
       
+      if(Choice == 3) {
+
+        AbsTileZ -= 1;
+      }
       if(Choice == 2) {
-        
-        if(AbsTileZ == ScreenBaseZ) 
-          AbsTileZ = ScreenBaseZ + 1;
-        else
-          AbsTileZ = ScreenBaseZ;
+
+        AbsTileZ += 1;
       }
       else if(Choice == 0) {
+        
         ScreenX++;
       }
       else if(Choice == 1) {
+        
         ScreenY++;
       }
       
@@ -1304,6 +1312,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                      (real32)ScreenHeightInMeters,
                                                      (real32)0.0f));
   
+  CameraBoundsInMeters.Min.z = -3.0f*GameState->FloorHeight;
+  CameraBoundsInMeters.Max.z = 1.0f*GameState->FloorHeight;
+  
   {
     world_position MinChunk = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBoundsInMeters));
     world_position MaxChunk = MapIntoChunkSpace(World, GameState->CameraP, GetMaxCorner(CameraBoundsInMeters));
@@ -1362,7 +1373,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   
   
-  v3 SimBoundExpansion = V3(15.0f , 15.0f, 15.0f);
+  v3 SimBoundExpansion = V3(15.0f , 15.0f, 0.0f);
   rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundExpansion);
   
   memory_arena SimArena;
@@ -1427,11 +1438,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       if(CameraRelativeGroundP.z > FadeTopStart) {
         
-        RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeTopStart, CameraRelativeGroundP.z, FadeTopEnd);
+        RenderGroup->GlobalAlpha = Clamp01MapToRange(FadeTopEnd, CameraRelativeGroundP.z, FadeTopStart);
       }
       else if(CameraRelativeGroundP.z < FadeBottomStart) {
         
-        RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
+        RenderGroup->GlobalAlpha = Clamp01MapToRange(FadeBottomEnd, CameraRelativeGroundP.z, FadeBottomStart);
       }
       
       

@@ -168,10 +168,16 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
   SimRegion->World = World;
   SimRegion->Origin = Origin;
   
-  
+  #if 0
   SimRegion->UpdateBounds = AddRadiusTo(Bounds, V3(MaxEntityRadius,
                                                    MaxEntityRadius,
                                                    MaxEntityRadius));
+  #else
+  
+  SimRegion->UpdateBounds = AddRadiusTo(Bounds, V3(MaxEntityRadius,
+                                                   MaxEntityRadius,
+                                                   0.0f));
+  #endif
   
   SimRegion->Bounds = AddRadiusTo(SimRegion->UpdateBounds,
                                   V3(UpdateSafetyMargin,
