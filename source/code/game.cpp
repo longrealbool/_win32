@@ -1260,11 +1260,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       real32 ZoomRate = 0.0f;
       if(Controller->ActionUp.EndedDown) {
         
-        ZoomRate = 0.1f;
+        ZoomRate = 10.1f;
       }
       if(Controller->ActionDown.EndedDown) {
         
-        ZoomRate = -0.1f;
+        ZoomRate = -10.1f;
       }
       
       GameState->OffsetZ += ZoomRate*Input->dtForFrame;
