@@ -84,7 +84,7 @@ PushRenderElement_(render_group *Group, uint32 Size, render_group_entry_type Typ
 
 
 internal void 
-PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset,
+PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset, real32 Height,
            v4 Color = V4(1,1,1,1)) {
   
   
@@ -92,7 +92,7 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset,
   if(Piece) {
     
     // NOTE(Egor): this is actual width and height in meters
-    v2 Size = V2(Bitmap->NativeHeight * Bitmap->WidthOverHeight, Bitmap->NativeHeight);
+    v2 Size = V2(Height * Bitmap->WidthOverHeight, Height);
     v2 Align = Hadamard(Bitmap->AlignPercentage, Size);
 
     Piece->Size = Size;
@@ -281,8 +281,8 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
 
   // NOTE(Egor): constants, TWEAK THEM ALL
   // TODO(Egor): the values looks wrong
-  real32 FocalLength = 10.0f;
-  real32 CameraDistanceAboveGround = 10.0f;
+  real32 FocalLength = 6.0f;
+  real32 CameraDistanceAboveGround = 5.0f;
   real32 NearClipPlane = 0.2f;
   
   real32 DistanceToPz = (CameraDistanceAboveGround - EntityBaseP.z);

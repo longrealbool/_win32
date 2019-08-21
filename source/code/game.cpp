@@ -515,7 +515,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
                        Height*RollTheDiceUnilateral(&Series));
         
         v2 P = Offset - BitmapCenter + OffsetG ;
-        PushBitmap(GroundGroup, Stamp, V3(P, 0.0f));
+        PushBitmap(GroundGroup, Stamp, V3(P, 0.0f), 1.0f);
       }
     }
     
@@ -540,7 +540,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
                          Height*RollTheDiceUnilateral(&Series));
           v2 P = Offset - BitmapCenter + OffsetG;
-          PushBitmap(GroundGroup, Stamp, V3(P, 0.0f));
+          PushBitmap(GroundGroup, Stamp, V3(P, 0.0f), 1.0f);
         }
       }
     }
@@ -931,7 +931,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_down.bmp", 51, 112);
     
     
-    //    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
+    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
 #if 1
     
@@ -1092,11 +1092,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
       
       if(Choice == 3) {
-
+        
         AbsTileZ -= 1;
       }
       if(Choice == 2) {
-
+        
         AbsTileZ += 1;
       }
       else if(Choice == 0) {
@@ -1119,6 +1119,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     GameState->CameraP = NewCameraP;
     
     AddMonster(GameState, CameraTileX + 20, CameraTileY + 2, CameraTileZ);
+    AddWall(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
     //AddFamiliar(GameState, CameraTileX, CameraTileY - 2, CameraTileZ);
     
     
@@ -1440,7 +1441,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       move_spec MoveSpec = DefaultMoveSpec();
       v3 ddP = {};
-
+      
       
       v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
       
@@ -1478,7 +1479,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           }
           
           v2 Alignment = ConvertToBottomUpAlign(&GameState->Sword, V2(26, 37));
-          PushBitmap(RenderGroup, &GameState->Sword, V3(0, 0, 0));
+          PushBitmap(RenderGroup, &GameState->Sword, V3(0, 0, 0), 0.3f);
           
         } break;
         case EntityType_Hero: {
@@ -1512,9 +1513,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             }
           }
           
-          PushBitmap(RenderGroup, &Hero->HeroTorso, V3(0, 0, 0));
-          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0));
-          PushBitmap(RenderGroup, &Hero->HeroCape, V3(0, 0, 0));
+          real32 HeroSizeC = 2.0f;
+          PushBitmap(RenderGroup, &Hero->HeroTorso, V3(0, 0, 0), HeroSizeC*1.4f);
+          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), HeroSizeC*1.4f);
+          PushBitmap(RenderGroup, &Hero->HeroCape, V3(0, 0, 0), HeroSizeC*1.4f);
           //PushRect(RenderGroup, V3(0, 0, 0), Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           
           DrawHitpoints(Entity, RenderGroup);
@@ -1535,7 +1537,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         case EntityType_Wall: {
           
           //PushRect(&RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
-          PushBitmap(RenderGroup, &GameState->Tree, V3(0, 0, 0));
+          PushBitmap(RenderGroup, &GameState->Tree, V3(0, 0, 0), 2.5f);
           
         } break;
         case EntityType_Stairwell: {
@@ -1549,7 +1551,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Monster: {
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0));
+          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), 1.4f);
           DrawHitpoints(Entity, RenderGroup);
         } break;
         case EntityType_Familiar: {
@@ -1583,7 +1585,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           MoveSpec.Drag = 8.0f;
           MoveSpec.UnitMaxAccelVector = true;
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0));
+          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), 1.4f);
         } break;
         default: {
           InvalidCodePath;
