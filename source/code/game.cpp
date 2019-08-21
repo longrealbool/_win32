@@ -464,7 +464,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
                 ground_buffer *GroundBuffer, world_position *Pos) {
   
   temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), 1.0f);
+  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
   
   loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
   
@@ -848,6 +848,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   uint32 GroundBufferWidth = 256;
   uint32 GroundBufferHeight = 256;
+  real32 PtM = 1.0f/ 42.0f;
+  
   if(!Memory->IsInitialized)
   {
     
@@ -861,15 +863,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     GameState->World = PushStruct(&GameState->WorldArena, world);
     world *World = GameState->World;
 
-    GameState->MtP = 42.0f;
-    GameState->PtM = 1.0f / GameState->MtP;
     
     GameState->FloorHeight = 3.0f;
     
     real32 TileSideInMeters = 1.4f;
     
-    v3 WorldChunkDimInMeters = V3((real32)GroundBufferWidth*GameState->PtM,
-                                  (real32)GroundBufferHeight*GameState->PtM,
+
+    v3 WorldChunkDimInMeters = V3((real32)GroundBufferWidth*PtM,
+                                  (real32)GroundBufferHeight*PtM,
                                   (real32)GameState->FloorHeight);
     
     InitializeWorld(World, WorldChunkDimInMeters);
@@ -1203,8 +1204,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   world *World = GameState->World;
   
   // TODO(Egor): put this into renderer in the future
-  real32 MtP = GameState->MtP;
-  real32 PtM = 1.0f/ MtP;
   
   for(int ControllerIndex = 0;
       ControllerIndex < ArrayCount(Input->Controllers);
@@ -1291,7 +1290,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   
   temporary_memory RenderMem = BeginTemporaryMemory(&TranState->TranArena);
-  render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->MtP);
+  render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
   
   
   loaded_bitmap DrawBuffer_ = {};

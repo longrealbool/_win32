@@ -183,8 +183,6 @@ struct game_state {
   loaded_bitmap Backdrop;
   hero_bitmaps Hero[4];
   
-  real32 MtP;
-  real32 PtM;
   
   loaded_bitmap Tree;
   loaded_bitmap Tree1;

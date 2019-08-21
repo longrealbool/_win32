@@ -72,8 +72,10 @@ struct render_entry_clear {
 struct render_entry_bitmap {
   
   loaded_bitmap *Bitmap;
-  v4 Color;
   render_entity_basis EntityBasis;
+  v4 Color;
+  v2 Size;
+
 };
 
 struct render_entry_rectangle {
@@ -96,7 +98,6 @@ struct render_group {
 
   render_basis *DefaultBasis;
   real32 GlobalAlpha;
-  real32 MtP;
 
   uint32 MaxPushBufferSize;
   uint32 PushBufferSize;

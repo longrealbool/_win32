@@ -44,7 +44,7 @@ UnscaleAndBiasNormal(v4 Normal) {
 
 
 internal render_group *
-AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, real32 MtP) {
+AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize) {
   
   render_group *Result = PushStruct(Arena, render_group);
   Result->PushBufferBase = (uint8 *)PushSize(Arena, MaxPushBufferSize);
@@ -53,7 +53,6 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, real32 MtP) {
   
   Result->DefaultBasis = PushStruct(Arena, render_basis);
   Result->DefaultBasis->P = V3(0.0f, 0.0f, 0.0f);
-  Result->MtP = MtP;
   Result->GlobalAlpha = 1.0f;
   
   return Result;
@@ -92,10 +91,13 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset,
   render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
   if(Piece) {
     
-    v2 Align = Hadamard(Bitmap->AlignPercentage, V2i(Bitmap->Width, Bitmap->Height));
-    
+    // NOTE(Egor): this is actual width and height in meters
+    v2 Size = V2(Bitmap->NativeHeight * Bitmap->WidthOverHeight, Bitmap->NativeHeight);
+    v2 Align = Hadamard(Bitmap->AlignPercentage, Size);
+
+    Piece->Size = Size;
     Piece->EntityBasis.Basis = Group->DefaultBasis;
-    Piece->EntityBasis.Offset = Group->MtP*Offset - V3(Align, 0);
+    Piece->EntityBasis.Offset = Offset - V3(Align, 0);
     Piece->Bitmap = Bitmap;
     Piece->Color = Group->GlobalAlpha*Color;
     //Piece->Color.a *= Group->GlobalAlpha;
@@ -110,10 +112,10 @@ PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color) {
     
     render_entity_basis EntityBasis;
     EntityBasis.Basis = Group->DefaultBasis;
-    EntityBasis.Offset = Group->MtP*(Offset - V3(0.5f*Dim, 0));
+    EntityBasis.Offset = (Offset - V3(0.5f*Dim, 0));
     
     Piece->EntityBasis = EntityBasis;
-    Piece->Dim = Dim*Group->MtP;
+    Piece->Dim = Dim;
     Piece->Color = Color;
     
     Assert(Piece->EntityBasis.Basis);
@@ -272,15 +274,16 @@ struct entity_basis_p_result {
 inline entity_basis_p_result
 GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenCenter) {
   
+  real32 MtP = 42.0f;
   entity_basis_p_result Result = {};
   
-  v3 EntityBaseP = Group->MtP*EntityBasis->Basis->P;
+  v3 EntityBaseP = EntityBasis->Basis->P;
 
   // NOTE(Egor): constants, TWEAK THEM ALL
   // TODO(Egor): the values looks wrong
-  real32 FocalLength = Group->MtP*20.0f;
-  real32 CameraDistanceAboveGround = Group->MtP*20.0f;
-  real32 NearClipPlane = Group->MtP*0.2f;
+  real32 FocalLength = 10.0f;
+  real32 CameraDistanceAboveGround = 10.0f;
+  real32 NearClipPlane = 0.2f;
   
   real32 DistanceToPz = (CameraDistanceAboveGround - EntityBaseP.z);
   v3 RawXY = V3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
@@ -289,8 +292,8 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
     
     v3 ProjectedXY = (1.0f/DistanceToPz) * RawXY*FocalLength;
 
-    Result.P = ScreenCenter + ProjectedXY.xy;
-    Result.Scale = ProjectedXY.z;
+    Result.P = ScreenCenter + MtP*ProjectedXY.xy;
+    Result.Scale = MtP*ProjectedXY.z;
     Result.Valid = true;
   }
   
@@ -638,8 +641,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
-  real32 MtP = Group->MtP; // NOTE(Egor): meters to pixels
-  real32 PtM = 1.0f/Group->MtP; // NOTE(Egor): pixel to meters
+  real32 PtM = 1.0f / 42.0f;
   
   v2 ScreenCenter = V2i(Output->Width, Output->Height)*0.5f;
   
@@ -681,8 +683,8 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         Basis.Origin = BasisP.P;
         Basis.XAxis = V2(1.0f, 0.0f);
         Basis.YAxis = Perp(Basis.XAxis);
-        Basis.XAxis *= BasisP.Scale*(real32)Entry->Bitmap->Width;
-        Basis.YAxis *= BasisP.Scale*(real32)Entry->Bitmap->Height;
+        Basis.XAxis *= BasisP.Scale*(real32)Entry->Size.x;
+        Basis.YAxis *= BasisP.Scale*(real32)Entry->Size.y;
         
         DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, 
                             0, 0, 0, 0, PtM);
@@ -728,7 +730,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         DrawRectangleSlowly(Output, V2Basis, Entry->Color,
                             Entry->Texture, Entry->NormalMap,
                             Entry->Top, Entry->Middle, Entry->Bottom,
-                            1.0f/MtP);
+                            PtM);
 #endif
         
 #if 0
