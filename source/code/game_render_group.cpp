@@ -272,9 +272,12 @@ struct entity_basis_p_result {
 };
 
 inline entity_basis_p_result
-GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenCenter) {
+GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenDim) {
+
+  real32 MtP = ScreenDim.x / 20.0f;
+  v2 ScreenCenter = 0.5f*ScreenDim;
   
-  real32 MtP = 42.0f;
+
   entity_basis_p_result Result = {};
   
   v3 EntityBaseP = EntityBasis->Basis->P;
@@ -641,9 +644,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
+  
   real32 PtM = 1.0f / 42.0f;
   
-  v2 ScreenCenter = V2i(Output->Width, Output->Height)*0.5f;
+  v2 ScreenDim = V2i(Output->Width, Output->Height);
   
   // NOTE(Egor): render
   for(uint32 BaseAddress = 0; BaseAddress < Group->PushBufferSize;) {
@@ -672,7 +676,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         render_entry_bitmap *Entry = (render_entry_bitmap *)Data;
         BaseAddress += sizeof(*Entry);
         
-        entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
+        entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
         Assert(Entry->Bitmap);
 #if 0        
 
@@ -697,7 +701,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         render_entry_rectangle *Entry = (render_entry_rectangle *)Data;
         BaseAddress += sizeof(*Entry);
         
-        entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenCenter);
+        entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
         DrawRectangle(Output, BasisP.P, BasisP.P + BasisP.Scale*Entry->Dim, Entry->Color); 
       } break;
       case RenderGroupEntryType_render_entry_coordinate_system: {
