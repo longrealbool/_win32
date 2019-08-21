@@ -92,16 +92,13 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset,
   render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
   if(Piece) {
     
-    v2 Align = Bitmap->Align;
+    v2 Align = Hadamard(Bitmap->AlignPercentage, V2i(Bitmap->Width, Bitmap->Height));
     
-    render_entity_basis EntityBasis;
-    EntityBasis.Basis = Group->DefaultBasis;
-    EntityBasis.Offset = Group->MtP*Offset - V3(Align, 0);
-    
-    Piece->EntityBasis = EntityBasis;
+    Piece->EntityBasis.Basis = Group->DefaultBasis;
+    Piece->EntityBasis.Offset = Group->MtP*Offset - V3(Align, 0);
     Piece->Bitmap = Bitmap;
-    Piece->Color = Color;
-    Piece->Color.a *= Group->GlobalAlpha;
+    Piece->Color = Group->GlobalAlpha*Color;
+    //Piece->Color.a *= Group->GlobalAlpha;
   }
 }
 

@@ -20,8 +20,10 @@ struct bilinear_sample {
 }; 
 
 struct loaded_bitmap {
-  
-  v2 Align;
+
+  real32 WidthOverHeight;
+  real32 NativeHeight;
+  v2 AlignPercentage;
   
   int32 Height;
   int32 Width;

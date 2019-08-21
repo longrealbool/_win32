@@ -70,6 +70,7 @@ internal loaded_bitmap
 DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
              thread_context *Thread, char *FileName, int32 AlignX = 0, int32 AlignY = 0)
 {
+  
   loaded_bitmap Result = {};
   debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
   
@@ -82,11 +83,24 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     uint32 *Pixel = (uint32 *)((uint8 *)ReadResult.Contents + Header->BitmapOffset);
     Result.Memory = Pixel;
     Result.Height = Header->Height;
+    Result.Width = Header->Width;
+
     
     Assert(Result.Height > 0);
     
-    Result.Align = V2i(AlignX, (Result.Height - 1) - AlignY);
-    Result.Width = Header->Width;
+    // NOTE(Egor): compute the ratios for eradicating meters to pixels from pipeline
+    Result.WidthOverHeight = SafeRatio0((real32)Result.Width, (real32)Result.Height);
+    // NOTE(Egor): this is constant, and it should stay this way
+    real32 PtM = 1.0f / 42.0f;
+    Result.NativeHeight = Result.Height * PtM;
+    
+
+    // NOTE(Egor): alignment
+    v2 Align = V2i(AlignX, (Result.Height - 1) - AlignY);
+    v2 AlignPercentage;
+    AlignPercentage.x = SafeRatio0(Align.x, (real32)Result.Width); 
+    AlignPercentage.y = SafeRatio0(Align.y, (real32)Result.Height);
+    Result.AlignPercentage = AlignPercentage;
     
     // NOTE(Egor, bitmap_loading): we have to account all color masks in header,
     // in order to correctly load bitmaps saved with different software
@@ -464,7 +478,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   real32 Width = (real32)Buffer->Width;
   real32 Height = (real32)Buffer->Height;
   
-  Buffer->Align = V2(Width*0.5f, Height*0.5f);
+  Buffer->AlignPercentage = V2(0.5f, 0.5f);
   
   for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
     for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
@@ -846,9 +860,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     GameState->World = PushStruct(&GameState->WorldArena, world);
     world *World = GameState->World;
-    
+
     GameState->MtP = 42.0f;
     GameState->PtM = 1.0f / GameState->MtP;
+    
     GameState->FloorHeight = 3.0f;
     
     real32 TileSideInMeters = 1.4f;
@@ -1189,7 +1204,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   // TODO(Egor): put this into renderer in the future
   real32 MtP = GameState->MtP;
-  real32 PixelsToMeters = 1.0f/ MtP;
+  real32 PtM = 1.0f/ MtP;
   
   for(int ControllerIndex = 0;
       ControllerIndex < ArrayCount(Input->Controllers);
@@ -1260,11 +1275,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       real32 ZoomRate = 0.0f;
       if(Controller->ActionUp.EndedDown) {
         
-        ZoomRate = 10.1f;
+        ZoomRate = 0.1f;
       }
       if(Controller->ActionDown.EndedDown) {
         
-        ZoomRate = -10.1f;
+        ZoomRate = -0.1f;
       }
       
       GameState->OffsetZ += ZoomRate*Input->dtForFrame;
@@ -1304,8 +1319,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   uint32 TileSpanY = 9*3;
   uint32 TileSpanZ = 1;
   
-  real32 ScreenWidthInMeters = Buffer->Width * PixelsToMeters;
-  real32 ScreenHeightInMeters = Buffer->Height * PixelsToMeters;
+  real32 ScreenWidthInMeters = Buffer->Width * PtM;
+  real32 ScreenHeightInMeters = Buffer->Height * PtM;
   
   
   rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0,0,0),
