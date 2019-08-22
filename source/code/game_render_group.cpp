@@ -44,7 +44,7 @@ UnscaleAndBiasNormal(v4 Normal) {
 
 
 internal render_group *
-AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize) {
+AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 ResolutionPixels) {
   
   render_group *Result = PushStruct(Arena, render_group);
   Result->PushBufferBase = (uint8 *)PushSize(Arena, MaxPushBufferSize);
@@ -54,6 +54,18 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize) {
   Result->DefaultBasis = PushStruct(Arena, render_basis);
   Result->DefaultBasis->P = V3(0.0f, 0.0f, 0.0f);
   Result->GlobalAlpha = 1.0f;
+
+  // NOTE(Egor): camera parameteres
+  // TODO(Egor): values looks wrong
+  Result->FocalLength = 0.6f;
+  Result->CameraDistanceAboveGround = 9.0f;
+  Result->NearClipPlane = 0.2f;
+  
+  // NOTE(Egor): monitor properties 0.635 m -- is average length of the monitor
+  real32 WidthOfMonitor = 0.635f;
+  Result->MtP = ResolutionPixels.x*WidthOfMonitor;
+  real32 PtM = 1.0f / Result->MtP;
+  Result->MonitorHalfDimInMeters = 0.5f*PtM*ResolutionPixels;
   
   return Result;
 }
@@ -273,20 +285,15 @@ struct entity_basis_p_result {
 
 inline entity_basis_p_result
 GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenDim) {
-
-  real32 MtP = ScreenDim.x / 20.0f;
-  v2 ScreenCenter = 0.5f*ScreenDim;
   
-
+  v2 ScreenCenter = 0.5f*ScreenDim;
   entity_basis_p_result Result = {};
   
   v3 EntityBaseP = EntityBasis->Basis->P;
 
-  // NOTE(Egor): constants, TWEAK THEM ALL
-  // TODO(Egor): the values looks wrong
-  real32 FocalLength = 6.0f;
-  real32 CameraDistanceAboveGround = 5.0f;
-  real32 NearClipPlane = 0.2f;
+  real32 FocalLength = Group->FocalLength;
+  real32 CameraDistanceAboveGround = Group->CameraDistanceAboveGround;
+  real32 NearClipPlane = Group->NearClipPlane;
   
   real32 DistanceToPz = (CameraDistanceAboveGround - EntityBaseP.z);
   v3 RawXY = V3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
@@ -295,8 +302,8 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
     
     v3 ProjectedXY = (1.0f/DistanceToPz) * RawXY*FocalLength;
 
-    Result.P = ScreenCenter + MtP*ProjectedXY.xy;
-    Result.Scale = MtP*ProjectedXY.z;
+    Result.P = ScreenCenter + Group->MtP*ProjectedXY.xy;
+    Result.Scale = Group->MtP*ProjectedXY.z;
     Result.Valid = true;
   }
   
@@ -644,10 +651,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
-  
-  real32 PtM = 1.0f / 42.0f;
-  
   v2 ScreenDim = V2i(Output->Width, Output->Height);
+  real32 PtM = 1.0f / Group->MtP;
   
   // NOTE(Egor): render
   for(uint32 BaseAddress = 0; BaseAddress < Group->PushBufferSize;) {
@@ -790,4 +795,26 @@ PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Colo
   return Entry;
 }
 
+inline v2
+Unproject(render_group *Group, v2 ProjectedXY, real32 AtDistanceFromCamera) {
+ 
+  v2 WorldXY = (AtDistanceFromCamera / Group->FocalLength)*ProjectedXY;
+  return WorldXY;
+}
 
+inline rectangle2 
+GetCameraRectangleAtDistance(render_group *Group, real32 DistanceFromCamera) {
+  
+  rectangle2 Result;
+  v2 RawXY = Unproject(Group, Group->MonitorHalfDimInMeters, DistanceFromCamera);
+  Result = RectCenterHalfDim(V2(0,0), RawXY);
+  
+  return Result;
+}
+
+inline rectangle2 
+GetCameraRectangleAtTarget(render_group *Group) {
+  
+  rectangle2 Result = GetCameraRectangleAtDistance(Group, Group->CameraDistanceAboveGround);
+  return Result;
+}

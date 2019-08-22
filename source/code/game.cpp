@@ -464,7 +464,8 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
                 ground_buffer *GroundBuffer, world_position *Pos) {
   
   temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
+  // TODO(Egor): ground chunk resolution
+  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), V2(1920, 1080));
   
   loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
   
@@ -931,7 +932,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_down.bmp", 51, 112);
     
     
-    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
+    //GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
 #if 1
     
@@ -1288,18 +1289,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-  
-  
-  temporary_memory RenderMem = BeginTemporaryMemory(&TranState->TranArena);
-  render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
-  
-  
+
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
   DrawBuffer->Width = Buffer->Width;
   DrawBuffer->Height = Buffer->Height;
   DrawBuffer->Memory = Buffer->Memory;
   DrawBuffer->Pitch = Buffer->Pitch;
+  
+  temporary_memory RenderMem = BeginTemporaryMemory(&TranState->TranArena);
+  render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4),
+                                                  V2i(DrawBuffer->Width, DrawBuffer->Height));
+  
+  
+
   
   v2 ScreenCenter = {0.5f*DrawBuffer->Width, 0.5f*DrawBuffer->Height};
   
@@ -1322,6 +1325,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 ScreenWidthInMeters = Buffer->Width * PtM;
   real32 ScreenHeightInMeters = Buffer->Height * PtM;
   
+  
+  rectangle2 Test = GetCameraRectangleAtTarget(RenderGroup);
   
   rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0,0,0),
                                                   V3((real32)ScreenWidthInMeters,

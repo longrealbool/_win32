@@ -98,10 +98,19 @@ struct render_group {
 
   render_basis *DefaultBasis;
   real32 GlobalAlpha;
+  
+  // NOTE(Egor): translates meters _on the monitor_ into pixels _on the monitor_
+  real32 MtP;
+  v2 MonitorHalfDimInMeters;
 
   uint32 MaxPushBufferSize;
   uint32 PushBufferSize;
   uint8 *PushBufferBase;
+
+  // NOTE(Egor): camera parameteres
+  real32 FocalLength;
+  real32 CameraDistanceAboveGround;
+  real32 NearClipPlane;
 };
 
 // NOTE(Egor): for test only
