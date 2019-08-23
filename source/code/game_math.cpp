@@ -772,6 +772,13 @@ RectCenterDim(v3 Center, v3 Dim) {
   return Result;
 }
 
+inline v3
+GetDim(rectangle3 Rect) {
+  
+  v3 Result = Rect.Max - Rect.Min;
+  return Result;
+}
+
 
 inline rectangle3
 RectMinDim(v3 Min, v3 Dim) {

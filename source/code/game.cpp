@@ -1334,7 +1334,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   CameraBoundsInMeters.Min.z = -3.0f*GameState->FloorHeight;
   CameraBoundsInMeters.Max.z = 1.0f*GameState->FloorHeight;
   
-  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 0.0f, 1.0f)); 
+
   
   
   
@@ -1407,6 +1407,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   world_position SimCenterP = GameState->CameraP;
   sim_region *SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World,
                                    SimCenterP, SimBounds, Input->dtForFrame);
+  
+  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 1.0f, 1.0f)); 
+  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimBounds).xy, V4(1.0f, 0.0f, 0.0f, 1.0f));
+  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->Bounds).xy, V4(0.0f, 0.0f, 1.0f, 1.0f));
+  
   
   
   // NOTE(Egor): groundbuffer scrolling
