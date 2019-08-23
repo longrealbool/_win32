@@ -998,7 +998,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       uint32 Choice = RandomChoice(&Series, ((DoorUp || DoorDown)? 2 : 4));
 #endif
-      Choice = 3;
+      //Choice = 3;
       
       // NOTE(Egor): keep track of is there a need to create another stairwell
       bool32 CreatedZDoor = false;
@@ -1276,11 +1276,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       real32 ZoomRate = 0.0f;
       if(Controller->ActionUp.EndedDown) {
         
-        ZoomRate = 0.1f;
+        ZoomRate = 1.0f;
       }
       if(Controller->ActionDown.EndedDown) {
         
-        ZoomRate = -0.1f;
+        ZoomRate = -1.0f;
       }
       
       GameState->OffsetZ += ZoomRate*Input->dtForFrame;
@@ -1333,6 +1333,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   CameraBoundsInMeters.Min.z = -3.0f*GameState->FloorHeight;
   CameraBoundsInMeters.Max.z = 1.0f*GameState->FloorHeight;
+  
+  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 0.0f, 1.0f)); 
+  
+  
   
   {
     world_position MinChunk = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBoundsInMeters));

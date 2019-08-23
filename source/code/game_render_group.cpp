@@ -57,9 +57,12 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 Resolution
 
   // NOTE(Egor): camera parameteres
   // TODO(Egor): values looks wrong
-  Result->FocalLength = 0.6f;
-  Result->CameraDistanceAboveGround = 9.0f;
-  Result->NearClipPlane = 0.2f;
+  Result->GameCamera.FocalLength = 0.6f;
+  Result->GameCamera.CameraDistanceAboveGround = 9.0f;
+  Result->GameCamera.NearClipPlane = 0.2f;
+  
+  Result->RenderCamera = Result->GameCamera;
+  Result->RenderCamera.CameraDistanceAboveGround = 30.0f;
   
   // NOTE(Egor): monitor properties 0.635 m -- is average length of the monitor
   real32 WidthOfMonitor = 0.635f;
@@ -137,7 +140,7 @@ PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color) {
 internal void 
 PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color) {
   
-  real32 Thickness = 0.05f;
+  real32 Thickness = 0.15f;
   
   PushRect(Group, Offset - V3(0, Dim.y, 0)*0.5f, V2(Dim.x, Thickness), Color);
   PushRect(Group, Offset + V3(0, Dim.y, 0)*0.5f, V2(Dim.x, Thickness), Color);
@@ -291,9 +294,9 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
   
   v3 EntityBaseP = EntityBasis->Basis->P;
 
-  real32 FocalLength = Group->FocalLength;
-  real32 CameraDistanceAboveGround = Group->CameraDistanceAboveGround;
-  real32 NearClipPlane = Group->NearClipPlane;
+  real32 FocalLength = Group->RenderCamera.FocalLength;
+  real32 CameraDistanceAboveGround = Group->RenderCamera.CameraDistanceAboveGround;
+  real32 NearClipPlane = Group->RenderCamera.NearClipPlane;
   
   real32 DistanceToPz = (CameraDistanceAboveGround - EntityBaseP.z);
   v3 RawXY = ToV3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
@@ -798,7 +801,7 @@ PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Colo
 inline v2
 Unproject(render_group *Group, v2 ProjectedXY, real32 AtDistanceFromCamera) {
  
-  v2 WorldXY = (AtDistanceFromCamera / Group->FocalLength)*ProjectedXY;
+  v2 WorldXY = (AtDistanceFromCamera / Group->GameCamera.FocalLength)*ProjectedXY;
   return WorldXY;
 }
 
@@ -815,6 +818,6 @@ GetCameraRectangleAtDistance(render_group *Group, real32 DistanceFromCamera) {
 inline rectangle2 
 GetCameraRectangleAtTarget(render_group *Group) {
   
-  rectangle2 Result = GetCameraRectangleAtDistance(Group, Group->CameraDistanceAboveGround);
+  rectangle2 Result = GetCameraRectangleAtDistance(Group, Group->GameCamera.CameraDistanceAboveGround);
   return Result;
 }

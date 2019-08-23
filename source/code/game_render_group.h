@@ -94,23 +94,30 @@ struct render_v2_basis {
 };
 
 
-struct render_group {
+struct render_group_camera {
+  
+  // NOTE(Egor): camera parameters
+  real32 FocalLength;
+  real32 CameraDistanceAboveGround;
+  real32 NearClipPlane;
 
-  render_basis *DefaultBasis;
-  real32 GlobalAlpha;
+};
+
+struct render_group {
+  
+  render_group_camera GameCamera;
+  render_group_camera RenderCamera;
   
   // NOTE(Egor): translates meters _on the monitor_ into pixels _on the monitor_
   real32 MtP;
   v2 MonitorHalfDimInMeters;
 
+  render_basis *DefaultBasis;
+  real32 GlobalAlpha;
+
   uint32 MaxPushBufferSize;
   uint32 PushBufferSize;
   uint8 *PushBufferBase;
-
-  // NOTE(Egor): camera parameteres
-  real32 FocalLength;
-  real32 CameraDistanceAboveGround;
-  real32 NearClipPlane;
 };
 
 // NOTE(Egor): for test only
