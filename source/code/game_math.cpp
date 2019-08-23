@@ -105,7 +105,7 @@ V3(real32 X, real32 Y, real32 Z) {
 }
 
 inline v3
-V3(v2 XY, real32 Z) {
+ToV3(v2 XY, real32 Z) {
   
   v3 Result;
   Result.x = XY.x;

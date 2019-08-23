@@ -109,7 +109,7 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset, real32 Height,
 
     Piece->Size = Size;
     Piece->EntityBasis.Basis = Group->DefaultBasis;
-    Piece->EntityBasis.Offset = Offset - V3(Align, 0);
+    Piece->EntityBasis.Offset = Offset - ToV3(Align, 0);
     Piece->Bitmap = Bitmap;
     Piece->Color = Group->GlobalAlpha*Color;
     //Piece->Color.a *= Group->GlobalAlpha;
@@ -124,7 +124,7 @@ PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color) {
     
     render_entity_basis EntityBasis;
     EntityBasis.Basis = Group->DefaultBasis;
-    EntityBasis.Offset = (Offset - V3(0.5f*Dim, 0));
+    EntityBasis.Offset = (Offset - ToV3(0.5f*Dim, 0));
     
     Piece->EntityBasis = EntityBasis;
     Piece->Dim = Dim;
@@ -296,7 +296,7 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
   real32 NearClipPlane = Group->NearClipPlane;
   
   real32 DistanceToPz = (CameraDistanceAboveGround - EntityBaseP.z);
-  v3 RawXY = V3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
+  v3 RawXY = ToV3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
   
   if(DistanceToPz > NearClipPlane) {
     

@@ -418,7 +418,7 @@ DrawHitpoints(sim_entity *Entity, render_group *PieceGroup) {
         Color = V4(0.2f, 0.2f, 0.2f, 1.0f);
       }
       
-      PushRect(PieceGroup, V3(HitP, 0.0f), HitPointDim, Color); 
+      PushRect(PieceGroup, ToV3(HitP, 0.0f), HitPointDim, Color); 
       HitP += dHitP;
     }
   }
@@ -516,7 +516,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
                        Height*RollTheDiceUnilateral(&Series));
         
         v2 P = Offset - BitmapCenter + OffsetG ;
-        PushBitmap(GroundGroup, Stamp, V3(P, 0.0f), 1.0f);
+        PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 1.0f);
       }
     }
     
@@ -541,7 +541,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
                          Height*RollTheDiceUnilateral(&Series));
           v2 P = Offset - BitmapCenter + OffsetG;
-          PushBitmap(GroundGroup, Stamp, V3(P, 0.0f), 1.0f);
+          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 1.0f);
         }
       }
     }
@@ -1326,12 +1326,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 ScreenHeightInMeters = Buffer->Height * PtM;
   
   
-  rectangle2 Test = GetCameraRectangleAtTarget(RenderGroup);
+  rectangle2 ScreenBounds = GetCameraRectangleAtTarget(RenderGroup);
   
-  rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0,0,0),
-                                                  V3((real32)ScreenWidthInMeters,
-                                                     (real32)ScreenHeightInMeters,
-                                                     (real32)0.0f));
+  rectangle3 CameraBoundsInMeters = RectMinMax(ToV3(ScreenBounds.Min, 0.0f),
+                                               ToV3(ScreenBounds.Max, 0.0f));
   
   CameraBoundsInMeters.Min.z = -3.0f*GameState->FloorHeight;
   CameraBoundsInMeters.Max.z = 1.0f*GameState->FloorHeight;
@@ -1503,7 +1501,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               MoveSpec.Speed = 50.0f;
               MoveSpec.Drag = 8.0f;
               MoveSpec.UnitMaxAccelVector = true;
-              ddP = V3(Controlled->ddP, 0);
+              ddP = ToV3(Controlled->ddP, 0);
               
               if((Controlled->dSword.x != 0.0f) || (Controlled->dSword.y != 0.0f)) {
                 
@@ -1511,7 +1509,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                 if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
                   
                   Sword->DistanceLimit = 5.0f;
-                  MakeEntitySpatial(Sword, Entity->P, 5.0f*V3(Controlled->dSword, 0));
+                  MakeEntitySpatial(Sword, Entity->P, 5.0f*ToV3(Controlled->dSword, 0));
                   AddCollisionRule(GameState, Entity->StorageIndex, Sword->StorageIndex, false);
                 }
               }
