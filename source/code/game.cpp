@@ -964,7 +964,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
 #endif 
     
-    random_series Series = Seed(RollTheDice());
+    random_series Series = Seed(1113);
     
     int32 ScreenBaseX = 0;
     int32 ScreenBaseY = 0;
@@ -1387,7 +1387,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           
           //RelP.y = -RelP.y;
-          //PushRectOutline(RenderGroup, RelP.xy, World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+          PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
 #endif
         }
       }
@@ -1410,6 +1410,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 1.0f, 1.0f)); 
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimBounds).xy, V4(1.0f, 0.0f, 0.0f, 1.0f));
+  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->UpdateBounds).xy, V4(1.0f, 0.0f, 1.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->Bounds).xy, V4(0.0f, 0.0f, 1.0f, 1.0f));
   
   

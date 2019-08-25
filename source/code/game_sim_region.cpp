@@ -157,7 +157,7 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
   ZeroStruct(SimRegion->Hash);
   
   SimRegion->MaxEntityRadius = 5.0f;
-  SimRegion->MaxEntityVelocity = 100.0f;
+  SimRegion->MaxEntityVelocity = 30.0f;
   
   real32 MaxEntityVelocity = SimRegion->MaxEntityVelocity;
   real32 MaxEntityRadius = SimRegion->MaxEntityRadius;
@@ -168,16 +168,10 @@ BeginSim(memory_arena *SimArena, game_state *GameState,  world *World, world_pos
   SimRegion->World = World;
   SimRegion->Origin = Origin;
   
-  #if 0
-  SimRegion->UpdateBounds = AddRadiusTo(Bounds, V3(MaxEntityRadius,
-                                                   MaxEntityRadius,
-                                                   MaxEntityRadius));
-  #else
   
   SimRegion->UpdateBounds = AddRadiusTo(Bounds, V3(MaxEntityRadius,
                                                    MaxEntityRadius,
                                                    0.0f));
-  #endif
   
   SimRegion->Bounds = AddRadiusTo(SimRegion->UpdateBounds,
                                   V3(UpdateSafetyMargin,
