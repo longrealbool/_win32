@@ -471,6 +471,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   
   GroundBuffer->P = *Pos;
   
+  #if 1
   // NOTE(Egor): the idea is: 
   // we take block that we want (Pos), generate 3x3 block centered at (Pos)
   // with rigid order, allowing to bitmaps blits over the top of our block generating
@@ -546,6 +547,8 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       }
     }
   }
+  
+  #endif
   
   RenderPushBuffer(GroundGroup, Buffer);
   EndTemporaryMemory(GroundMemory);
@@ -1335,8 +1338,32 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   CameraBoundsInMeters.Max.z = 1.0f*GameState->FloorHeight;
   
 
+  #if 1
   
+  // NOTE(Egor): groundbuffer scrolling
+  for(uint32 Index = 0; Index < TranState->GroundBufferCount; ++Index) {
+    
+    ground_buffer *GroundBuffer = TranState->GroundBuffers + Index;
+    
+    if(IsValid(GroundBuffer->P)) {
+      
+      // NOTE(Egor): recreate bitmap from template
+      loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
+      v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
+      
+      render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
+      RenderGroup->DefaultBasis = Basis;
+      Basis->P = Delta;
+      
+      PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0), 1.0f);
+      PushRectOutline(RenderGroup, V3(0, 0, 0), V2(1.0f, 1.0f), V4(1.0f, 1.0f, 0.0f, 1.0f));
+    }
+  }
   
+  #endif
+  
+  RenderGroup->DefaultBasis = PushStruct(&TranState->TranArena, render_basis);
+  RenderGroup->DefaultBasis->P = V3(0,0,0);
   
   {
     world_position MinChunk = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBoundsInMeters));
@@ -1348,7 +1375,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           world_position ChunkCenterP = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
           v3 RelP = Subtract(GameState->World, &ChunkCenterP, &GameState->CameraP);
-#if 1
           ground_buffer *FurthestBuffer = 0;
           real32 FurthestBufferLenSq = 0.0f;
           
@@ -1382,13 +1408,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           if(FurthestBuffer) {
             
-            //FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
+            FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
-          
-          //RelP.y = -RelP.y;
-          PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
-#endif
+          //PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
         }
       }
     }
@@ -1409,30 +1432,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                    SimCenterP, SimBounds, Input->dtForFrame);
   
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 1.0f, 1.0f)); 
-  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimBounds).xy, V4(1.0f, 0.0f, 0.0f, 1.0f));
+//  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimBounds).xy, V4(1.0f, 0.0f, 0.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->UpdateBounds).xy, V4(1.0f, 0.0f, 1.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->Bounds).xy, V4(0.0f, 0.0f, 1.0f, 1.0f));
   
-  
-  
-  // NOTE(Egor): groundbuffer scrolling
-  for(uint32 Index = 0; Index < TranState->GroundBufferCount; ++Index) {
-    
-    ground_buffer *GroundBuffer = TranState->GroundBuffers + Index;
-    
-    if(IsValid(GroundBuffer->P)) {
-      
-      // NOTE(Egor): recreate bitmap from template
-      loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
-      v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
-      
-      render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
-      RenderGroup->DefaultBasis = Basis;
-      Basis->P = Delta + V3(0, 0, GameState->OffsetZ);
-      
-      //      PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0));
-    }
-  }
   
   ////////////////////////////////////////////////////////////////////////////////
   // NOTE(Egor): entity processing
