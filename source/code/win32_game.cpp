@@ -1029,6 +1029,34 @@ Win32DebugSyncDisplay(win32_offscreen_buffer *Backbuffer,
 
 #endif
 
+
+
+internal void
+HandleDebugCycleCounters(game_memory *Memory) {
+  
+#if GAME_INTERNAL  
+  
+  OutputDebugStringA("DebugCycleCount \r\n");
+  for(uint32 CounterIndex = 0;
+      CounterIndex < ArrayCount(Memory->Counters);
+      ++CounterIndex) {
+    
+    
+    debug_cycle_counter *Counter = Memory->Counters + CounterIndex;
+    
+    char TextBuffer[256];
+    _snprintf_s(TextBuffer, sizeof(TextBuffer),
+                "  %d: %I64u\n", CounterIndex, Counter->CycleCount);
+    OutputDebugStringA(TextBuffer);
+    
+    Counter->CycleCount = 0;
+  }
+  
+  
+#endif
+}
+
+
 int CALLBACK
 WinMain(HINSTANCE Instance,
         HINSTANCE PrevInstance,
@@ -1421,6 +1449,7 @@ WinMain(HINSTANCE Instance,
             if(Game.UpdateAndRender)
             {
               Game.UpdateAndRender(&Thread, &GameMemory, NewInput, &Buffer);
+              HandleDebugCycleCounters(&GameMemory);
             }
             
             LARGE_INTEGER AudioWallClock = Win32GetWallClock();

@@ -416,6 +416,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                     environment_map *Top, environment_map *Middle, environment_map *Bottom,
                     real32 PtM) {
   
+  BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
+  
   real32 XAxisLength = Length(Basis.XAxis);
   real32 YAxisLength = Length(Basis.YAxis);
   
@@ -647,12 +649,16 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     
     Row += Buffer->Pitch;
   }
+  
+  END_TIMED_BLOCK(DrawRectangleSlowly);
 }
 
 
 
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
+  
+  BEGIN_TIMED_BLOCK(RenderPushBuffer);
   
   v2 ScreenDim = V2i(Output->Width, Output->Height);
   real32 PtM = 1.0f / Group->MtP;
@@ -760,6 +766,8 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       InvalidDefaultCase;
     }
   }
+  
+  END_TIMED_BLOCK(RenderPushBuffer);
 }
 
 
