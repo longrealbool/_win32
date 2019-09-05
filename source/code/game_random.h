@@ -67,7 +67,7 @@ RandomChoice(random_series *Series, uint32 ChoiceCount) {
 }
 
 internal real32
-RollTheDiceUnilateral(random_series *Series) {
+RandomUnilateral(random_series *Series) {
   
   // NOTE(Egor): cpu usually good at multiplying and fucking horrible at dividing
   real32 Divisor = 1.0f / (real32)MINE_RAND_MAX;
@@ -75,16 +75,16 @@ RollTheDiceUnilateral(random_series *Series) {
 }
 
 internal real32
-RollTheDiceBilateral(random_series *Series) {
+RandomBilateral(random_series *Series) {
   
-  real32 Result = 2.0f*RollTheDiceUnilateral(Series) - 1.0f;
+  real32 Result = 2.0f*RandomUnilateral(Series) - 1.0f;
   return Result;
 }
 
 inline real32
 RandomBetween(random_series *Series, real32 Min, real32 Max) {
  
-  real32 Result = (Max - Min) * RollTheDiceUnilateral(Series) + Min;
+  real32 Result = (Max - Min) * RandomUnilateral(Series) + Min;
   return Result;
 }
 

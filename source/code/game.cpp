@@ -65,10 +65,9 @@ struct bitmap_header {
 
 
 
-
 internal loaded_bitmap
 DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
-             thread_context *Thread, char *FileName, int32 AlignX = 0, int32 AlignY = 0)
+             thread_context *Thread, char *FileName, int32 AlignX, int32 AlignY)
 {
   
   loaded_bitmap Result = {};
@@ -175,6 +174,16 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
   }
   
   return Result;
+}
+
+internal loaded_bitmap
+DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
+             thread_context *Thread, char *FileName) {
+  
+  loaded_bitmap Result = DEBUGLoadBMP(ReadEntireFile, Thread, FileName, 0, 0);
+  Result.AlignPercentage = V2(0.5f, 0.5f);
+  return Result;
+  
 }
 
 
@@ -465,65 +474,31 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   
   temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
   // TODO(Egor): ground chunk resolution
-  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), V2(1920, 1080));
-  
   loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
   
+  Buffer->AlignPercentage = V2(0.5f, 0.5f);
+  Buffer->WidthOverHeight = 1.0f;
+  
+  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), V2i(Buffer->Width, Buffer->Height));
   GroundBuffer->P = *Pos;
   
-  #if 1
-  // NOTE(Egor): the idea is: 
-  // we take block that we want (Pos), generate 3x3 block centered at (Pos)
-  // with rigid order, allowing to bitmaps blits over the top of our block generating
-  // seemless texture and cut the center block - effectively our (Pos)
+  Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
   
-  real32 Width = (real32)Buffer->Width;
-  real32 Height = (real32)Buffer->Height;
-  
-  Buffer->AlignPercentage = V2(0.5f, 0.5f);
-  
-  for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-    for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-      
-      int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
-      int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
-      int32 ChunkZ = Pos->ChunkZ;
-      
-      // TODO(Egor): this is nuts, make sane spatial hashing
-      random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
-      
-      v2 Center = V2(Width*0.5f, Height*0.5f);
-      v2 OffsetG = V2(Width*ChunkOffsetX, Height*ChunkOffsetY);
-      
-      loaded_bitmap *Stamp = 0;
-      for(uint32 Index = 0; Index < 50; ++Index) {
-        
-#if 1
-        if(RandomChoice(&Series, 2)) {
-          
-          Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
-        }
-        else {
-          
-          Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
-        }
-#else
-        
-        Stamp = GameState->Slumps + RandomChoice(&Series, ArrayCount(GameState->Slumps));
-        
-#endif
-        v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height) ;
-        v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
-                       Height*RollTheDiceUnilateral(&Series));
-        
-        v2 P = Offset - BitmapCenter + OffsetG ;
-        PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 1.0f);
-      }
-    }
+#if 0
+  if(Pos->ChunkZ == 0) {
+    // NOTE(Egor): the idea is: 
+    // we take block that we want (Pos), generate 3x3 block centered at (Pos)
+    // with rigid order, allowing to bitmaps blits over the top of our block generating
+    // seemless texture and cut the center block - effectively our (Pos)
+    
+    real32 Width = GameState->World->ChunkDimInMeters.x;
+    real32 Height = GameState->World->ChunkDimInMeters.y;
+    
+    v2 HalfDim = 0.5f*V2(Width, Height);
+    HalfDim *= 2.0f;
     
     for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
       for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-        
         
         int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
         int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
@@ -531,24 +506,56 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
         
         // TODO(Egor): this is nuts, make sane spatial hashing
         random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
-        v2 OffsetG = V2(Width*ChunkOffsetX, Height*ChunkOffsetY);
-        loaded_bitmap *Stamp = 0;
         
-        for(uint32 Index = 0; Index < 5; ++Index) {
+        v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+        
+        loaded_bitmap *Stamp = 0;
+        for(uint32 Index = 0; Index < 50; ++Index) {
           
-          Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+          if(RandomChoice(&Series, 2)) {
+            
+            Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
+          }
+          else {
+            
+            Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
+          }
           
-          v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-          v2 Offset = V2(Width*RollTheDiceUnilateral(&Series),
-                         Height*RollTheDiceUnilateral(&Series));
-          v2 P = Offset - BitmapCenter + OffsetG;
-          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 1.0f);
+          v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
+                                               RandomBilateral(&Series)));
+          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 5.0f);
+        }
+        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
+      }
+      
+      for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+        for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
+          
+          int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
+          int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
+          int32 ChunkZ = Pos->ChunkZ;
+          
+          // TODO(Egor): this is nuts, make sane spatial hashing
+          random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
+          v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+          
+          loaded_bitmap *Stamp = 0;
+          
+          for(uint32 Index = 0; Index < 5; ++Index) {
+            
+            Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+            
+            v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
+                                                 RandomBilateral(&Series)));
+            PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 1.0f);
+          }
         }
       }
     }
   }
-  
   #endif
+  
+
   
   RenderPushBuffer(GroundGroup, Buffer);
   EndTemporaryMemory(GroundMemory);
@@ -1000,6 +1007,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 #else
       
       uint32 Choice = RandomChoice(&Series, ((DoorUp || DoorDown)? 2 : 4));
+      Choice = 1;
 #endif
       //Choice = 3;
       
@@ -1345,7 +1353,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     ground_buffer *GroundBuffer = TranState->GroundBuffers + Index;
     
-    if(IsValid(GroundBuffer->P)) {
+    if(IsValid(GroundBuffer->P) && GroundBuffer->P.ChunkZ == 0) {
       
       // NOTE(Egor): recreate bitmap from template
       loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
@@ -1355,8 +1363,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       RenderGroup->DefaultBasis = Basis;
       Basis->P = Delta;
       
-      PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0), 1.0f);
-      PushRectOutline(RenderGroup, V3(0, 0, 0), V2(1.0f, 1.0f), V4(1.0f, 1.0f, 0.0f, 1.0f));
+      PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0), World->ChunkDimInMeters.x);
+      //PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
     }
   }
   
@@ -1408,7 +1416,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           if(FurthestBuffer) {
             
-            FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
+            if(ChunkZ == GameState->CameraP.ChunkZ) 
+              FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
           //PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
