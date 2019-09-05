@@ -844,6 +844,9 @@ ConvertToBottomUpAlign(loaded_bitmap *Bitmap, v2 Align) {
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
+  
+  BEGIN_TIMED_BLOCK(GameUpdateAndRender);
+  
   Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) ==
          (ArrayCount(Input->Controllers[0].Buttons)));
   
@@ -866,13 +869,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     GameState->World = PushStruct(&GameState->WorldArena, world);
     world *World = GameState->World;
-
+    
     
     GameState->FloorHeight = 3.0f;
     
     real32 TileSideInMeters = 1.4f;
     
-
+    
     v3 WorldChunkDimInMeters = V3((real32)GroundBufferWidth*PtM,
                                   (real32)GroundBufferHeight*PtM,
                                   (real32)GameState->FloorHeight);
@@ -1292,7 +1295,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-
+  
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
   DrawBuffer->Width = Buffer->Width;
@@ -1305,7 +1308,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                   V2i(DrawBuffer->Width, DrawBuffer->Height));
   
   
-
+  
   
   v2 ScreenCenter = {0.5f*DrawBuffer->Width, 0.5f*DrawBuffer->Height};
   
@@ -1337,8 +1340,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   CameraBoundsInMeters.Min.z = -3.0f*GameState->FloorHeight;
   CameraBoundsInMeters.Max.z = 1.0f*GameState->FloorHeight;
   
-
-  #if 1
+  
+#if 1
   
   // NOTE(Egor): groundbuffer scrolling
   for(uint32 Index = 0; Index < TranState->GroundBufferCount; ++Index) {
@@ -1360,7 +1363,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-  #endif
+#endif
   
   RenderGroup->DefaultBasis = PushStruct(&TranState->TranArena, render_basis);
   RenderGroup->DefaultBasis->P = V3(0,0,0);
@@ -1432,7 +1435,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                    SimCenterP, SimBounds, Input->dtForFrame);
   
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 1.0f, 1.0f)); 
-//  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimBounds).xy, V4(1.0f, 0.0f, 0.0f, 1.0f));
+  //  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimBounds).xy, V4(1.0f, 0.0f, 0.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->UpdateBounds).xy, V4(1.0f, 0.0f, 1.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->Bounds).xy, V4(0.0f, 0.0f, 1.0f, 1.0f));
   
@@ -1699,12 +1702,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
 #endif
   RenderPushBuffer(RenderGroup, DrawBuffer);
- 
-  #if 0
+  
+#if 0
   world_position WorldOrigin = {};
   v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
   DrawRectangle(DrawBuffer, Diff.XY, V2(10.0f, 10.0f), V4(1.0f, 1.0f, 0.0f, 1.0f));
-  #endif
+#endif
   
   
   // NOTE(Egor): Ending the simulation
@@ -1713,6 +1716,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   EndTemporaryMemory(RenderMem);
   CheckArena(&GameState->WorldArena);
   CheckArena(&TranState->TranArena);
+  
+  END_TIMED_BLOCK(GameUpdateAndRender);
+  
 }
   
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples)

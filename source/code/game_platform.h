@@ -120,6 +120,23 @@ extern "C" {
 #define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(thread_context *Thread, char *Filename, uint32 MemorySize, void *Memory)
   typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
   
+  typedef struct debug_cycle_counter {
+    
+    uint64 CycleCount;
+  } debug_cycle_counter;
+  
+  enum {
+    DebugCycleCounter_GameUpdateAndRender,
+    DebugCycleCounter_Count, // NOTE(Egor): this is should be the last
+  };
+    
+  
+#if _MSC_VER
+#define BEGIN_TIMED_BLOCK(ID) uint64 StartCycleCount##ID = __rdtsc()
+#define END_TIMED_BLOCK(ID) Memory->Counter[DebugCycleCounter_##ID].CycleCount += __rdtsc() - StartCycleCount##ID
+#else
+#endif
+  
 #endif
   
   /*
@@ -199,6 +216,9 @@ extern "C" {
     game_controller_input Controllers[5];
   } game_input;
   
+  
+  
+  
   typedef struct game_memory
   {
     bool32 IsInitialized;
@@ -212,6 +232,12 @@ extern "C" {
     debug_platform_free_file_memory *DEBUGPlatformFreeFileMemory;
     debug_platform_read_entire_file *DEBUGPlatformReadEntireFile;
     debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
+    
+#if GAME_INTERNAL
+    
+    debug_cycle_counter Counter[DebugCycleCounter_Count];
+#endif
+    
   } game_memory;
   
 #define GAME_UPDATE_AND_RENDER(name) void name(thread_context *Thread, game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
