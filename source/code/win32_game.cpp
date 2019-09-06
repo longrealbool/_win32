@@ -1044,12 +1044,28 @@ HandleDebugCycleCounters(game_memory *Memory) {
     
     debug_cycle_counter *Counter = Memory->Counters + CounterIndex;
     
-    char TextBuffer[256];
-    _snprintf_s(TextBuffer, sizeof(TextBuffer),
-                "  %d: %I64u\n", CounterIndex, Counter->CycleCount);
-    OutputDebugStringA(TextBuffer);
+    if(Counter->HitCount) {
+      
+      char TextBuffer[256];
+      _snprintf_s(TextBuffer, sizeof(TextBuffer),
+                  "  %d: (%dh) %I64uc %I64uc/h \n", 
+                  CounterIndex,
+                  Counter->HitCount,
+                  Counter->CycleCount,
+                  Counter->CycleCount/Counter->HitCount);
+      
+      OutputDebugStringA(TextBuffer);
+    }
+    else {
+      
+      char TextBuffer[256];
+      _snprintf_s(TextBuffer, sizeof(TextBuffer),
+                  "  %d: (%dh) %I64uc DIDN'T HIT  \n", CounterIndex, Counter->HitCount, Counter->CycleCount);
+      OutputDebugStringA(TextBuffer);
+    }
     
     Counter->CycleCount = 0;
+    Counter->HitCount = 0;
   }
   
   

@@ -554,7 +554,6 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     }
   }
   #endif
-  
 
   
   RenderPushBuffer(GroundGroup, Buffer);
@@ -1161,7 +1160,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                     (uint8 *)Memory->TransientStorage + sizeof(transient_state));
     
     
-    TranState->GroundBufferCount = 32;
+    TranState->GroundBufferCount = 16;
     TranState->GroundBuffers = PushArray(&TranState->TranArena,
                                          TranState->GroundBufferCount, ground_buffer); 
     

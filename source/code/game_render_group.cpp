@@ -486,6 +486,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     uint32 *Pixel = (uint32 *)Row;
     for(int32 X = XMin; X <= XMax; ++X) {
       
+      BEGIN_TIMED_BLOCK(TestPixel);
+      
       v2 PixelP = V2i(X, Y);
       v2 d = PixelP - Basis.Origin;
       
@@ -499,6 +501,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
          Edge1 < 0 &&
          Edge2 < 0 &&
          Edge3 < 0) {
+        
+        BEGIN_TIMED_BLOCK(FillPixel);
         
         v2 ScreenSpaceUV = V2((real32)X*InvWidth, FixedCastY);
         
@@ -642,9 +646,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                   ((uint32)(Blended255.r + 0.5f) << 16) |
                   ((uint32)(Blended255.g + 0.5f) << 8)  |
                   ((uint32)(Blended255.b + 0.5f) << 0));
+        
+        END_TIMED_BLOCK(FillPixel);
       }
       
       Pixel++;
+      END_TIMED_BLOCK(TestPixel);
     }
     
     Row += Buffer->Pitch;

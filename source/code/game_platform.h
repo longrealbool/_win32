@@ -123,12 +123,17 @@ extern "C" {
   typedef struct debug_cycle_counter {
     
     uint64 CycleCount;
+    uint32 HitCount;
+    
   } debug_cycle_counter;
   
   enum {
     DebugCycleCounter_GameUpdateAndRender,
     DebugCycleCounter_RenderPushBuffer,
     DebugCycleCounter_DrawRectangleSlowly,
+    DebugCycleCounter_TestPixel,
+    DebugCycleCounter_FillPixel,
+    
     DebugCycleCounter_Count, // NOTE(Egor): this is should be the last
   };
 
@@ -136,7 +141,7 @@ extern "C" {
   
 #if _MSC_VER
 #define BEGIN_TIMED_BLOCK(ID) uint64 StartCycleCount##ID = __rdtsc()
-#define END_TIMED_BLOCK(ID) DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount += __rdtsc() - StartCycleCount##ID 
+#define END_TIMED_BLOCK(ID) DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount += __rdtsc() - StartCycleCount##ID;  ++DebugGlobalMemory->Counters[DebugCycleCounter_##ID].HitCount;
 #else
 #endif
   
