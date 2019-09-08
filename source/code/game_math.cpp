@@ -6,6 +6,10 @@ union v2 {
     
   real32 x, y;
   };
+  struct {
+    
+    real32 u, v;
+  };
   
   real32 E[2];
 };

@@ -409,6 +409,7 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 
 
 
+#if 0
 
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
@@ -661,6 +662,172 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 }
 
 
+#else
+
+internal void
+DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
+                    loaded_bitmap *Texture, loaded_bitmap *NormalMap,
+                    environment_map *Top, environment_map *Middle, environment_map *Bottom,
+                    real32 PtM) {
+  
+  BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
+  
+  real32 XAxisLength = Length(Basis.XAxis);
+  real32 YAxisLength = Length(Basis.YAxis);
+  
+  v2 NXAxis = YAxisLength/XAxisLength * Basis.XAxis;
+  v2 NYAxis = XAxisLength/YAxisLength * Basis.YAxis;
+  
+  real32 NZScale = (XAxisLength + YAxisLength)*0.5f;
+  
+  //NOTE(Egor): premultiply color
+  Color.rgb *= Color.a;
+  
+  int32 Width = Buffer->Width - 1;
+  int32 Height = Buffer->Height - 1;
+  real32 InvWidth = 1.0f/(real32)Width;
+  real32 InvHeight = 1.0f/(real32)Height;
+  
+  real32 OriginZ = 0.0f;
+  real32 OriginY = (Basis.Origin + 0.5f*Basis.YAxis + 0.5f*Basis.XAxis).y;
+  real32 FixedCastY = InvHeight*OriginY;
+  
+  int32 YMin = Height;
+  int32 XMin = Width;
+  int32 XMax = 0;
+  int32 YMax = 0;
+  
+  v2 Min = Basis.Origin;
+  v2 Max = Basis.Origin + Basis.XAxis + Basis.YAxis;
+  v2 toAxisX = Min + Basis.XAxis;
+  v2 toAxisY = Min + Basis.YAxis;
+  
+  real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
+  real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
+  
+  
+  v2 P[4] = {Min, Min + Basis.XAxis, Min + Basis.YAxis, Max};
+  
+  for(uint32 Index = 0; Index < ArrayCount(P); ++Index) {
+    
+    v2 *TestP = P + Index;
+    
+    int32 CeilX = CeilReal32ToInt32(TestP->x);
+    int32 FloorX = FloorReal32ToInt32(TestP->x);
+    int32 CeilY = CeilReal32ToInt32(TestP->y);
+    int32 FloorY = FloorReal32ToInt32(TestP->y);
+    
+    if(XMin > FloorX) XMin = FloorX;
+    if(YMin > FloorY) YMin = FloorY;
+    if(XMax < CeilX) XMax = CeilX;
+    if(YMax < CeilY) YMax = CeilY;
+  }
+  
+  if(XMin < 0) XMin = 0;
+  if(YMin < 0) YMin = 0;
+  if(XMax > Width) XMax = Width;
+  if(YMax > Height) YMax = Height;
+  
+  uint32 PixColor = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
+                     (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
+                     (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
+                     (RoundReal32ToUInt32(Color.b * 255.0f) << 0));
+  
+  uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*BITMAP_BYTES_PER_PIXEL;
+  
+  
+  v2 nXAxis = InvXAxisLengthSq * Basis.XAxis;
+  v2 nYAxis = InvYAxisLengthSq * Basis.YAxis;
+  
+  real32 Inv255 = 1.0f/255.0f;
+  real32 One255 = 255.0f;
+  
+  for(int32 Y = YMin; Y <= YMax; ++Y) {
+    
+    uint32 *Pixel = (uint32 *)Row;
+    for(int32 X = XMin; X <= XMax; ++X) {
+      
+      BEGIN_TIMED_BLOCK(TestPixel);
+      
+      v2 PixelP = V2i(X, Y);
+      v2 d = PixelP - Basis.Origin;
+      
+      v2 UV =  V2(Inner(nXAxis, d), Inner(nYAxis, d));
+      
+      if(UV.u >= 0.0f &&
+         UV.u <= 1.0f &&
+         UV.v >= 0.0f &&
+         UV.v <= 1.0f) {
+        
+        BEGIN_TIMED_BLOCK(FillPixel);
+        
+        // NOTE(Egor): texture boundary multiplication
+        real32 tX = (UV.u * (real32)(Texture->Width - 2));
+        real32 tY = (UV.v * (real32)(Texture->Height - 2));
+        
+        int32 PixelX = (int32)tX;
+        int32 PixelY = (int32)tY;
+        
+        // NOTE(Egor): take the fractional part of tX and tY
+        real32 fX = tX - (real32)PixelX;
+        real32 fY = tY - (real32)PixelY;
+        
+        Assert(PixelX >= 0 && PixelX <= (Texture->Width - 1));
+        Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
+        
+        bilinear_sample TexelSample = BilinearSample(Texture, PixelX, PixelY);
+        v4 Texel = SRGBBilinearBlend(TexelSample, fX, fY);
+        
+
+        // NOTE(Egor): color tinting and external opacity
+        Texel = Hadamard(Texel, Color);        
+        
+        Texel.r = Clamp01(Texel.r);
+        Texel.g = Clamp01(Texel.g);
+        Texel.b = Clamp01(Texel.b);
+        
+        v4 Dest = Unpack4x8(*Pixel);
+        
+
+        // NOTE(Egor): convert to linear brightness space
+        // Dest = SRGB255ToLinear1(Dest);
+        Dest.r = Square(Inv255*Dest.r);
+        Dest.g = Square(Inv255*Dest.g);
+        Dest.b = Square(Inv255*Dest.b);
+        Dest.a = Inv255*Dest.a;
+        
+        // NOTE(Egor): alpha channel for composited bitmaps in premultiplied alpha mode
+        // for case when we create intermediate buffer with two or more bitmaps blend with 
+        // each other 
+        // (Texel.a + Dest.a - Texel.a*Dest.a))
+        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
+        
+        // NOTE(Egor): convert back to gamma 
+        // v4 Blended255 = Linear1ToSRGB255(Blended);
+        Blended.r = One255*SquareRoot(Blended.r);
+        Blended.g = One255*SquareRoot(Blended.g);
+        Blended.b = One255*SquareRoot(Blended.b);
+        Blended.a = One255*Blended.a;
+        
+        *Pixel = (((uint32)(Blended.a + 0.5f) << 24) |
+                  ((uint32)(Blended.r + 0.5f) << 16) |
+                  ((uint32)(Blended.g + 0.5f) << 8)  |
+                  ((uint32)(Blended.b + 0.5f) << 0));
+        
+        END_TIMED_BLOCK(FillPixel);
+      }
+      
+      Pixel++;
+      END_TIMED_BLOCK(TestPixel);
+    }
+    
+    Row += Buffer->Pitch;
+  }
+  
+  END_TIMED_BLOCK(DrawRectangleSlowly);
+}
+
+#endif
 
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
