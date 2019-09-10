@@ -482,7 +482,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), V2i(Buffer->Width, Buffer->Height));
   GroundBuffer->P = *Pos;
   
-  Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
+  Clear(GroundGroup, V4(1.0f, 0.4f, 0.0f, 1.0f));
   
 #if 0
   if(Pos->ChunkZ == 0) {

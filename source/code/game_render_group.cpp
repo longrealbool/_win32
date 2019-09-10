@@ -682,8 +682,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   //NOTE(Egor): premultiply color
   Color.rgb *= Color.a;
   
-  int32 Width = Buffer->Width - 1;
-  int32 Height = Buffer->Height - 1;
+  // NOTE(Egor): Clip buffers to not overwrite on the next line
+  int32 Width = Buffer->Width - 1 - 3;
+  int32 Height = Buffer->Height - 1 - 3;
   real32 InvWidth = 1.0f/(real32)Width;
   real32 InvHeight = 1.0f/(real32)Height;
   
@@ -744,115 +745,161 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   for(int32 Y = YMin; Y <= YMax; ++Y) {
     
     uint32 *Pixel = (uint32 *)Row;
-    for(int32 X = XMin; X <= XMax; ++X) {
+    for(int32 XI = XMin; XI <= XMax; XI += 4) {
       
       BEGIN_TIMED_BLOCK(TestPixel);
       
-      v2 PixelP = V2i(X, Y);
-      v2 d = PixelP - Basis.Origin;
+      real32 TexelAr[4];
+      real32 TexelAg[4];
+      real32 TexelAb[4];
+      real32 TexelAa[4];
       
-      v2 UV =  V2(Inner(nXAxis, d), Inner(nYAxis, d));
+      real32 TexelBr[4];
+      real32 TexelBg[4];
+      real32 TexelBb[4];
+      real32 TexelBa[4];
       
-      if(UV.u >= 0.0f &&
-         UV.u <= 1.0f &&
-         UV.v >= 0.0f &&
-         UV.v <= 1.0f) {
+      real32 TexelCr[4];
+      real32 TexelCg[4];
+      real32 TexelCb[4];
+      real32 TexelCa[4];
+      
+      real32 TexelDr[4];
+      real32 TexelDg[4];
+      real32 TexelDb[4];
+      real32 TexelDa[4];
+      
+      real32 DestR[4];
+      real32 DestG[4];
+      real32 DestB[4];
+      real32 DestA[4];
+      
+      real32 fX[4];
+      real32 fY[4];
+      
+      real32 BlendedR[4];
+      real32 BlendedG[4];
+      real32 BlendedB[4];
+      real32 BlendedA[4];
+      
+      bool32 ShouldFill[4];
+      
+      for(int32 I = 0; I < 4; ++I) {
         
-        BEGIN_TIMED_BLOCK(FillPixel);
+        int32 ActualX = XI + I;
+        v2 PixelP = V2i(ActualX, Y);
+        v2 d = PixelP - Basis.Origin;
         
-        // NOTE(Egor): texture boundary multiplication
-        real32 tX = (UV.u * (real32)(Texture->Width - 2));
-        real32 tY = (UV.v * (real32)(Texture->Height - 2));
+        v2 UV =  V2(Inner(nXAxis, d), Inner(nYAxis, d));
         
-        int32 PixelX = (int32)tX;
-        int32 PixelY = (int32)tY;
+        ShouldFill[I] =  (UV.u >= 0.0f &&
+                          UV.u <= 1.0f &&
+                          UV.v >= 0.0f &&
+                          UV.v <= 1.0f);
         
-        // NOTE(Egor): take the fractional part of tX and tY
-        real32 fX = tX - (real32)PixelX;
-        real32 fY = tY - (real32)PixelY;
-        
-        Assert(PixelX >= 0 && PixelX <= (Texture->Width - 1));
-        Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
-        
-        
-//        bilinear_sample TexelSample = BilinearSample(Texture, PixelX, PixelY);
-        uint8 *TexelPtr = (((uint8 *)Texture->Memory) +
-                           PixelY*Texture->Pitch + PixelX*BITMAP_BYTES_PER_PIXEL);
-        
-        uint32 SampleA = *(uint32 *)(TexelPtr);
-        uint32 SampleB = *(uint32 *)(TexelPtr + sizeof(uint32));
-        uint32 SampleC = *(uint32 *)(TexelPtr + Texture->Pitch);
-        uint32 SampleD = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
-        
-        
-//        v4 Texel = SRGBBilinearBlend(TexelSample, fX, fY);
-        
-//        v4 TexelA  = Unpack4x8(SampleA);
-        real32 TexelAr = (real32)((SampleA >> 16) & 0xFF);
-        real32 TexelAg = (real32)((SampleA >> 8) & 0xFF);
-        real32 TexelAb = (real32)((SampleA >> 0) & 0xFF);
-        real32 TexelAa = (real32)((SampleA >> 24) & 0xFF);
-//        v4 TexelB  = Unpack4x8(SampleB);
-        real32 TexelBr = (real32)((SampleB >> 16) & 0xFF);
-        real32 TexelBg = (real32)((SampleB >> 8) & 0xFF);
-        real32 TexelBb = (real32)((SampleB >> 0) & 0xFF);
-        real32 TexelBa = (real32)((SampleB >> 24) & 0xFF);
-//        v4 TexelC  = Unpack4x8(SampleC);
-        real32 TexelCr = (real32)((SampleC >> 16) & 0xFF);
-        real32 TexelCg = (real32)((SampleC >> 8) & 0xFF);
-        real32 TexelCb = (real32)((SampleC >> 0) & 0xFF);
-        real32 TexelCa = (real32)((SampleC >> 24) & 0xFF);
-//        v4 TexelD  = Unpack4x8(SampleD);
-        real32 TexelDr = (real32)((SampleD >> 16) & 0xFF);
-        real32 TexelDg = (real32)((SampleD >> 8) & 0xFF);
-        real32 TexelDb = (real32)((SampleD >> 0) & 0xFF);
-        real32 TexelDa = (real32)((SampleD >> 24) & 0xFF);
+        if(ShouldFill[I]) {
+          
+          // NOTE(Egor): texture boundary multiplication
+          real32 tX = (UV.u * (real32)(Texture->Width - 2));
+          real32 tY = (UV.v * (real32)(Texture->Height - 2));
+          
+          int32 PixelX = (int32)tX;
+          int32 PixelY = (int32)tY;
+          
+          // NOTE(Egor): take the fractional part of tX and tY
+          fX[I] = tX - (real32)PixelX;
+          fY[I] = tY - (real32)PixelY;
+          
+          Assert(PixelX >= 0 && PixelX <= (Texture->Width - 1));
+          Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
+          
+          uint8 *TexelPtr = (((uint8 *)Texture->Memory) +
+                             PixelY*Texture->Pitch + PixelX*BITMAP_BYTES_PER_PIXEL);
+          
+          uint32 SampleA = *(uint32 *)(TexelPtr);
+          uint32 SampleB = *(uint32 *)(TexelPtr + sizeof(uint32));
+          uint32 SampleC = *(uint32 *)(TexelPtr + Texture->Pitch);
+          uint32 SampleD = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
+          
+          TexelAr[I] = (real32)((SampleA >> 16) & 0xFF);
+          TexelAg[I] = (real32)((SampleA >> 8) & 0xFF);
+          TexelAb[I] = (real32)((SampleA >> 0) & 0xFF);
+          TexelAa[I] = (real32)((SampleA >> 24) & 0xFF);
+          
+          TexelBr[I] = (real32)((SampleB >> 16) & 0xFF);
+          TexelBg[I] = (real32)((SampleB >> 8) & 0xFF);
+          TexelBb[I] = (real32)((SampleB >> 0) & 0xFF);
+          TexelBa[I] = (real32)((SampleB >> 24) & 0xFF);
+          
+          TexelCr[I] = (real32)((SampleC >> 16) & 0xFF);
+          TexelCg[I] = (real32)((SampleC >> 8) & 0xFF);
+          TexelCb[I] = (real32)((SampleC >> 0) & 0xFF);
+          TexelCa[I] = (real32)((SampleC >> 24) & 0xFF);
+          
+          TexelDr[I] = (real32)((SampleD >> 16) & 0xFF);
+          TexelDg[I] = (real32)((SampleD >> 8) & 0xFF);
+          TexelDb[I] = (real32)((SampleD >> 0) & 0xFF);
+          TexelDa[I] = (real32)((SampleD >> 24) & 0xFF);
+          
+          // NOTE(Egor): load destination color
+          //        v4 Dest = Unpack4x8(*Pixel);
+          DestR[I] = (real32)((*(Pixel + I) >> 16) & 0xFF);
+          DestG[I] = (real32)((*(Pixel + I) >> 8) & 0xFF);
+          DestB[I] = (real32)((*(Pixel + I) >> 0) & 0xFF);
+          DestA[I] = (real32)((*(Pixel + I) >> 24) & 0xFF);
+        }
+      }
+      for(int32 I = 0; I < 4; ++I) {
         
         // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
-        //TexelA = SRGB255ToLinear1(TexelA);
-        TexelAr = Square(Inv255*TexelAr);
-        TexelAg = Square(Inv255*TexelAg);
-        TexelAb = Square(Inv255*TexelAb);
-        TexelAa = Inv255*TexelAa;
+        TexelAr[I] = Inv255*TexelAr[I];
+        TexelAr[I] *= TexelAr[I];
+        TexelAg[I] = Inv255*TexelAg[I];
+        TexelAg[I] *= TexelAg[I];
+        TexelAb[I] = Inv255*TexelAb[I];
+        TexelAb[I] *= TexelAb[I];
+        TexelAa[I] = Inv255*TexelAa[I];
         
-//        TexelB = SRGB255ToLinear1(TexelB);
-        TexelBr = Square(Inv255*TexelBr);
-        TexelBg = Square(Inv255*TexelBg);
-        TexelBb = Square(Inv255*TexelBb);
-        TexelBa = Inv255*TexelBa;
+        TexelBr[I] = Inv255*TexelBr[I];
+        TexelBr[I] *= TexelBr[I];
+        TexelBg[I] = Inv255*TexelBg[I];
+        TexelBg[I] *= TexelBg[I];
+        TexelBb[I] = Inv255*TexelBb[I];
+        TexelBb[I] *= TexelBb[I];
+        TexelBa[I] = Inv255*TexelBa[I];
         
-//        TexelC = SRGB255ToLinear1(TexelC);
-        TexelCr = Square(Inv255*TexelCr);
-        TexelCg = Square(Inv255*TexelCg);
-        TexelCb = Square(Inv255*TexelCb);
-        TexelCa = Inv255*TexelCa;
+        TexelCr[I] = Inv255*TexelCr[I];
+        TexelCr[I] *= TexelCr[I];
+        TexelCg[I] = Inv255*TexelCg[I];
+        TexelCg[I] *= TexelCg[I];
+        TexelCb[I] = Inv255*TexelCb[I];
+        TexelCb[I] *= TexelCb[I];
+        TexelCa[I] = Inv255*TexelCa[I];
         
-//        TexelD = SRGB255ToLinear1(TexelD);
-        TexelDr = Square(Inv255*TexelDr);
-        TexelDg = Square(Inv255*TexelDg);
-        TexelDb = Square(Inv255*TexelDb);
-        TexelDa = Inv255*TexelDa;
-        
-/*        v4 Texel = Lerp(Lerp(TexelA, fX, TexelB),
-                         fY,
-                         Lerp(TexelC, fX, TexelD)); */
+        TexelDr[I] = Inv255*TexelDr[I];
+        TexelDr[I] *= TexelDr[I];
+        TexelDg[I] = Inv255*TexelDg[I];
+        TexelDg[I] *= TexelDg[I];
+        TexelDb[I] = Inv255*TexelDb[I];
+        TexelDb[I] *= TexelDb[I];
+        TexelDa[I] = Inv255*TexelDa[I];
         
         // NOTE(Egor): bilinear texture blend
-        real32 ifX = (1.0f - fX);
-        real32 ifY = (1.0f - fY);
+        real32 ifX = (1.0f - fX[I]);
+        real32 ifY = (1.0f - fY[I]);
         real32 L0 = ifY*ifX;
-        real32 L1 = ifY*fX;
-        real32 L2 = fY*ifX;
-        real32 L3 = fY*fX;
+        real32 L1 = ifY*fX[I];
+        real32 L2 = fY[I]*ifX;
+        real32 L3 = fY[I]*fX[I];
         
-        real32 Texelr = L0*TexelAr + L1*TexelBr + L2*TexelCr + L3*TexelDr;
-        real32 Texelg = L0*TexelAg + L1*TexelBg + L2*TexelCg + L3*TexelDg;
-        real32 Texelb = L0*TexelAb + L1*TexelBb + L2*TexelCb + L3*TexelDb;
-        real32 Texela = L0*TexelAa + L1*TexelBa + L2*TexelCa + L3*TexelDa;
+        real32 Texelr = L0*TexelAr[I] + L1*TexelBr[I] + L2*TexelCr[I] + L3*TexelDr[I];
+        real32 Texelg = L0*TexelAg[I] + L1*TexelBg[I] + L2*TexelCg[I] + L3*TexelDg[I];
+        real32 Texelb = L0*TexelAb[I] + L1*TexelBb[I] + L2*TexelCb[I] + L3*TexelDb[I];
+        real32 Texela = L0*TexelAa[I] + L1*TexelBa[I] + L2*TexelCa[I] + L3*TexelDa[I];
         
-
+        
         // NOTE(Egor): Modulate by incoming color
-//        Texel = Hadamard(Texel, Color);        
+        //        Texel = Hadamard(Texel, Color);        
         Texelr = Texelr * Color.r;
         Texelg = Texelg * Color.g;
         Texelb = Texelb * Color.b;
@@ -863,50 +910,47 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         Texelg = Clamp01(Texelg);
         Texelb = Clamp01(Texelb);
         
-        // NOTE(Egor): load destination color
-//        v4 Dest = Unpack4x8(*Pixel);
-        real32 DestR = (real32)((*Pixel >> 16) & 0xFF);
-        real32 DestG = (real32)((*Pixel >> 8) & 0xFF);
-        real32 DestB = (real32)((*Pixel >> 0) & 0xFF);
-        real32 DestA = (real32)((*Pixel >> 24) & 0xFF);
         
-
         // NOTE(Egor): convert to linear brightness space
         // Dest = SRGB255ToLinear1(Dest);
-        DestR = Square(Inv255*DestR);
-        DestG = Square(Inv255*DestG);
-        DestB = Square(Inv255*DestB);
-        DestA = Inv255*DestA;
+        DestR[I] = Square(Inv255*DestR[I]);
+        DestG[I] = Square(Inv255*DestG[I]);
+        DestB[I] = Square(Inv255*DestB[I]);
+        DestA[I] = Inv255*DestA[I];
         
         // NOTE(Egor): alpha channel for composited bitmaps in premultiplied alpha mode
         // for case when we create intermediate buffer with two or more bitmaps blend with 
         // each other 
         
         // NOTE(Egor): destination blend
-//        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
+        //        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
         real32 OneComplementTexelA = (1.0f - Texela);
-        real32 BlendedR = OneComplementTexelA*DestR + Texelr;
-        real32 BlendedG = OneComplementTexelA*DestG + Texelg;
-        real32 BlendedB = OneComplementTexelA*DestB + Texelb;
-        real32 BlendedA = OneComplementTexelA*DestA + Texela;
+        BlendedR[I] = OneComplementTexelA*DestR[I] + Texelr;
+        BlendedG[I] = OneComplementTexelA*DestG[I] + Texelg;
+        BlendedB[I] = OneComplementTexelA*DestB[I] + Texelb;
+        BlendedA[I] = OneComplementTexelA*DestA[I] + Texela;
         
         // NOTE(Egor): convert back to gamma 
         // v4 Blended255 = Linear1ToSRGB255(Blended);
-        BlendedR = One255*SquareRoot(BlendedR);
-        BlendedG = One255*SquareRoot(BlendedG);
-        BlendedB = One255*SquareRoot(BlendedB);
-        BlendedA = One255*BlendedA;
-        
-        // NOTE(Egor): repack
-        *Pixel = (((uint32)(BlendedA + 0.5f) << 24) |
-                  ((uint32)(BlendedR + 0.5f) << 16) |
-                  ((uint32)(BlendedG + 0.5f) << 8)  |
-                  ((uint32)(BlendedB + 0.5f) << 0));
-        
-        END_TIMED_BLOCK(FillPixel);
+        BlendedR[I] = One255*SquareRoot(BlendedR[I]);
+        BlendedG[I] = One255*SquareRoot(BlendedG[I]);
+        BlendedB[I] = One255*SquareRoot(BlendedB[I]);
+        BlendedA[I] = One255*BlendedA[I];
       }
       
-      Pixel++;
+      for(int32 I = 0; I < 4; ++I) {
+        
+        if(ShouldFill[I]) {
+
+          // NOTE(Egor): repack
+          *(Pixel + I) = (((uint32)(BlendedA[I] + 0.5f) << 24) |
+                          ((uint32)(BlendedR[I] + 0.5f) << 16) |
+                          ((uint32)(BlendedG[I] + 0.5f) << 8)  |
+                          ((uint32)(BlendedB[I] + 0.5f) << 0));
+        }
+      }
+      
+      Pixel += 4;
       END_TIMED_BLOCK(TestPixel);
     }
     
