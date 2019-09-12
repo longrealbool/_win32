@@ -795,22 +795,51 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       
       for(int32 I = 0; I < 4; ++I) {
         
-        int32 ActualX = XI + I;
-        v2 PixelP = V2i(ActualX, Y);
-        v2 d = PixelP - Basis.Origin;
         
-        v2 UV =  V2(Inner(nXAxis, d), Inner(nYAxis, d));
+#if 1
+        real32 PixelPX = (real32)(XI + I);
+        real32 PixelPY = (real32)Y;
+        
+        // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
+        real32 dX = PixelPX - Basis.Origin.x;
+        real32 dY = PixelPY - Basis.Origin.y;
+        
+        // NOTE(Egor)
+        real32 U = nXAxis.x*dX + nXAxis.y*dY;
+        real32 V = nYAxis.x*dX + nYAxis.y*dY;
+        
+        ShouldFill[I] =  (U >= 0.0f &&
+                          U <= 1.0f &&
+                          V >= 0.0f &&
+                          V <= 1.0f);
+        
+        if(ShouldFill[I]) {
+          
+          // NOTE(Egor): texture boundary multiplication
+          real32 tX = (U * (real32)(Texture->Width - 2));
+          real32 tY = (V * (real32)(Texture->Height - 2));
+        
+#else
+        
+        // NOTE(Egor): XI + I is an actual X coordinate of a pixel
+        v2 PixelP = V2i(XI + I, Y);
+        v2 d = PixelP - Basis.Origin;
+        v2 UV =  V2(Inner(nXAxis, d), Inner(nYAxis, d)); 
         
         ShouldFill[I] =  (UV.u >= 0.0f &&
                           UV.u <= 1.0f &&
                           UV.v >= 0.0f &&
                           UV.v <= 1.0f);
-        
-        if(ShouldFill[I]) {
           
-          // NOTE(Egor): texture boundary multiplication
-          real32 tX = (UV.u * (real32)(Texture->Width - 2));
-          real32 tY = (UV.v * (real32)(Texture->Height - 2));
+          if(ShouldFill[I]) {
+            
+            // NOTE(Egor): texture boundary multiplication
+            real32 tX = (UV.u * (real32)(Texture->Width - 2));
+            real32 tY = (UV.v * (real32)(Texture->Height - 2));
+        
+#endif
+        
+
           
           int32 PixelX = (int32)tX;
           int32 PixelY = (int32)tY;
@@ -824,7 +853,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           
           uint8 *TexelPtr = (((uint8 *)Texture->Memory) +
                              PixelY*Texture->Pitch + PixelX*BITMAP_BYTES_PER_PIXEL);
-          
           uint32 SampleA = *(uint32 *)(TexelPtr);
           uint32 SampleB = *(uint32 *)(TexelPtr + sizeof(uint32));
           uint32 SampleC = *(uint32 *)(TexelPtr + Texture->Pitch);
