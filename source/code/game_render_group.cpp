@@ -733,6 +733,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   v2 nXAxis = InvXAxisLengthSq * Basis.XAxis;
   v2 nYAxis = InvYAxisLengthSq * Basis.YAxis;
   
+  __m128 nXAxisX_4x = _mm_set1_ps(nXAxis.x);
+  __m128 nXAxisY_4x = _mm_set1_ps(nXAxis.y);
+  
+  __m128 nYAxisX_4x = _mm_set1_ps(nYAxis.x);
+  __m128 nYAxisY_4x = _mm_set1_ps(nYAxis.y);
+  
   // NOTE(Egor): color modulation values in SIMD
   __m128 ColorR_4x = _mm_set1_ps(Color.r);
   __m128 ColorG_4x = _mm_set1_ps(Color.g);
@@ -746,6 +752,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 Inv255_4x = _mm_set1_ps(Inv255);
   
   __m128 One255_4x = _mm_set1_ps(255.0f);
+  
+  __m128 OriginX_4x = _mm_set1_ps(Basis.Origin.x);
+  __m128 OriginY_4x = _mm_set1_ps(Basis.Origin.y);
   
 #define M(a, I) ((real32 *)&(a))[I]
   
@@ -784,7 +793,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       __m128 DestB = _mm_set1_ps(0.0f);
       __m128 DestA = _mm_set1_ps(0.0f);
       
-
+      
       
       __m128 BlendedR;
       __m128 BlendedG;
@@ -793,53 +802,45 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       
       bool32 ShouldFill[4];
       
+      if(XI == XMin || XI == XMax ||
+         Y == YMin || Y == YMax) {
+        
+        int a = 3; 
+      }
+      
+      // NOTE(Egor): set_ps put values into reverse order
+      __m128 PixelPX = _mm_set_ps((real32)(XI + 3),
+                                  (real32)(XI + 2),
+                                  (real32)(XI + 1),
+                                  (real32)(XI + 0));
+      __m128 PixelPY = _mm_set1_ps((real32)Y);
+      
+      // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
+      __m128 dX = _mm_sub_ps(PixelPX, OriginX_4x);
+      __m128 dY = _mm_sub_ps(PixelPY, OriginY_4x);
+      
+      // NOTE(Egor)
+      __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, dX), _mm_mul_ps(nXAxisY_4x, dY));
+      __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, dX), _mm_mul_ps(nYAxisY_4x, dY));
+      
       for(int32 I = 0; I < 4; ++I) {
         
+        ShouldFill[I] =  (M(U, I) >= 0.0f &&
+                          M(U, I) <= 1.0f &&
+                          M(V, I) >= 0.0f &&
+                          M(V, I) <= 1.0f);
         
-#if 1
-        real32 PixelPX = (real32)(XI + I);
-        real32 PixelPY = (real32)Y;
-        
-        // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
-        real32 dX = PixelPX - Basis.Origin.x;
-        real32 dY = PixelPY - Basis.Origin.y;
-        
-        // NOTE(Egor)
-        real32 U = nXAxis.x*dX + nXAxis.y*dY;
-        real32 V = nYAxis.x*dX + nYAxis.y*dY;
-        
-        ShouldFill[I] =  (U >= 0.0f &&
-                          U <= 1.0f &&
-                          V >= 0.0f &&
-                          V <= 1.0f);
+        if(!ShouldFill[I]) {
+          
+          int a = 3;
+        }
         
         if(ShouldFill[I]) {
           
           // NOTE(Egor): texture boundary multiplication
-          real32 tX = (U * (real32)(Texture->Width - 2));
-          real32 tY = (V * (real32)(Texture->Height - 2));
-        
-#else
-        
-        // NOTE(Egor): XI + I is an actual X coordinate of a pixel
-        v2 PixelP = V2i(XI + I, Y);
-        v2 d = PixelP - Basis.Origin;
-        v2 UV =  V2(Inner(nXAxis, d), Inner(nYAxis, d)); 
-        
-        ShouldFill[I] =  (UV.u >= 0.0f &&
-                          UV.u <= 1.0f &&
-                          UV.v >= 0.0f &&
-                          UV.v <= 1.0f);
+          real32 tX = (M(U, I) * (real32)(Texture->Width - 2));
+          real32 tY = (M(V, I) * (real32)(Texture->Height - 2));
           
-          if(ShouldFill[I]) {
-            
-            // NOTE(Egor): texture boundary multiplication
-            real32 tX = (UV.u * (real32)(Texture->Width - 2));
-            real32 tY = (UV.v * (real32)(Texture->Height - 2));
-        
-#endif
-        
-
           
           int32 PixelX = (int32)tX;
           int32 PixelY = (int32)tY;
@@ -887,10 +888,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         }
       }
       
-
+      
       // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
 #define mm_square(a) _mm_mul_ps(a, a)
-
+      
       TexelAr = mm_square(_mm_mul_ps(Inv255_4x, TexelAr));
       TexelAg = mm_square(_mm_mul_ps(Inv255_4x, TexelAg));
       TexelAb = mm_square(_mm_mul_ps(Inv255_4x, TexelAb));
@@ -979,7 +980,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       
       for(int32 I = 0; I < 4; ++I) {
         
-        if(ShouldFill[I]) {
+        {
           
           // NOTE(Egor): repack
           *(Pixel + I) = (((uint32)(M(BlendedA, I) + 0.5f) << 24) |
