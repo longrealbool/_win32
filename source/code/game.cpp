@@ -1724,7 +1724,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
   DrawRectangle(DrawBuffer, Diff.XY, V2(10.0f, 10.0f), V4(1.0f, 1.0f, 0.0f, 1.0f));
   #endif
-  
+ 
   
   // NOTE(Egor): Ending the simulation
   EndSim(SimRegion, GameState);

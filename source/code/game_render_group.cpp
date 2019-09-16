@@ -747,6 +747,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   __m128 One = _mm_set1_ps(1.0f);
   __m128 Zero = _mm_set1_ps(0.0f);
+  __m128 OneHalf_4x = _mm_set1_ps(0.5f);
   
   real32 Inv255 = 1.0f/255.0f;
   __m128 Inv255_4x = _mm_set1_ps(Inv255);
@@ -978,20 +979,53 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       BlendedB = _mm_mul_ps(One255_4x, _mm_sqrt_ps(BlendedB));
       BlendedA = _mm_mul_ps(One255_4x, BlendedA);
       
-      for(int32 I = 0; I < 4; ++I) {
-        
-        {
-          
-          // NOTE(Egor): repack
-          *(Pixel + I) = (((uint32)(M(BlendedA, I) + 0.5f) << 24) |
-                          ((uint32)(M(BlendedR, I) + 0.5f) << 16) |
-                          ((uint32)(M(BlendedG, I) + 0.5f) << 8)  |
-                          ((uint32)(M(BlendedB, I) + 0.5f) << 0));
-        }
-      }
+      // TODO(Egor): set the rounding mode
+      __m128i IntA = _mm_cvtps_epi32(BlendedA);
+      __m128i IntR = _mm_cvtps_epi32(BlendedR);
+      __m128i IntG = _mm_cvtps_epi32(BlendedG);
+      __m128i IntB = _mm_cvtps_epi32(BlendedB);
+      
+      
+#if 0 // NOTE(Egor): test
+      uint32 As[] = {0x000000FF, 0x000000FF, 0x000000FF, 0x000000FF, };
+      uint32 Rs[] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, };
+      uint32 Gs[] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, };
+      uint32 Bs[] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, };
+      
+      IntA = *(__m128i *)&As;
+      IntR = *(__m128i *)&Rs;
+      IntG = *(__m128i *)&Gs;
+      IntB = *(__m128i *)&Bs;
+      
+#if 0
+      // NOTE(Egor): interleaving first step
+      __m128i G1A1G0A0 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedA), _mm_castps_si128(BlendedG));
+      __m128i B1R1B0R0 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedR), _mm_castps_si128(BlendedB)); 
+      __m128i G3A3G2A2 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedA), _mm_castps_si128(BlendedG));
+      __m128i B3R3B2R2 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedR), _mm_castps_si128(BlendedB)); 
+      
+      // NOTE(Egor): interleaving second step
+      __m128i A0R0G0B0 = _mm_unpacklo_epi32(G1A1G0A0, B1R1B0R0);
+      __m128i A1R1G1B1 = _mm_unpacklo_epi32(G1A1G0A0, B1R1B0R0);
+      __m128i A2R2G2B2 = _mm_unpacklo_epi32(G3A3G2A2, B3R3B2R2);
+      __m128i A3R3G3B3 = _mm_unpacklo_epi32(G3A3G2A2, B3R3B2R2);
+#endif
+      
+#endif
+      
+      IntA = _mm_slli_epi32(IntA, 24);
+      IntR = _mm_slli_epi32(IntR, 16);
+      IntG = _mm_slli_epi32(IntG, 8);
+      IntB = IntB;
+      
+      __m128i Out = _mm_or_si128(_mm_or_si128(IntR, IntG),
+                                 _mm_or_si128(IntB, IntA));
+
+      
+      _mm_store_si128((__m128i *)Pixel, Out);
+      
       
       Pixel += 4;
-
     }
     
     Row += Buffer->Pitch;
