@@ -826,6 +826,29 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, dX), _mm_mul_ps(nYAxisY_4x, dY));
       
       __m128i OriginalDest = _mm_loadu_si128((__m128i *)Pixel);
+      
+      #if 1
+
+      real32 NU[4] = {0.2f , 0.4f, 0.6f, 1.8f};
+      real32 NV[4] = {0.1f , 0.3f, 0.5f, 1.7f};
+      
+      U = *(__m128 *)&NU;
+      V = *(__m128 *)&NV;
+      
+      #endif 
+      
+      __m128 U1U1U0U0 = _mm_unpacklo_ps(U, U);
+      __m128 V1V1V0V0 = _mm_unpacklo_ps(V, V);
+      
+      __m128 V0U0V0U0 = _mm_unpacklo_ps(U1U1U0U0, V1V1V0V0);
+      __m128 V1U1V1U1 = _mm_unpackhi_ps(U1U1U0U0, V1V1V0V0);
+      
+      __m128 CmpScalars = _mm_set_ps(1.0f, 1.0f, 0.0f, 0.0f);
+      
+      __m128 Result = _mm_cmple_ps(V0U0V0U0, CmpScalars);
+      
+      
+      
       __m128i WriteMask = _mm_set1_epi32(0x0);
       
       uint32 SampleA[4];

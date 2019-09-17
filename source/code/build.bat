@@ -13,7 +13,7 @@ REM PROVIDED AS IS, WITH ABSOLUTELY NO WARRANTY EXPRESSED OR IMPLIED.  ANY USE I
 IF NOT DEFINED LIB (call chcp 437)
 IF NOT DEFINED LIB (IF EXIST "%VC_PATH%" (call "%VC_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64))
 
-set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -O2 -Oi -WX -W4 -wd4456 -wd4201 -wd4100 -wd4189 -wd4505 -DGAME_INTERNAL=1 -DGAME_SLOW=1 -DGAME_WIN32=1 -DNO_ASSETS=0 -FC -Z7
+set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4456 -wd4201 -wd4100 -wd4189 -wd4505 -DGAME_INTERNAL=1 -DGAME_SLOW=1 -DGAME_WIN32=1 -DNO_ASSETS=0 -FC -Z7
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib gdi32.lib winmm.lib
 
 REM TODO - can we just build both with one exe?
