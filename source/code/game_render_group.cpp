@@ -758,6 +758,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 OriginY_4x = _mm_set1_ps(Basis.Origin.y);
   
 #define M(a, I) ((real32 *)&(a))[I]
+#define Mi(a, I) ((uint32 *)&(a))[I]
   
   BEGIN_TIMED_BLOCK(ProcessPixel);
   
@@ -824,6 +825,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, dX), _mm_mul_ps(nXAxisY_4x, dY));
       __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, dX), _mm_mul_ps(nYAxisY_4x, dY));
       
+      __m128i OriginalDest = _mm_loadu_si128((__m128i *)Pixel);
+      __m128i WriteMask = _mm_set1_epi32(0x0);
+      
+      uint32 SampleA[4];
+      
+      
       for(int32 I = 0; I < 4; ++I) {
         
         ShouldFill[I] =  (M(U, I) >= 0.0f &&
@@ -831,17 +838,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                           M(V, I) >= 0.0f &&
                           M(V, I) <= 1.0f);
         
-        if(!ShouldFill[I]) {
-          
-          int a = 3;
-        }
         
         if(ShouldFill[I]) {
           
           // NOTE(Egor): texture boundary multiplication
           real32 tX = (M(U, I) * (real32)(Texture->Width - 2));
           real32 tY = (M(V, I) * (real32)(Texture->Height - 2));
-          
           
           int32 PixelX = (int32)tX;
           int32 PixelY = (int32)tY;
@@ -855,15 +857,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           
           uint8 *TexelPtr = (((uint8 *)Texture->Memory) +
                              PixelY*Texture->Pitch + PixelX*BITMAP_BYTES_PER_PIXEL);
-          uint32 SampleA = *(uint32 *)(TexelPtr);
+          SampleA[I] = *(uint32 *)(TexelPtr);
           uint32 SampleB = *(uint32 *)(TexelPtr + sizeof(uint32));
           uint32 SampleC = *(uint32 *)(TexelPtr + Texture->Pitch);
           uint32 SampleD = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
-          
-          M(TexelAr, I) = (real32)((SampleA >> 16) & 0xFF);
-          M(TexelAg, I) = (real32)((SampleA >> 8) & 0xFF);
-          M(TexelAb, I) = (real32)((SampleA >> 0) & 0xFF);
-          M(TexelAa, I) = (real32)((SampleA >> 24) & 0xFF);
           
           M(TexelBr, I) = (real32)((SampleB >> 16) & 0xFF);
           M(TexelBg, I) = (real32)((SampleB >> 8) & 0xFF);
@@ -886,8 +883,34 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           M(DestG, I) = (real32)((*(Pixel + I) >> 8) & 0xFF);
           M(DestB, I) = (real32)((*(Pixel + I) >> 0) & 0xFF);
           M(DestA, I) = (real32)((*(Pixel + I) >> 24) & 0xFF);
+          
+          Mi(WriteMask, I) = 0xFFFFFFFF;
         }
       }
+      
+      
+      M(TexelAr, 0) = (real32)((SampleA[0] >> 16) & 0xFF);
+      M(TexelAg, 0) = (real32)((SampleA[0] >> 8) & 0xFF);
+      M(TexelAb, 0) = (real32)((SampleA[0] >> 0) & 0xFF);
+      M(TexelAa, 0) = (real32)((SampleA[0] >> 24) & 0xFF);
+      
+      M(TexelAr, 1) = (real32)((SampleA[1] >> 16) & 0xFF);
+      M(TexelAg, 1) = (real32)((SampleA[1] >> 8) & 0xFF);
+      M(TexelAb, 1) = (real32)((SampleA[1] >> 0) & 0xFF);
+      M(TexelAa, 1) = (real32)((SampleA[1] >> 24) & 0xFF);
+      
+      M(TexelAr, 2) = (real32)((SampleA[2] >> 16) & 0xFF);
+      M(TexelAg, 2) = (real32)((SampleA[2] >> 8) & 0xFF);
+      M(TexelAb, 2) = (real32)((SampleA[2] >> 0) & 0xFF);
+      M(TexelAa, 2) = (real32)((SampleA[2] >> 24) & 0xFF);
+      
+      M(TexelAr, 3) = (real32)((SampleA[3] >> 16) & 0xFF);
+      M(TexelAg, 3) = (real32)((SampleA[3] >> 8) & 0xFF);
+      M(TexelAb, 3) = (real32)((SampleA[3] >> 0) & 0xFF);
+      M(TexelAa, 3) = (real32)((SampleA[3] >> 24) & 0xFF);
+      
+      ////
+      
       
       
       // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
@@ -960,7 +983,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       DestB = mm_square(_mm_mul_ps(Inv255_4x, DestB));
       DestA = _mm_mul_ps(Inv255_4x, DestA);
       
-      // NOTE(Egor): alpha channel for composited bitmaps in premultiplied alpha mode
+      // NOTE(Egor): alpha channel for composited bitmaps is in premultiplied alpha mode
       // for case when we create intermediate buffer with two or more bitmaps blend with 
       // each other 
       
@@ -979,7 +1002,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       BlendedB = _mm_mul_ps(One255_4x, _mm_sqrt_ps(BlendedB));
       BlendedA = _mm_mul_ps(One255_4x, BlendedA);
       
-      // TODO(Egor): set the rounding mode
+      // NOTE(Egor): set _cvtps_ (round to nearest)
       __m128i IntA = _mm_cvtps_epi32(BlendedA);
       __m128i IntR = _mm_cvtps_epi32(BlendedR);
       __m128i IntG = _mm_cvtps_epi32(BlendedG);
@@ -1020,10 +1043,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       
       __m128i Out = _mm_or_si128(_mm_or_si128(IntR, IntG),
                                  _mm_or_si128(IntB, IntA));
+      
+      
+      __m128i New = _mm_and_si128(WriteMask, Out);
+      __m128i Old = _mm_andnot_si128(WriteMask, OriginalDest);
+      __m128i MaskedOut = _mm_or_si128(New, Old);
 
-      
-      _mm_store_si128((__m128i *)Pixel, Out);
-      
+      _mm_store_si128((__m128i *)Pixel, MaskedOut);
       
       Pixel += 4;
     }
