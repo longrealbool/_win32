@@ -481,6 +481,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*BITMAP_BYTES_PER_PIXEL;
   
+  BEGIN_TIMED_BLOCK(ProcessPixel);
+  
   for(int32 Y = YMin; Y <= YMax; ++Y) {
     
     uint32 *Pixel = (uint32 *)Row;
@@ -501,8 +503,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
          Edge1 < 0 &&
          Edge2 < 0 &&
          Edge3 < 0) {
-        
-        BEGIN_TIMED_BLOCK(FillPixel);
         
         v2 ScreenSpaceUV = V2((real32)X*InvWidth, FixedCastY);
         
@@ -647,16 +647,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                   ((uint32)(Blended255.g + 0.5f) << 8)  |
                   ((uint32)(Blended255.b + 0.5f) << 0));
         
-        END_TIMED_BLOCK(FillPixel);
       }
       
       Pixel++;
-      END_TIMED_BLOCK(TestPixel);
     }
     
     Row += Buffer->Pitch;
   }
   
+  END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
   END_TIMED_BLOCK(DrawRectangleSlowly);
 }
 
@@ -747,6 +746,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   __m128 One = _mm_set1_ps(1.0f);
   __m128 Zero = _mm_set1_ps(0.0f);
+  __m128 Four = _mm_set1_ps(4.0f);
   __m128 OneHalf_4x = _mm_set1_ps(0.5f);
   __m128i MaskFF = _mm_set1_epi32(0xFF);
   
@@ -761,49 +761,86 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 WidthM2_4x = _mm_set1_ps((real32)(Texture->Width - 2));
   __m128 HeightM2_4x = _mm_set1_ps((real32)(Texture->Height - 2));
   
+  __m128 Add3210_m_OriginX = _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f);
+  Add3210_m_OriginX = _mm_sub_ps(Add3210_m_OriginX, OriginX_4x);
+  
+  __m128 XMin_4x = _mm_set1_ps((real32)XMin);
+  XMin_4x = _mm_add_ps(XMin_4x, Add3210_m_OriginX);
+  
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
+//#define _mm_set_ps
+//#define _mm_set1_ps
   
   BEGIN_TIMED_BLOCK(ProcessPixel);
   
+  // NOTE(Egor): this routine works with _ON_SCREEN_ pixels, and correspond them with
+  // Texels inside Actual Texture that drawn to that part of _SCREEN_
+  
+  // NOTE(Egor): Get quad (Y-OriginY) pixel
+  __m128 PixelPY = _mm_set1_ps((real32)YMin);
+  PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
+  
   for(int32 Y = YMin; Y <= YMax; ++Y) {
+
+    // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
+    // --> we find the vector, that point to a pixel inside a texture basis
+    // NOTE(Egor): Get all 4 Pixels (X-OriginX)+3 (X-OriginX)+2 (X-OriginX)+1 (X-OriginX)+0
+    // NOTE(Egor): Add3210_m_OriginX has baked in OriginX_4x
+    // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
+    __m128 PixelPX = XMin_4x;
+    
+#define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
+    
+#if TEST_PixelPY_x_NXAxisY
+    // NOTE(Egor): only changes between Y - runs
+    __m128 PixelPY_x_NXAxisY = _mm_mul_ps(nXAxisY_4x, PixelPY);
+    __m128 PixelPY_x_NYAxisY = _mm_mul_ps(nYAxisY_4x, PixelPY);
+#endif
     
     uint32 *Pixel = (uint32 *)Row;
     for(int32 XI = XMin; XI <= XMax; XI += 4) {
       
+      // NOTE(Egor): inner product that compute X and Y component of vector
+      // 1. U and V is a normalized coefficients, U = X_component/XAxis_length
+      // 2. nXAxisX is premultiplied to InvXAxis_Length
+      // 3. PixelPY_x_NXAxisY is constant across all X - runs
+#if TEST_PixelPY_x_NXAxisY
+
+      __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, PixelPX), PixelPY_x_NXAxisY);
+      __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, PixelPX), PixelPY_x_NYAxisY);
+#else
       
-      // NOTE(Egor): set_ps put values into reverse order
-      __m128 PixelPX = _mm_set_ps((real32)(XI + 3),
-                                  (real32)(XI + 2),
-                                  (real32)(XI + 1),
-                                  (real32)(XI + 0));
-      __m128 PixelPY = _mm_set1_ps((real32)Y);
+      __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, PixelPX), _mm_mul_ps(nXAxisY_4x, PixelPY));
+      __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, PixelPX), _mm_mul_ps(nYAxisY_4x, PixelPY));
       
-      // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
-      __m128 dX = _mm_sub_ps(PixelPX, OriginX_4x);
-      __m128 dY = _mm_sub_ps(PixelPY, OriginY_4x);
+#endif
       
-      // NOTE(Egor)
-      __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, dX), _mm_mul_ps(nXAxisY_4x, dY));
-      __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, dX), _mm_mul_ps(nYAxisY_4x, dY));
-      
+      // NOTE(Egor): generate write mask that determine if we should write 
+      // New Color Data, if pixels is out of bounds we just masked them out with
+      // Old Color Data (Was Called OriginalDest -- possibly renamed)
       __m128i WriteMask = _mm_castps_si128(_mm_and_ps(_mm_and_ps(_mm_cmple_ps(U, One),
                                                                  _mm_cmpge_ps(U, Zero)),
                                                       _mm_and_ps(_mm_cmple_ps(V, One),
                                                                  _mm_cmpge_ps(V, Zero))));
-      // TODO(Egor): check later
-//      if(_mm_movemask_epi8(WriteMask))
+      // TODO(Egor): check later if it helps
+      //      if(_mm_movemask_epi8(WriteMask))
       {
-      
+        
         __m128i OriginalDest = _mm_loadu_si128((__m128i *)Pixel);
         
+        // NOTE(Egor): clamp U and V to prevent fetching nonexistent texel data
+        // we could have U and V that exceeds 1.0f that can fetch outside of texture
+        // buffer
         U = _mm_min_ps(_mm_max_ps(U, Zero), One);
         V = _mm_min_ps(_mm_max_ps(V, Zero), One);
         
-        // NOTE(Egor): texture boundary multiplication
+        // NOTE(Egor): texture boundary multiplication to determine which pixel 
+        // we need to fetch from texture buffer
         __m128 tX = _mm_mul_ps(U, WidthM2_4x);
         __m128 tY = _mm_mul_ps(V, HeightM2_4x);
         
+        // NOTE(Egor): round with truncation
         __m128i FetchX_4x = _mm_cvttps_epi32(tX);
         __m128i FetchY_4x =_mm_cvttps_epi32(tY);
         
@@ -816,13 +853,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i SampleC;
         __m128i SampleD;
         
+        // NOTE(Egor): fetch 4 texels from texture buffer
         for(int32 I = 0; I < 4; ++I) {
           
           int32 FetchX = Mi(FetchX_4x, I);
           int32 FetchY = Mi(FetchY_4x, I);
           
-          Assert(FetchX >= 0 && FetchX <= (Texture->Width - 1));
-          Assert(FetchY >= 0 && FetchY <= (Texture->Height - 1));
+          // NOTE(Egor): don't need that when we clamp, USE AS NEEDED, DO NOT DELETE
+          //          Assert(FetchX >= 0 && FetchX <= (Texture->Width - 1));
+          //          Assert(FetchY >= 0 && FetchY <= (Texture->Height - 1));
           
           uint8 *TexelPtr = (((uint8 *)Texture->Memory) +
                              FetchY*Texture->Pitch + FetchX*BITMAP_BYTES_PER_PIXEL);
@@ -844,7 +883,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF));
         __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(SampleB, MaskFF));
         
-        
         //////
         __m128 TexelCa = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleC, 24), MaskFF));
         __m128 TexelCr = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleC, 16), MaskFF));
@@ -856,7 +894,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128 TexelDr = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleD, 16), MaskFF));
         __m128 TexelDg = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleD,  8), MaskFF));
         __m128 TexelDb = _mm_cvtepi32_ps(_mm_and_si128(SampleD, MaskFF));
-        
         
         // NOTE(Egor): load destination color
         __m128 DestA = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 24), MaskFF));
@@ -888,6 +925,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         TexelDb = mm_square(_mm_mul_ps(Inv255_4x, TexelDb));
         TexelDa = _mm_mul_ps(Inv255_4x, TexelDa);
         
+        
+        // NOTE(Egor): compute coefficients for for subpixel rendering
         __m128 ifX = _mm_sub_ps(One, fX);
         __m128 ifY = _mm_sub_ps(One, fY);
         __m128 L0 = _mm_mul_ps(ifY, ifX);
@@ -896,6 +935,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128 L3 = _mm_mul_ps(fY, fX);
         
         // NOTE(Egor): subpixel blending
+        // lerp 4 pixel square |A|B| into one pixel with weighted coefficients
+        //                     |C|D| 
+        // fX -> Fractional Part of X Texel from texture
+        // fY -> Fractional Part of Y Textl from texture
         __m128 Texelr = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAr),
                                               _mm_mul_ps(L1, TexelBr)),
                                    _mm_add_ps(_mm_mul_ps(L2, TexelCr),
@@ -915,7 +958,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                                               _mm_mul_ps(L1, TexelBa)),
                                    _mm_add_ps(_mm_mul_ps(L2, TexelCa),
                                               _mm_mul_ps(L3, TexelDa)));
-        
         
         // NOTE(Egor): Modulate by incoming color
         Texelr = _mm_mul_ps(Texelr, ColorR_4x);
@@ -960,34 +1002,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i IntG = _mm_cvtps_epi32(BlendedG);
         __m128i IntB = _mm_cvtps_epi32(BlendedB);
         
-        
-#if 0 // NOTE(Egor): test
-        uint32 As[] = {0x000000FF, 0x000000FF, 0x000000FF, 0x000000FF, };
-        uint32 Rs[] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, };
-        uint32 Gs[] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, };
-        uint32 Bs[] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, };
-        
-        IntA = *(__m128i *)&As;
-        IntR = *(__m128i *)&Rs;
-        IntG = *(__m128i *)&Gs;
-        IntB = *(__m128i *)&Bs;
-        
-#if 0
-        // NOTE(Egor): interleaving first step
-        __m128i G1A1G0A0 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedA), _mm_castps_si128(BlendedG));
-        __m128i B1R1B0R0 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedR), _mm_castps_si128(BlendedB)); 
-        __m128i G3A3G2A2 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedA), _mm_castps_si128(BlendedG));
-        __m128i B3R3B2R2 = _mm_unpacklo_epi32(_mm_castps_si128(BlendedR), _mm_castps_si128(BlendedB)); 
-        
-        // NOTE(Egor): interleaving second step
-        __m128i A0R0G0B0 = _mm_unpacklo_epi32(G1A1G0A0, B1R1B0R0);
-        __m128i A1R1G1B1 = _mm_unpacklo_epi32(G1A1G0A0, B1R1B0R0);
-        __m128i A2R2G2B2 = _mm_unpacklo_epi32(G3A3G2A2, B3R3B2R2);
-        __m128i A3R3G3B3 = _mm_unpacklo_epi32(G3A3G2A2, B3R3B2R2);
-#endif
-        
-#endif
-        
         IntA = _mm_slli_epi32(IntA, 24);
         IntR = _mm_slli_epi32(IntR, 16);
         IntG = _mm_slli_epi32(IntG, 8);
@@ -996,20 +1010,21 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i Out = _mm_or_si128(_mm_or_si128(IntR, IntG),
                                    _mm_or_si128(IntB, IntA));
         
-        
         __m128i New = _mm_and_si128(WriteMask, Out);
         __m128i Old = _mm_andnot_si128(WriteMask, OriginalDest);
         __m128i MaskedOut = _mm_or_si128(New, Old);
         
         _mm_store_si128((__m128i *)Pixel, MaskedOut);
-        
       }
       
+      PixelPX = _mm_add_ps(PixelPX, Four);
       Pixel += 4;
     }
     
     Row += Buffer->Pitch;
+    PixelPY = _mm_add_ps(PixelPY, One);
   }
+  
   END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
   
   END_TIMED_BLOCK(DrawRectangleSlowly);
