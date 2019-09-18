@@ -531,101 +531,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         bilinear_sample TexelSample = BilinearSample(Texture, PixelX, PixelY);
         v4 Texel = SRGBBilinearBlend(TexelSample, fX, fY);
         
-        if(NormalMap) {
-          
-          bilinear_sample NormalSample = BilinearSample(NormalMap, PixelX, PixelY);
-          
-          v4 NormalA  = Unpack4x8(NormalSample.A);
-          v4 NormalB  = Unpack4x8(NormalSample.B);
-          v4 NormalC  = Unpack4x8(NormalSample.C);
-          v4 NormalD  = Unpack4x8(NormalSample.D);
-          
-          v4 Normal = Lerp(Lerp(NormalA, fX, NormalB),
-                           fY,
-                           Lerp(NormalC, fX, NormalD));
-          
-          Normal = UnscaleAndBiasNormal(Normal);
-          
-          Normal.xy = NXAxis*Normal.x + NYAxis*Normal.y;
-          Normal.z *= NZScale;
-          Normal.xyz = Normalize(Normal.xyz);
-          
-          // NOTE(Egor): this vector is pointing straing out of monitor
-          // EyeVector = (0, 0, 1) 
-          // NOTE(Egor): simplified version of <EyeVector, NormalVector>*NormalVecor*2 - EyeVector
-          // TODO(Egor): reconstruct the math, to have The EYE casting EYE vector,
-          // not the positioning vector of EYE
-          
-          v3 BounceDirection = 2.0f*Normal.z*Normal.xyz;
-          BounceDirection.z -= 1.0f;
-          BounceDirection.z = -BounceDirection.z;
-#if 1
-          
-          environment_map *FarMap = 0;
-          real32 Pz = OriginZ + ZDiff;
-          real32 MapZ = 2.0f;          
-          real32 tFarMap = 0.0f;
-          real32 tEnvMap = BounceDirection.y;
-          if(tEnvMap < -0.5f) {
-            
-            FarMap = Bottom;
-            tFarMap = -1.0f - tEnvMap*2.0f;
-          }
-          else if(tEnvMap > 0.5f) {
-            
-            FarMap = Top;
-            tFarMap = tEnvMap*2.0f - 1.0f;
-          }
-          
-          tFarMap *= tFarMap;
-          tFarMap *= tFarMap;
-          
-          v3 LightColor = V3(0, 0, 0); //SampleEnvironmentMap(ScreenSpaceUV, Normal.xYZ, Normal.w, Middle);
-          if(FarMap) {
-            
-            real32 DistanceFromMapInZ = FarMap->Pz - Pz;
-            v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection,
-                                                  Normal.w, FarMap, DistanceFromMapInZ);
-            LightColor = Lerp(LightColor, tFarMap, FarMapColor);
-          }
-          
-          Texel.rgb = Texel.rgb + LightColor*Texel.a;
-          
-#if 0
-          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*BounceDirection;
-          Texel.rgb *= Texel.a;
-#endif
-          
-#else
-          
-          /*real32 IsoLine = -0.9f;
-          
-          if(BounceDirection.y >= IsoLine - 0.05f &&
-             BounceDirection.y <= IsoLine + 0.05f) {
-             
-            Texel.rgb = V3(1, 1, 1); 
-          }
-          else {
-          
-            Texel.rgb = V3(0, 0, 0);
-          }*/
-          
-          /*
-          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*BounceDirection;
-          Texel.r = 0.0f;
-          Texel.b = 0.0f;
-          Texel.a = 1.0f;
-          */
-          
-          /*
-          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.rgb;
-          Texel.a = 1.0f;
-          */
-#endif
-          
-          
-          // NOTE(Egor): end of normal processing
-        }
         // NOTE(Egor): color tinting and external opacity
         Texel = Hadamard(Texel, Color);        
         
@@ -790,7 +695,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
     __m128 PixelPX = XMin_4x;
     
-#define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
+#define TEST_PixelPY_x_NXAxisY 0 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
     
 #if TEST_PixelPY_x_NXAxisY
     // NOTE(Egor): only changes between Y - runs
@@ -1011,10 +916,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                                    _mm_or_si128(IntB, IntA));
         
         __m128i New = _mm_and_si128(WriteMask, Out);
+#if 1        
         __m128i Old = _mm_andnot_si128(WriteMask, OriginalDest);
         __m128i MaskedOut = _mm_or_si128(New, Old);
         
         _mm_store_si128((__m128i *)Pixel, MaskedOut);
+#else 
+        // NOTE(Egor): do not use this EVER
+        _mm_maskmoveu_si128(New, WriteMask, (char *)Pixel);
+#endif
       }
       
       PixelPX = _mm_add_ps(PixelPX, Four);
