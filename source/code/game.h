@@ -110,7 +110,6 @@ struct hero_bitmaps {
   
   loaded_bitmap HeroHead;
   loaded_bitmap HeroCape;
-  loaded_bitmap HeroTorso;
   v2 Align;
 };
 

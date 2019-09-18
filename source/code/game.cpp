@@ -1549,7 +1549,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           }
           
           real32 HeroSizeC = 2.0f;
-          PushBitmap(RenderGroup, &Hero->HeroTorso, V3(0, 0, 0), HeroSizeC*1.4f);
           PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), HeroSizeC*1.4f);
           PushBitmap(RenderGroup, &Hero->HeroCape, V3(0, 0, 0), HeroSizeC*1.4f);
           //PushRect(RenderGroup, V3(0, 0, 0), Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
