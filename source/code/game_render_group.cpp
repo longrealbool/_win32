@@ -674,8 +674,40 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
+  
 //#define _mm_set_ps
 //#define _mm_set1_ps
+  
+#define _mm_add_ps OpCount(_mm_add_ps)
+#define _mm_sub_ps OpCount(_mm_sub_ps)
+#define _mm_mul_ps OpCount(_mm_mul_ps)
+#define _mm_and_ps OpCount(_mm_and_ps)
+#define _mm_and_si128 OpCount(_mm_and_si128)
+#define _mm_or_ps OpCount(_mm_or_ps)
+#define _mm_or_si128 OpCount(_mm_or_si128)
+#define _mm_andnot_si128 OpCount(_mm_andnot_si128)
+#define _mm_castps_si128 OpCount(_mm_castps_si128)
+#define _mm_cvtepi32_ps OpCount(_mm_cvtepi32_ps)
+#define _mm_cvttps_epi32 OpCount(_mm_cvttps_epi32)
+#define _mm_cvtps_epi32 OpCount(_mm_cvtps_epi32)
+#define _mm_cmple_ps OpCount(_mm_cmple_ps)
+#define _mm_cmpge_ps OpCount(_mm_cmpge_ps)
+#define _mm_max_ps OpCount(_mm_max_ps)
+#define _mm_min_ps OpCount(_mm_min_ps)
+#define _mm_slli_epi32 OpCount(_mm_slli_epi32)
+#define _mm_srli_epi32 OpCount(_mm_srli_epi32)
+#define _mm_sqrt_ps OpCount(_mm_sqrt_ps)
+  
+#undef mm_square
+#define mm_square
+  
+  //#define _mm_loadu_si128
+  //#define _mm_store_si128
+  
+
+  
+  
+  
   
   BEGIN_TIMED_BLOCK(ProcessPixel);
   
@@ -775,6 +807,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           Mi(SampleC, I) = *(uint32 *)(TexelPtr + Texture->Pitch);
           Mi(SampleD, I) = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
         }
+        
+
         
         //////
         __m128 TexelAa = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleA, 24), MaskFF));
