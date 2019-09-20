@@ -567,6 +567,30 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 
 #else
 
+struct OpCounts {
+  
+  uint32 mm_add_ps; 
+  uint32 mm_sub_ps; 
+  uint32 mm_mul_ps; 
+  uint32 mm_and_ps; 
+  uint32 mm_and_si128; 
+  uint32 mm_or_ps; 
+  uint32 mm_or_si128; 
+  uint32 mm_andnot_si128;
+  uint32 mm_castps_si128; 
+  uint32 mm_cvtepi32_ps; 
+  uint32 mm_cvttps_epi32;
+  uint32 mm_cvtps_epi32; 
+  uint32 mm_cmple_ps; 
+  uint32 mm_cmpge_ps; 
+  uint32 mm_max_ps; 
+  uint32 mm_min_ps; 
+  uint32 mm_slli_epi32; 
+  uint32 mm_srli_epi32; 
+  uint32 mm_sqrt_ps; 
+};
+
+
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                     loaded_bitmap *Texture, loaded_bitmap *NormalMap,
@@ -674,35 +698,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
+#define mm_square(a) _mm_mul_ps(a, a)
   
-//#define _mm_set_ps
-//#define _mm_set1_ps
-  
-#define _mm_add_ps OpCount(_mm_add_ps)
-#define _mm_sub_ps OpCount(_mm_sub_ps)
-#define _mm_mul_ps OpCount(_mm_mul_ps)
-#define _mm_and_ps OpCount(_mm_and_ps)
-#define _mm_and_si128 OpCount(_mm_and_si128)
-#define _mm_or_ps OpCount(_mm_or_ps)
-#define _mm_or_si128 OpCount(_mm_or_si128)
-#define _mm_andnot_si128 OpCount(_mm_andnot_si128)
-#define _mm_castps_si128 OpCount(_mm_castps_si128)
-#define _mm_cvtepi32_ps OpCount(_mm_cvtepi32_ps)
-#define _mm_cvttps_epi32 OpCount(_mm_cvttps_epi32)
-#define _mm_cvtps_epi32 OpCount(_mm_cvtps_epi32)
-#define _mm_cmple_ps OpCount(_mm_cmple_ps)
-#define _mm_cmpge_ps OpCount(_mm_cmpge_ps)
-#define _mm_max_ps OpCount(_mm_max_ps)
-#define _mm_min_ps OpCount(_mm_min_ps)
-#define _mm_slli_epi32 OpCount(_mm_slli_epi32)
-#define _mm_srli_epi32 OpCount(_mm_srli_epi32)
-#define _mm_sqrt_ps OpCount(_mm_sqrt_ps)
-  
-#undef mm_square
-#define mm_square
-  
-  //#define _mm_loadu_si128
-  //#define _mm_store_si128
+  //#define _mm_set_ps
+  //#define _mm_set1_ps
   
 
   
@@ -737,6 +736,47 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     
     uint32 *Pixel = (uint32 *)Row;
     for(int32 XI = XMin; XI <= XMax; XI += 4) {
+      
+#if 1 // NOTE(Egor): this is for counting operations
+      
+      OpCounts Counts = {};
+      
+#define _mm_add_ps(a, b) ++Counts.mm_add_ps; a; b;
+#define _mm_sub_ps(a, b) ++Counts.mm_sub_ps; a; b;
+#define _mm_mul_ps(a, b) ++Counts.mm_mul_ps; a; b;
+#define _mm_and_ps(a, b) ++Counts.mm_and_ps; a; b;
+#define _mm_and_si128(a, b) ++Counts.mm_and_si128; a; b;
+#define _mm_or_ps(a, b) ++Counts.mm_or_ps; a; b;
+#define _mm_or_si128(a, b) ++Counts.mm_or_si128; a; b;
+#define _mm_andnot_si128(a, b) ++Counts.mm_andnot_si128; a; b;
+#define _mm_castps_si128(a) ++Counts.mm_castps_si128; a; 
+#define _mm_cvtepi32_ps(a) ++Counts.mm_cvtepi32_ps; a; 
+#define _mm_cvttps_epi32(a) ++Counts.mm_cvttps_epi32; a; 
+#define _mm_cvtps_epi32(a) ++Counts.mm_cvtps_epi32; a; 
+#define _mm_cmple_ps(a, b) ++Counts.mm_cmple_ps; a; b;
+#define _mm_cmpge_ps(a, b) ++Counts.mm_cmpge_ps; a; b;
+#define _mm_max_ps(a, b) ++Counts.mm_max_ps; a; b;
+#define _mm_min_ps(a, b) ++Counts.mm_min_ps; a; b;
+#define _mm_slli_epi32(a, b) ++Counts.mm_slli_epi32; a; b;
+#define _mm_srli_epi32(a, b) ++Counts.mm_srli_epi32; a; b;
+#define _mm_sqrt_ps(a) ++Counts.mm_sqrt_ps; a
+      
+#undef mm_square
+#define mm_square(a) ++Counts.mm_mul_ps; a;
+      
+#define __m128 uint32
+#define __m128i uint32
+      
+#define _mm_loadu_si128(a) 0;
+#define _mm_store_si128(a, b) 0;
+      
+#undef _mm_set1_ps
+#define _mm_set1_ps(a) 0
+      
+#define XMin_4x 0;
+      
+#endif
+      
       
       // NOTE(Egor): inner product that compute X and Y component of vector
       // 1. U and V is a normalized coefficients, U = X_component/XAxis_length
@@ -842,7 +882,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         
         // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
-#define mm_square(a) _mm_mul_ps(a, a)
+
         
         TexelAr = mm_square(_mm_mul_ps(Inv255_4x, TexelAr));
         TexelAg = mm_square(_mm_mul_ps(Inv255_4x, TexelAg));
@@ -960,6 +1000,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         _mm_maskmoveu_si128(New, WriteMask, (char *)Pixel);
 #endif
       }
+      
+      #undef _mm_add_ps
       
       PixelPX = _mm_add_ps(PixelPX, Four);
       Pixel += 4;
