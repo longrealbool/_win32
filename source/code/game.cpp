@@ -146,8 +146,14 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         // --to_sRGB--> sRGB (premultiplied)
         
         Texel = SRGB255ToLinear1(Texel);
-        Texel.rgb *= Texel.a;
+        
+        real32 A = Texel.a;
+        
         Texel = Linear1ToSRGB255(Texel);
+        
+        Texel.rgb *= A;
+        
+
         
         // when we will take it back from sRGB space to linear
         // they were already in premultiplied format

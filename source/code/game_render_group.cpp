@@ -699,13 +699,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
 #define mm_square(a) _mm_mul_ps(a, a)
-  
-  //#define _mm_set_ps
-  //#define _mm_set1_ps
-  
 
-  
-  
   
   
   BEGIN_TIMED_BLOCK(ProcessPixel);
@@ -737,7 +731,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     uint32 *Pixel = (uint32 *)Row;
     for(int32 XI = XMin; XI <= XMax; XI += 4) {
       
-#if 1 // NOTE(Egor): this is for counting operations
+#define COUNT_CYCLES 0
+      
+#if COUNT_CYCLES // NOTE(Egor): this is for counting operations
       
       OpCounts Counts = {};
       
@@ -773,9 +769,11 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 #undef _mm_set1_ps
 #define _mm_set1_ps(a) 0
       
-#define XMin_4x 0;
-      
 #endif
+      
+#undef mm_square
+#define mm_square(a) a;
+#define mm_sqrt_ps(a) a;
       
       
       // NOTE(Egor): inner product that compute X and Y component of vector
@@ -783,7 +781,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       // 2. nXAxisX is premultiplied to InvXAxis_Length
       // 3. PixelPY_x_NXAxisY is constant across all X - runs
 #if TEST_PixelPY_x_NXAxisY
-
+      
       __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, PixelPX), PixelPY_x_NXAxisY);
       __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, PixelPX), PixelPY_x_NYAxisY);
 #else
@@ -830,6 +828,16 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i SampleC;
         __m128i SampleD;
         
+#if COUNT_CYCLES
+        
+
+        
+        SampleA = 0;
+        SampleB = 0;
+        SampleC = 0;
+        SampleD = 0;
+#else
+        
         // NOTE(Egor): fetch 4 texels from texture buffer
         for(int32 I = 0; I < 4; ++I) {
           
@@ -847,8 +855,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           Mi(SampleC, I) = *(uint32 *)(TexelPtr + Texture->Pitch);
           Mi(SampleD, I) = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
         }
+#endif
         
-
+        
         
         //////
         __m128 TexelAa = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleA, 24), MaskFF));
@@ -882,7 +891,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         
         // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
-
         
         TexelAr = mm_square(_mm_mul_ps(Inv255_4x, TexelAr));
         TexelAg = mm_square(_mm_mul_ps(Inv255_4x, TexelAg));
@@ -1001,7 +1009,40 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 #endif
       }
       
-      #undef _mm_add_ps
+
+      
+#if COUNT_CYCLES
+      
+      real32 Total = 0.0f;
+#define Sum(a, L) L * (real32)a; Total += L * (real32)a;
+      real32 Third = 1.0f / 3.0f;
+      real32 Half = 1.0f / 2.0f;
+      
+      real32 mm_add_ps = Sum(Counts.mm_add_ps , Half);  
+      real32 mm_sub_ps = Sum(Counts.mm_sub_ps , Half);
+      real32 mm_mul_ps = Sum(Counts.mm_mul_ps , Half);
+      real32 mm_and_ps = Sum(Counts.mm_and_ps , Third); 
+      real32 mm_and_si128 = Sum(Counts.mm_and_si128 , Third);
+      real32 mm_or_ps = Sum(Counts.mm_or_ps , Third); 
+      real32 mm_or_si128 = Sum(Counts.mm_or_si128 , Third);
+      real32 mm_andnot_si128 = Sum(Counts.mm_andnot_si128 , Third);
+      real32 mm_castps_si128 = Sum(Counts.mm_castps_si128 , 0.0f); 
+      real32 mm_cvtepi32_ps = Sum(Counts.mm_cvtepi32_ps , 1.0f); 
+      real32 mm_cvttps_epi32 = Sum(Counts.mm_cvttps_epi32 , 1.0f);
+      real32 mm_cvtps_epi32 = Sum(Counts.mm_cvtps_epi32 , 1.0f); 
+      real32 mm_cmple_ps = Sum(Counts.mm_cmple_ps , Half);
+      real32 mm_cmpge_ps = Sum(Counts.mm_cmpge_ps , Half); 
+      real32 mm_max_ps = Sum(Counts.mm_max_ps , Half); 
+      real32 mm_min_ps = Sum(Counts.mm_min_ps , Half); 
+      real32 mm_slli_epi32 = Sum(Counts.mm_slli_epi32 , 1.0f); 
+      real32 mm_srli_epi32 = Sum(Counts.mm_srli_epi32 , 1.0f); 
+      real32 mm_sqrt_ps = Sum(Counts.mm_sqrt_ps , 3.0f); 
+      
+#undef _mm_add_ps
+#endif
+      
+      
+
       
       PixelPX = _mm_add_ps(PixelPX, Four);
       Pixel += 4;
