@@ -147,11 +147,13 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         
         Texel = SRGB255ToLinear1(Texel);
         
-        real32 A = Texel.a;
+        Texel.rgb *= Texel.a;
         
         Texel = Linear1ToSRGB255(Texel);
         
-        Texel.rgb *= A;
+
+        
+
         
 
         
@@ -933,6 +935,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     GameState->Tree1 = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
     GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//tree.bmp", 30, 30);
+    GameState->Tree = GameState->Tree1;
     
     GameState->Stairwell = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp");
     

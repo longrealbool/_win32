@@ -16,6 +16,8 @@ IF NOT DEFINED LIB (IF EXIST "%VC_PATH%" (call "%VC_PATH%\VC\Auxiliary\Build\vcv
 set CommonCompilerFlags=-MTd -nologo -Gm- -GR- -EHa- -O2 -Oi -WX -W4 -wd4456 -wd4201 -wd4100 -wd4189 -wd4505 -DGAME_INTERNAL=1 -DGAME_SLOW=1 -DGAME_WIN32=1 -DNO_ASSETS=0 -FC -Z7
 set CommonLinkerFlags= -incremental:no -opt:ref user32.lib gdi32.lib winmm.lib
 
+set IncludePaths= -I../iaca-win64/
+
 REM TODO - can we just build both with one exe?
 
 IF NOT EXIST ..\..\build mkdir ..\..\build
@@ -27,7 +29,7 @@ REM cl %CommonCompilerFlags% ..\code\win32_game.cpp /link -subsystem:windows,5.1
 REM 64-bit build /O2 /Oi /fp:fast
 del *.pdb > NUL 2> NUL
 echo WAITING FOR PDB > lock.tmp
-cl %CommonCompilerFlags%  ..\source\code\game.cpp -Fmhgame.map -LD /link -incremental:no -opt:ref -PDB:game_%random%.pdb -EXPORT:GameGetSoundSamples -EXPORT:GameUpdateAndRender
+cl %CommonCompilerFlags% %IncludePaths%  ..\source\code\game.cpp -Fmhgame.map -LD /link -incremental:no -opt:ref -PDB:game_%random%.pdb -EXPORT:GameGetSoundSamples -EXPORT:GameUpdateAndRender
 del lock.tmp
 cl %CommonCompilerFlags% ..\source\code\win32_game.cpp -Fmwin32_game.map /link %CommonLinkerFlags%
 popd

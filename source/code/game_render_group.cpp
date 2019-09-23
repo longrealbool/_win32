@@ -591,6 +591,16 @@ struct OpCounts {
 };
 
 
+#if 1
+#include "iacaMarks.h"
+#else
+
+#define IACA_VC64_START
+#define IACA_VC64_END
+
+#endif
+
+
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                     loaded_bitmap *Texture, loaded_bitmap *NormalMap,
@@ -703,6 +713,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   
   BEGIN_TIMED_BLOCK(ProcessPixel);
+
   
   // NOTE(Egor): this routine works with _ON_SCREEN_ pixels, and correspond them with
   // Texels inside Actual Texture that drawn to that part of _SCREEN_
@@ -720,7 +731,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
     __m128 PixelPX = XMin_4x;
     
-#define TEST_PixelPY_x_NXAxisY 0 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
+#define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
     
 #if TEST_PixelPY_x_NXAxisY
     // NOTE(Egor): only changes between Y - runs
@@ -731,50 +742,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     uint32 *Pixel = (uint32 *)Row;
     for(int32 XI = XMin; XI <= XMax; XI += 4) {
       
-#define COUNT_CYCLES 0
       
-#if COUNT_CYCLES // NOTE(Egor): this is for counting operations
+#if 0 // NOTE(Egor): disable gamma correction
       
-      OpCounts Counts = {};
-      
-#define _mm_add_ps(a, b) ++Counts.mm_add_ps; a; b;
-#define _mm_sub_ps(a, b) ++Counts.mm_sub_ps; a; b;
-#define _mm_mul_ps(a, b) ++Counts.mm_mul_ps; a; b;
-#define _mm_and_ps(a, b) ++Counts.mm_and_ps; a; b;
-#define _mm_and_si128(a, b) ++Counts.mm_and_si128; a; b;
-#define _mm_or_ps(a, b) ++Counts.mm_or_ps; a; b;
-#define _mm_or_si128(a, b) ++Counts.mm_or_si128; a; b;
-#define _mm_andnot_si128(a, b) ++Counts.mm_andnot_si128; a; b;
-#define _mm_castps_si128(a) ++Counts.mm_castps_si128; a; 
-#define _mm_cvtepi32_ps(a) ++Counts.mm_cvtepi32_ps; a; 
-#define _mm_cvttps_epi32(a) ++Counts.mm_cvttps_epi32; a; 
-#define _mm_cvtps_epi32(a) ++Counts.mm_cvtps_epi32; a; 
-#define _mm_cmple_ps(a, b) ++Counts.mm_cmple_ps; a; b;
-#define _mm_cmpge_ps(a, b) ++Counts.mm_cmpge_ps; a; b;
-#define _mm_max_ps(a, b) ++Counts.mm_max_ps; a; b;
-#define _mm_min_ps(a, b) ++Counts.mm_min_ps; a; b;
-#define _mm_slli_epi32(a, b) ++Counts.mm_slli_epi32; a; b;
-#define _mm_srli_epi32(a, b) ++Counts.mm_srli_epi32; a; b;
-#define _mm_sqrt_ps(a) ++Counts.mm_sqrt_ps; a
-      
-#undef mm_square
-#define mm_square(a) ++Counts.mm_mul_ps; a;
-      
-#define __m128 uint32
-#define __m128i uint32
-      
-#define _mm_loadu_si128(a) 0;
-#define _mm_store_si128(a, b) 0;
-      
-#undef _mm_set1_ps
-#define _mm_set1_ps(a) 0
-      
+      //#undef mm_square
+      //#define mm_square(a) a;
+      //#define _mm_sqrt_ps(a) a
 #endif
       
-#undef mm_square
-#define mm_square(a) a;
-#define mm_sqrt_ps(a) a;
-      
+      IACA_VC64_START;
       
       // NOTE(Egor): inner product that compute X and Y component of vector
       // 1. U and V is a normalized coefficients, U = X_component/XAxis_length
@@ -828,15 +804,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i SampleC;
         __m128i SampleD;
         
-#if COUNT_CYCLES
-        
 
-        
-        SampleA = 0;
-        SampleB = 0;
-        SampleC = 0;
-        SampleD = 0;
-#else
         
         // NOTE(Egor): fetch 4 texels from texture buffer
         for(int32 I = 0; I < 4; ++I) {
@@ -855,8 +823,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           Mi(SampleC, I) = *(uint32 *)(TexelPtr + Texture->Pitch);
           Mi(SampleD, I) = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
         }
-#endif
-        
         
         
         //////
@@ -998,51 +964,14 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                                    _mm_or_si128(IntB, IntA));
         
         __m128i New = _mm_and_si128(WriteMask, Out);
-#if 1        
         __m128i Old = _mm_andnot_si128(WriteMask, OriginalDest);
         __m128i MaskedOut = _mm_or_si128(New, Old);
         
         _mm_store_si128((__m128i *)Pixel, MaskedOut);
-#else 
-        // NOTE(Egor): do not use this EVER
-        _mm_maskmoveu_si128(New, WriteMask, (char *)Pixel);
-#endif
+        
+        IACA_VC64_END;
       }
       
-
-      
-#if COUNT_CYCLES
-      
-      real32 Total = 0.0f;
-#define Sum(a, L) L * (real32)a; Total += L * (real32)a;
-      real32 Third = 1.0f / 3.0f;
-      real32 Half = 1.0f / 2.0f;
-      
-      real32 mm_add_ps = Sum(Counts.mm_add_ps , Half);  
-      real32 mm_sub_ps = Sum(Counts.mm_sub_ps , Half);
-      real32 mm_mul_ps = Sum(Counts.mm_mul_ps , Half);
-      real32 mm_and_ps = Sum(Counts.mm_and_ps , Third); 
-      real32 mm_and_si128 = Sum(Counts.mm_and_si128 , Third);
-      real32 mm_or_ps = Sum(Counts.mm_or_ps , Third); 
-      real32 mm_or_si128 = Sum(Counts.mm_or_si128 , Third);
-      real32 mm_andnot_si128 = Sum(Counts.mm_andnot_si128 , Third);
-      real32 mm_castps_si128 = Sum(Counts.mm_castps_si128 , 0.0f); 
-      real32 mm_cvtepi32_ps = Sum(Counts.mm_cvtepi32_ps , 1.0f); 
-      real32 mm_cvttps_epi32 = Sum(Counts.mm_cvttps_epi32 , 1.0f);
-      real32 mm_cvtps_epi32 = Sum(Counts.mm_cvtps_epi32 , 1.0f); 
-      real32 mm_cmple_ps = Sum(Counts.mm_cmple_ps , Half);
-      real32 mm_cmpge_ps = Sum(Counts.mm_cmpge_ps , Half); 
-      real32 mm_max_ps = Sum(Counts.mm_max_ps , Half); 
-      real32 mm_min_ps = Sum(Counts.mm_min_ps , Half); 
-      real32 mm_slli_epi32 = Sum(Counts.mm_slli_epi32 , 1.0f); 
-      real32 mm_srli_epi32 = Sum(Counts.mm_srli_epi32 , 1.0f); 
-      real32 mm_sqrt_ps = Sum(Counts.mm_sqrt_ps , 3.0f); 
-      
-#undef _mm_add_ps
-#endif
-      
-      
-
       
       PixelPX = _mm_add_ps(PixelPX, Four);
       Pixel += 4;
@@ -1052,7 +981,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     PixelPY = _mm_add_ps(PixelPY, One);
   }
   
+
   END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
+  
   
   END_TIMED_BLOCK(DrawRectangleSlowly);
 }
