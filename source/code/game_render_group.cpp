@@ -694,6 +694,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   __m128 One255_4x = _mm_set1_ps(255.0f);
   
+  __m128 Squared255 = _mm_set1_ps(255.0f*255.0f);
+  
   __m128 OriginX_4x = _mm_set1_ps(Basis.Origin.x);
   __m128 OriginY_4x = _mm_set1_ps(Basis.Origin.y);
   
@@ -858,24 +860,24 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
         
-        TexelAr = mm_square(_mm_mul_ps(Inv255_4x, TexelAr));
-        TexelAg = mm_square(_mm_mul_ps(Inv255_4x, TexelAg));
-        TexelAb = mm_square(_mm_mul_ps(Inv255_4x, TexelAb));
+        TexelAr = mm_square(TexelAr);
+        TexelAg = mm_square(TexelAg);
+        TexelAb = mm_square(TexelAb);
         TexelAa = _mm_mul_ps(Inv255_4x, TexelAa);
         
-        TexelBr = mm_square(_mm_mul_ps(Inv255_4x, TexelBr));
-        TexelBg = mm_square(_mm_mul_ps(Inv255_4x, TexelBg));
-        TexelBb = mm_square(_mm_mul_ps(Inv255_4x, TexelBb));
+        TexelBr = mm_square(TexelBr);
+        TexelBg = mm_square(TexelBg);
+        TexelBb = mm_square(TexelBb);
         TexelBa = _mm_mul_ps(Inv255_4x, TexelBa);
         
-        TexelCr = mm_square(_mm_mul_ps(Inv255_4x, TexelCr));
-        TexelCg = mm_square(_mm_mul_ps(Inv255_4x, TexelCg));
-        TexelCb = mm_square(_mm_mul_ps(Inv255_4x, TexelCb));
+        TexelCr = mm_square(TexelCr);
+        TexelCg = mm_square(TexelCg);
+        TexelCb = mm_square(TexelCb);
         TexelCa = _mm_mul_ps(Inv255_4x, TexelCa);
         
-        TexelDr = mm_square(_mm_mul_ps(Inv255_4x, TexelDr));
-        TexelDg = mm_square(_mm_mul_ps(Inv255_4x, TexelDg));
-        TexelDb = mm_square(_mm_mul_ps(Inv255_4x, TexelDb));
+        TexelDr = mm_square(TexelDr);
+        TexelDg = mm_square(TexelDg);
+        TexelDb = mm_square(TexelDb);
         TexelDa = _mm_mul_ps(Inv255_4x, TexelDa);
         
         
@@ -919,15 +921,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         Texela = _mm_mul_ps(Texela, ColorA_4x);
         
         // NOTE(Egor): clamp color to valid range
-        Texelr = _mm_min_ps(_mm_max_ps(Texelr, Zero), One);
-        Texelg = _mm_min_ps(_mm_max_ps(Texelg, Zero), One);
-        Texelb = _mm_min_ps(_mm_max_ps(Texelb, Zero), One);
+        Texelr = _mm_min_ps(_mm_max_ps(Texelr, Zero), Squared255);
+        Texelg = _mm_min_ps(_mm_max_ps(Texelg, Zero), Squared255);
+        Texelb = _mm_min_ps(_mm_max_ps(Texelb, Zero), Squared255);
         
         // NOTE(Egor): convert to linear brightness space
         // Dest = SRGB255ToLinear1(Dest);
-        DestR = mm_square(_mm_mul_ps(Inv255_4x, DestR));
-        DestG = mm_square(_mm_mul_ps(Inv255_4x, DestG));
-        DestB = mm_square(_mm_mul_ps(Inv255_4x, DestB));
+        DestR = mm_square(DestR);
+        DestG = mm_square(DestG);
+        DestB = mm_square(DestB);
         DestA = _mm_mul_ps(Inv255_4x, DestA);
         
         // NOTE(Egor): alpha channel for composited bitmaps is in premultiplied alpha mode
@@ -944,9 +946,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         // NOTE(Egor): convert back to gamma 
         // v4 Blended255 = Linear1ToSRGB255(Blended);
-        BlendedR = _mm_mul_ps(One255_4x, _mm_sqrt_ps(BlendedR));
-        BlendedG = _mm_mul_ps(One255_4x, _mm_sqrt_ps(BlendedG));
-        BlendedB = _mm_mul_ps(One255_4x, _mm_sqrt_ps(BlendedB));
+        BlendedR = _mm_sqrt_ps(BlendedR);
+        BlendedG = _mm_sqrt_ps(BlendedG);
+        BlendedB = _mm_sqrt_ps(BlendedB);
         BlendedA = _mm_mul_ps(One255_4x, BlendedA);
         
         // NOTE(Egor): set _cvtps_ (round to nearest)
