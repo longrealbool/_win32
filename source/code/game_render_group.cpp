@@ -692,7 +692,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 Four = _mm_set1_ps(4.0f);
   __m128 OneHalf_4x = _mm_set1_ps(0.5f);
   __m128i MaskFF = _mm_set1_epi32(0xFF);
-  
+  __m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
 
   __m128 Inv255_4x = _mm_set1_ps(Inv255);
   
@@ -832,10 +832,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         
         //////
-        __m128 TexelAa = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleA, 24), MaskFF));
-        __m128 TexelAr = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleA, 16), MaskFF));
-        __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF));
-        __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(SampleA, MaskFF));
+        __m128 TexelArb = _mm_cvtepi32_ps(_mm_and_si128(SampleA, MaskFF00FF));
+        __m128 TexelAag = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF00FF));
+        
+        TexelArb = _mm_mul_epi16();
+        TexekAag = _mm_mul_epi16();
+        
         
         //////
         __m128 TexelBa = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB, 24), MaskFF));
