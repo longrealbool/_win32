@@ -677,11 +677,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 nYAxisX_4x = _mm_set1_ps(nYAxis.x);
   __m128 nYAxisY_4x = _mm_set1_ps(nYAxis.y);
   
+  real32 Inv255 = 1.0f/255.0f;
+  
   // NOTE(Egor): color modulation values in SIMD
   __m128 ColorR_4x = _mm_set1_ps(Color.r);
   __m128 ColorG_4x = _mm_set1_ps(Color.g);
   __m128 ColorB_4x = _mm_set1_ps(Color.b);
   __m128 ColorA_4x = _mm_set1_ps(Color.a);
+  
+  __m128 ColorA_INV_4x = _mm_set1_ps(Color.a*Inv255);
   
   __m128 One = _mm_set1_ps(1.0f);
   __m128 Zero = _mm_set1_ps(0.0f);
@@ -689,7 +693,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 OneHalf_4x = _mm_set1_ps(0.5f);
   __m128i MaskFF = _mm_set1_epi32(0xFF);
   
-  real32 Inv255 = 1.0f/255.0f;
+
   __m128 Inv255_4x = _mm_set1_ps(Inv255);
   
   __m128 One255_4x = _mm_set1_ps(255.0f);
@@ -863,22 +867,22 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         TexelAr = mm_square(TexelAr);
         TexelAg = mm_square(TexelAg);
         TexelAb = mm_square(TexelAb);
-        TexelAa = _mm_mul_ps(Inv255_4x, TexelAa);
+        TexelAa;
         
         TexelBr = mm_square(TexelBr);
         TexelBg = mm_square(TexelBg);
         TexelBb = mm_square(TexelBb);
-        TexelBa = _mm_mul_ps(Inv255_4x, TexelBa);
+        TexelBa;
         
         TexelCr = mm_square(TexelCr);
         TexelCg = mm_square(TexelCg);
         TexelCb = mm_square(TexelCb);
-        TexelCa = _mm_mul_ps(Inv255_4x, TexelCa);
+        TexelCa;
         
         TexelDr = mm_square(TexelDr);
         TexelDg = mm_square(TexelDg);
         TexelDb = mm_square(TexelDb);
-        TexelDa = _mm_mul_ps(Inv255_4x, TexelDa);
+        TexelDa;
         
         
         // NOTE(Egor): compute coefficients for for subpixel rendering
@@ -918,19 +922,19 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         Texelr = _mm_mul_ps(Texelr, ColorR_4x);
         Texelg = _mm_mul_ps(Texelg, ColorG_4x);
         Texelb = _mm_mul_ps(Texelb, ColorB_4x);
-        Texela = _mm_mul_ps(Texela, ColorA_4x);
+        Texela = _mm_mul_ps(Texela, ColorA_INV_4x);
         
         // NOTE(Egor): clamp color to valid range
         Texelr = _mm_min_ps(_mm_max_ps(Texelr, Zero), Squared255);
         Texelg = _mm_min_ps(_mm_max_ps(Texelg, Zero), Squared255);
         Texelb = _mm_min_ps(_mm_max_ps(Texelb, Zero), Squared255);
         
+        
         // NOTE(Egor): convert to linear brightness space
         // Dest = SRGB255ToLinear1(Dest);
         DestR = mm_square(DestR);
         DestG = mm_square(DestG);
         DestB = mm_square(DestB);
-        DestA = _mm_mul_ps(Inv255_4x, DestA);
         
         // NOTE(Egor): alpha channel for composited bitmaps is in premultiplied alpha mode
         // for case when we create intermediate buffer with two or more bitmaps blend with 
