@@ -838,66 +838,56 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i TexelArb = _mm_and_si128(SampleA, MaskFF00FF);
         __m128i TexelAag = _mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF00FF);
         TexelArb = _mm_mullo_epi16(TexelArb, TexelArb);
-        
-        __m128 TexelAa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelAag, 16));
-        TexelAag = _mm_mullo_epi16(TexelAag, TexelAag);
+        TexelAag = _mm_mullo_epi16(TexelAag, _mm_or_si128(_mm_and_si128(MaskFFFF, TexelAag), Mask10000));
         
         //////
         __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
         __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
         TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
-        
-        __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
-        TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
+        TexelBag = _mm_mullo_epi16(TexelBag, _mm_or_si128(_mm_and_si128(MaskFFFF, TexelBag), Mask10000));
         
         //////
         __m128i TexelCrb = _mm_and_si128(SampleC, MaskFF00FF);
         __m128i TexelCag = _mm_and_si128(_mm_srli_epi32(SampleC,  8), MaskFF00FF);
         TexelCrb = _mm_mullo_epi16(TexelCrb, TexelCrb);
-        
-        __m128 TexelCa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCag, 16));
-        TexelCag = _mm_mullo_epi16(TexelCag, TexelCag);
+        TexelCag = _mm_mullo_epi16(TexelCag, _mm_or_si128(_mm_and_si128(MaskFFFF, TexelCag), Mask10000));
         
         //////
         __m128i TexelDrb = _mm_and_si128(SampleD, MaskFF00FF);
         __m128i TexelDag = _mm_and_si128(_mm_srli_epi32(SampleD,  8), MaskFF00FF);
         TexelDrb = _mm_mullo_epi16(TexelDrb, TexelDrb);
-        
-        __m128 TexelDa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDag, 16));
-        TexelDag = _mm_mullo_epi16(TexelDag, TexelDag);
+        TexelDag = _mm_mullo_epi16(TexelDag, _mm_or_si128(_mm_and_si128(MaskFFFF, TexelDag), Mask10000));
         
         // NOTE(Egor): load destination color
         __m128i Destrb = _mm_and_si128(OriginalDest, MaskFF00FF);
         __m128i Destag = _mm_and_si128(_mm_srli_epi32(OriginalDest,  8), MaskFF00FF);
         Destrb = _mm_mullo_epi16(Destrb, Destrb);
-        
-        __m128 DestA = _mm_cvtepi32_ps(_mm_srli_epi32(Destag, 16));
-        Destag = _mm_mullo_epi16(Destag, Destag);
+        Destag = _mm_mullo_epi16(Destag, _mm_or_si128(_mm_and_si128(MaskFFFF, Destag), Mask10000));
         
         // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
-
+        __m128 TexelAa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelAag, 16));
         __m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));
         __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
         __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
         
-
+        __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
         __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
         __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
         __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
         
-
+        __m128 TexelCa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCag, 16));
         __m128 TexelCr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCrb, 16));
         __m128 TexelCg = _mm_cvtepi32_ps(_mm_and_si128(TexelCag, MaskFFFF));
         __m128 TexelCb = _mm_cvtepi32_ps(_mm_and_si128(TexelCrb, MaskFFFF));
-
-
+        
+        __m128 TexelDa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDag, 16));
         __m128 TexelDr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDrb, 16));
         __m128 TexelDg = _mm_cvtepi32_ps(_mm_and_si128(TexelDag, MaskFFFF));
         __m128 TexelDb = _mm_cvtepi32_ps(_mm_and_si128(TexelDrb, MaskFFFF));
         
         // NOTE(Egor): convert to linear brightness space
         // Dest = SRGB255ToLinear1(Dest);
-
+        __m128 DestA = _mm_cvtepi32_ps(_mm_srli_epi32(Destag, 16));
         __m128 DestR = _mm_cvtepi32_ps(_mm_srli_epi32(Destrb, 16));
         __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(Destag, MaskFFFF));
         __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(Destrb, MaskFFFF));
