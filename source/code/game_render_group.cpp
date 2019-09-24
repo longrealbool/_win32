@@ -691,7 +691,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 Zero = _mm_set1_ps(0.0f);
   __m128 Four = _mm_set1_ps(4.0f);
   __m128 OneHalf_4x = _mm_set1_ps(0.5f);
+  __m128i Mask1FF = _mm_set1_epi32(0x1FF);
+  __m128i Mask10000 = _mm_set1_epi32(0x10000);
   __m128i MaskFF = _mm_set1_epi32(0xFF);
+  __m128i MaskFFFF = _mm_set1_epi32(0xFFFF);
   __m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
 
   __m128 Inv255_4x = _mm_set1_ps(Inv255);
@@ -832,11 +835,11 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         
         //////
-        __m128 TexelArb = _mm_cvtepi32_ps(_mm_and_si128(SampleA, MaskFF00FF));
-        __m128 TexelAag = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF00FF));
+        __m128i TexelArb = _mm_and_si128(SampleA, MaskFF00FF);
+        __m128i TexelAag = _mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF00FF);
         
-        TexelArb = _mm_mul_epi16();
-        TexekAag = _mm_mul_epi16();
+        TexelArb = _mm_mullo_epi16(TexelArb, TexelArb);
+        TexelAag = _mm_mullo_epi16(TexelAag, _mm_or_si128(_mm_and_si128(MaskFFFF, TexelAag), Mask10000));
         
         
         //////
@@ -866,10 +869,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
         
-        TexelAr = mm_square(TexelAr);
-        TexelAg = mm_square(TexelAg);
-        TexelAb = mm_square(TexelAb);
-        TexelAa;
+        __m128 TexelAa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelAag, 16));
+        __m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));
+        __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
+        __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
         
         TexelBr = mm_square(TexelBr);
         TexelBg = mm_square(TexelBg);
