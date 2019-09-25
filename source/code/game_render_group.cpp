@@ -407,165 +407,17 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 }
 
 
-
-#if 0
-
-internal void
-DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
-                    loaded_bitmap *Texture, loaded_bitmap *NormalMap,
-                    environment_map *Top, environment_map *Middle, environment_map *Bottom,
-                    real32 PtM) {
-  
-  BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
-  
-  real32 XAxisLength = Length(Basis.XAxis);
-  real32 YAxisLength = Length(Basis.YAxis);
-  
-  v2 NXAxis = YAxisLength/XAxisLength * Basis.XAxis;
-  v2 NYAxis = XAxisLength/YAxisLength * Basis.YAxis;
-  
-  real32 NZScale = (XAxisLength + YAxisLength)*0.5f;
-  
-  //NOTE(Egor): premultiply color
-  Color.rgb *= Color.a;
-  
-  int32 Width = Buffer->Width - 1;
-  int32 Height = Buffer->Height - 1;
-  real32 InvWidth = 1.0f/(real32)Width;
-  real32 InvHeight = 1.0f/(real32)Height;
-  
-  real32 OriginZ = 0.0f;
-  real32 OriginY = (Basis.Origin + 0.5f*Basis.YAxis + 0.5f*Basis.XAxis).y;
-  real32 FixedCastY = InvHeight*OriginY;
-  
-  int32 YMin = Height;
-  int32 XMin = Width;
-  int32 XMax = 0;
-  int32 YMax = 0;
-  
-  v2 Min = Basis.Origin;
-  v2 Max = Basis.Origin + Basis.XAxis + Basis.YAxis;
-  v2 toAxisX = Min + Basis.XAxis;
-  v2 toAxisY = Min + Basis.YAxis;
-  
-  real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
-  real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
-  
-  
-  v2 P[4] = {Min, Min + Basis.XAxis, Min + Basis.YAxis, Max};
-  
-  for(uint32 Index = 0; Index < ArrayCount(P); ++Index) {
-    
-    v2 *TestP = P + Index;
-    
-    int32 CeilX = CeilReal32ToInt32(TestP->x);
-    int32 FloorX = FloorReal32ToInt32(TestP->x);
-    int32 CeilY = CeilReal32ToInt32(TestP->y);
-    int32 FloorY = FloorReal32ToInt32(TestP->y);
-    
-    if(XMin > FloorX) XMin = FloorX;
-    if(YMin > FloorY) YMin = FloorY;
-    if(XMax < CeilX) XMax = CeilX;
-    if(YMax < CeilY) YMax = CeilY;
-  }
-  
-  if(XMin < 0) XMin = 0;
-  if(YMin < 0) YMin = 0;
-  if(XMax > Width) XMax = Width;
-  if(YMax > Height) YMax = Height;
-  
-  uint32 PixColor = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
-                     (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
-                     (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
-                     (RoundReal32ToUInt32(Color.b * 255.0f) << 0));
-  
-  uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*BITMAP_BYTES_PER_PIXEL;
-  
-  BEGIN_TIMED_BLOCK(ProcessPixel);
-  
-  for(int32 Y = YMin; Y <= YMax; ++Y) {
-    
-    uint32 *Pixel = (uint32 *)Row;
-    for(int32 X = XMin; X <= XMax; ++X) {
-      
-      BEGIN_TIMED_BLOCK(TestPixel);
-      
-      v2 PixelP = V2i(X, Y);
-      v2 d = PixelP - Basis.Origin;
-      
-      
-      real32 Edge0 = Inner(d - Basis.XAxis - Basis.YAxis, Basis.XAxis);
-      real32 Edge1 = Inner(d - Basis.XAxis - Basis.YAxis, Basis.YAxis); 
-      real32 Edge2 = Inner(d, -Basis.XAxis); 
-      real32 Edge3 = Inner(d, -Basis.YAxis); 
-      
-      if(Edge0 < 0 &&
-         Edge1 < 0 &&
-         Edge2 < 0 &&
-         Edge3 < 0) {
-        
-        v2 ScreenSpaceUV = V2((real32)X*InvWidth, FixedCastY);
-        
-        real32 ZDiff = PtM*((real32)Y - OriginY);
-        
-        v2 UV =  V2(InvXAxisLengthSq * Inner(Basis.XAxis,d),
-                    InvYAxisLengthSq * Inner(Basis.YAxis,d));
-        
-        // TODO(Egor): clamp this later
-        //Assert(UV.x >= 0 && UV.x <= 1.0f);
-        //Assert(UV.y >= 0 && UV.y <= 1.0f);
-        
-        real32 tX = (UV.x * (real32)(Texture->Width - 2));
-        real32 tY = (UV.y * (real32)(Texture->Height - 2));
-        
-        int32 PixelX = (int32)tX;
-        int32 PixelY = (int32)tY;
-        
-        // NOTE(Egor): take the fractional part of tX and tY
-        real32 fX = tX - (real32)PixelX;
-        real32 fY = tY - (real32)PixelY;
-        
-        Assert(PixelX >= 0 && PixelX <= (Texture->Width - 1));
-        Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
-        
-        bilinear_sample TexelSample = BilinearSample(Texture, PixelX, PixelY);
-        v4 Texel = SRGBBilinearBlend(TexelSample, fX, fY);
-        
-        // NOTE(Egor): color tinting and external opacity
-        Texel = Hadamard(Texel, Color);        
-        
-        Texel.r = Clamp01(Texel.r);
-        Texel.g = Clamp01(Texel.g);
-        Texel.b = Clamp01(Texel.b);
-        
-        v4 Dest = Unpack4x8(*Pixel);
-        Dest = SRGB255ToLinear1(Dest);
-        // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
-        // for case when we create intermediate buffer with two or more bitmaps blend with 
-        // each other 
-        // (Texel.a + Dest.a - Texel.a*Dest.a))
-        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
-        v4 Blended255 = Linear1ToSRGB255(Blended);
-        
-        *Pixel = (((uint32)(Blended255.a + 0.5f) << 24) |
-                  ((uint32)(Blended255.r + 0.5f) << 16) |
-                  ((uint32)(Blended255.g + 0.5f) << 8)  |
-                  ((uint32)(Blended255.b + 0.5f) << 0));
-        
-      }
-      
-      Pixel++;
-    }
-    
-    Row += Buffer->Pitch;
-  }
-  
-  END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
-  END_TIMED_BLOCK(DrawRectangleSlowly);
-}
-
-
+#if 1 // NOTE(Egor): IACA SWITCH
+#include "iacaMarks.h"
 #else
+
+#define IACA_VC64_START
+#define IACA_VC64_END
+
+#endif
+
+
+
 
 struct OpCounts {
   
@@ -591,21 +443,9 @@ struct OpCounts {
 };
 
 
-#if 1 // NOTE(Egor): IACA SWITCH
-#include "iacaMarks.h"
-#else
-
-#define IACA_VC64_START
-#define IACA_VC64_END
-
-#endif
-
-
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
-                    loaded_bitmap *Texture, loaded_bitmap *NormalMap,
-                    environment_map *Top, environment_map *Middle, environment_map *Bottom,
-                    real32 PtM) {
+                    loaded_bitmap *Texture, real32 PtM) {
   
   BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
   
@@ -696,7 +536,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128i MaskFF = _mm_set1_epi32(0xFF);
   __m128i MaskFFFF = _mm_set1_epi32(0xFFFF);
   __m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
-
+  
   __m128 Inv255_4x = _mm_set1_ps(Inv255);
   
   __m128 One255_4x = _mm_set1_ps(255.0f);
@@ -714,18 +554,19 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   __m128 XMin_4x = _mm_set1_ps((real32)XMin);
   XMin_4x = _mm_add_ps(XMin_4x, Add3210_m_OriginX);
-  
+
   int32 TexturePitch = Texture->Pitch;
+  __m128i TexturePitch_4x = _mm_set1_epi32(TexturePitch);
   void *TextureMemory = Texture->Memory;
   
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
 #define mm_square(a) _mm_mul_ps(a, a)
-
+  
   
   
   BEGIN_TIMED_BLOCK(ProcessPixel);
-
+  
   
   // NOTE(Egor): this routine works with _ON_SCREEN_ pixels, and correspond them with
   // Texels inside Actual Texture that drawn to that part of _SCREEN_
@@ -735,7 +576,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
   
   for(int32 Y = YMin; Y <= YMax; ++Y) {
-
+    
     // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
     // --> we find the vector, that point to a pixel inside a texture basis
     // NOTE(Egor): Get all 4 Pixels (X-OriginX)+3 (X-OriginX)+2 (X-OriginX)+1 (X-OriginX)+0
@@ -743,7 +584,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
     __m128 PixelPX = XMin_4x;
     
-#define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
+#define TEST_PixelPY_x_NXAxisY 0 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
     
 #if TEST_PixelPY_x_NXAxisY
     // NOTE(Egor): only changes between Y - runs
@@ -811,50 +652,46 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128 fX = _mm_sub_ps(tX, _mm_cvtepi32_ps(FetchX_4x));
         __m128 fY = _mm_sub_ps(tY, _mm_cvtepi32_ps(FetchY_4x));
         
+        // NOTE(Egor): fetch 4 texels from texture buffer
+        
+        FetchX_4x = _mm_slli_epi32(FetchX_4x, 2); 
+        FetchY_4x = _mm_mullo_epi32(FetchY_4x, TexturePitch_4x); 
+        FetchX_4x = _mm_add_epi32(FetchX_4x, FetchY_4x); 
+        
+        int32 Fetch0 = Mi(FetchX_4x, 0);
+        int32 Fetch1 = Mi(FetchX_4x, 1);
+        int32 Fetch2 = Mi(FetchX_4x, 2);
+        int32 Fetch3 = Mi(FetchX_4x, 3);
+        
+        uint8 *TexelPtr0 = (((uint8 *)TextureMemory) + Fetch0);
+        uint8 *TexelPtr1 = (((uint8 *)TextureMemory) + Fetch1);
+        uint8 *TexelPtr2 = (((uint8 *)TextureMemory) + Fetch2);
+        uint8 *TexelPtr3 = (((uint8 *)TextureMemory) + Fetch3);
+        
         __m128i SampleA;
         __m128i SampleB;
         __m128i SampleC;
         __m128i SampleD;
         
-        // NOTE(Egor): fetch 4 texels from texture buffer
-        int32 FetchX0 = Mi(FetchX_4x, 0);
-        int32 FetchY0 = Mi(FetchY_4x, 0);
-        int32 FetchX1 = Mi(FetchX_4x, 1);
-        int32 FetchY1 = Mi(FetchY_4x, 1);
-        int32 FetchX2 = Mi(FetchX_4x, 2);
-        int32 FetchY2 = Mi(FetchY_4x, 2);
-        int32 FetchX3 = Mi(FetchX_4x, 3);
-        int32 FetchY3 = Mi(FetchY_4x, 3);
+        SampleA = _mm_setr_epi32(*(uint32 *)(TexelPtr0), 
+                                 *(uint32 *)(TexelPtr1),
+                                 *(uint32 *)(TexelPtr2),
+                                 *(uint32 *)(TexelPtr3));
         
-        uint8 *TexelPtr0 = (((uint8 *)TextureMemory) +
-                           FetchY0*TexturePitch + FetchX0*BITMAP_BYTES_PER_PIXEL);
-        uint8 *TexelPtr1 = (((uint8 *)TextureMemory) +
-                           FetchY1*TexturePitch + FetchX1*BITMAP_BYTES_PER_PIXEL);
-        uint8 *TexelPtr2 = (((uint8 *)TextureMemory) +
-                           FetchY2*TexturePitch + FetchX2*BITMAP_BYTES_PER_PIXEL);
-        uint8 *TexelPtr3 = (((uint8 *)TextureMemory) +
-                           FetchY3*TexturePitch + FetchX3*BITMAP_BYTES_PER_PIXEL);
+        SampleB = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + sizeof(uint32)),
+                                 *(uint32 *)(TexelPtr1 + sizeof(uint32)),
+                                 *(uint32 *)(TexelPtr2 + sizeof(uint32)),
+                                 *(uint32 *)(TexelPtr3 + sizeof(uint32)));
         
-        Mi(SampleA, 0) = *(uint32 *)(TexelPtr0);
-        Mi(SampleB, 0) = *(uint32 *)(TexelPtr0 + sizeof(uint32));
-        Mi(SampleC, 0) = *(uint32 *)(TexelPtr0 + TexturePitch);
-        Mi(SampleD, 0) = *(uint32 *)(TexelPtr0 + TexturePitch + sizeof(uint32));
+        SampleC = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + TexturePitch),
+                                 *(uint32 *)(TexelPtr1 + TexturePitch),
+                                 *(uint32 *)(TexelPtr2 + TexturePitch),
+                                 *(uint32 *)(TexelPtr3 + TexturePitch));
         
-        Mi(SampleA, 1) = *(uint32 *)(TexelPtr1);
-        Mi(SampleB, 1) = *(uint32 *)(TexelPtr1 + sizeof(uint32));
-        Mi(SampleC, 1) = *(uint32 *)(TexelPtr1 + TexturePitch);
-        Mi(SampleD, 1) = *(uint32 *)(TexelPtr1 + TexturePitch + sizeof(uint32));
-        
-        Mi(SampleA, 2) = *(uint32 *)(TexelPtr2);
-        Mi(SampleB, 2) = *(uint32 *)(TexelPtr2 + sizeof(uint32));
-        Mi(SampleC, 2) = *(uint32 *)(TexelPtr2 + TexturePitch);
-        Mi(SampleD, 2) = *(uint32 *)(TexelPtr2 + TexturePitch + sizeof(uint32));
-        
-        Mi(SampleA, 3) = *(uint32 *)(TexelPtr3);
-        Mi(SampleB, 3) = *(uint32 *)(TexelPtr3 + sizeof(uint32));
-        Mi(SampleC, 3) = *(uint32 *)(TexelPtr3 + TexturePitch);
-        Mi(SampleD, 3) = *(uint32 *)(TexelPtr3 + TexturePitch + sizeof(uint32));
-        
+        SampleD = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + TexturePitch + sizeof(uint32)),
+                                 *(uint32 *)(TexelPtr1 + TexturePitch + sizeof(uint32)),
+                                 *(uint32 *)(TexelPtr2 + TexturePitch + sizeof(uint32)),
+                                 *(uint32 *)(TexelPtr3 + TexturePitch + sizeof(uint32)));
         
         //////
         __m128i TexelArb = _mm_and_si128(SampleA, MaskFF00FF);
@@ -888,6 +725,38 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128 TexelDa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDag, 16));
         TexelDag = _mm_mullo_epi16(TexelDag, TexelDag);
         
+
+        
+        // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
+        __m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));
+        __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
+        __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
+        
+        __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
+        __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
+        __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
+        
+        __m128 TexelCr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCrb, 16));
+        __m128 TexelCg = _mm_cvtepi32_ps(_mm_and_si128(TexelCag, MaskFFFF));
+        __m128 TexelCb = _mm_cvtepi32_ps(_mm_and_si128(TexelCrb, MaskFFFF));
+        
+        __m128 TexelDr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDrb, 16));
+        __m128 TexelDg = _mm_cvtepi32_ps(_mm_and_si128(TexelDag, MaskFFFF));
+        __m128 TexelDb = _mm_cvtepi32_ps(_mm_and_si128(TexelDrb, MaskFFFF));
+        
+        // NOTE(Egor): convert to linear brightness space
+        // Dest = SRGB255ToLinear1(Dest);
+        
+#if 0        
+        __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(OriginalDest, MaskFF));
+        __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 8), MaskFF));
+        __m128 DestR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 16), MaskFF));
+        __m128 DestA = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 24), MaskFF));
+        DestR = mm_square(DestR);
+        DestG = mm_square(DestG);
+        DestB = mm_square(DestB);
+        
+#else
         // NOTE(Egor): load destination color
         __m128i Destrb = _mm_and_si128(OriginalDest, MaskFF00FF);
         __m128i Destag = _mm_and_si128(_mm_srli_epi32(OriginalDest,  8), MaskFF00FF);
@@ -896,33 +765,11 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128 DestA = _mm_cvtepi32_ps(_mm_srli_epi32(Destag, 16));
         Destag = _mm_mullo_epi16(Destag, Destag);
         
-        // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
-
-        __m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));
-        __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
-        __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
-        
-
-        __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
-        __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
-        __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
-        
-
-        __m128 TexelCr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCrb, 16));
-        __m128 TexelCg = _mm_cvtepi32_ps(_mm_and_si128(TexelCag, MaskFFFF));
-        __m128 TexelCb = _mm_cvtepi32_ps(_mm_and_si128(TexelCrb, MaskFFFF));
-
-
-        __m128 TexelDr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDrb, 16));
-        __m128 TexelDg = _mm_cvtepi32_ps(_mm_and_si128(TexelDag, MaskFFFF));
-        __m128 TexelDb = _mm_cvtepi32_ps(_mm_and_si128(TexelDrb, MaskFFFF));
-        
-        // NOTE(Egor): convert to linear brightness space
-        // Dest = SRGB255ToLinear1(Dest);
-
         __m128 DestR = _mm_cvtepi32_ps(_mm_srli_epi32(Destrb, 16));
         __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(Destag, MaskFFFF));
         __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(Destrb, MaskFFFF));
+        
+#endif
         
         // NOTE(Egor): compute coefficients for for subpixel rendering
         __m128 ifX = _mm_sub_ps(One, fX);
@@ -968,9 +815,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         Texelg = _mm_min_ps(_mm_max_ps(Texelg, Zero), Squared255);
         Texelb = _mm_min_ps(_mm_max_ps(Texelb, Zero), Squared255);
         
-        
-
-        
         // NOTE(Egor): alpha channel for composited bitmaps is in premultiplied alpha mode
         // for case when we create intermediate buffer with two or more bitmaps blend with 
         // each other 
@@ -988,7 +832,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         BlendedR = _mm_mul_ps(BlendedR, _mm_rsqrt_ps(BlendedR));
         BlendedG = _mm_mul_ps(BlendedG, _mm_rsqrt_ps(BlendedG));
         BlendedB = _mm_mul_ps(BlendedB, _mm_rsqrt_ps(BlendedB));
-        BlendedA = _mm_mul_ps(One255_4x, BlendedA);
+        BlendedA = BlendedA;
         
         // NOTE(Egor): set _cvtps_ (round to nearest)
         __m128i IntA = _mm_cvtps_epi32(BlendedA);
@@ -1022,14 +866,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     PixelPY = _mm_add_ps(PixelPY, One);
   }
   
-
+  
   END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
   
   
   END_TIMED_BLOCK(DrawRectangleSlowly);
 }
 
-#endif
 
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
@@ -1080,8 +923,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         Basis.XAxis *= BasisP.Scale*(real32)Entry->Size.x;
         Basis.YAxis *= BasisP.Scale*(real32)Entry->Size.y;
         
-        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, 
-                            0, 0, 0, 0, PtM);
+        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM);
 #endif
         
       } break;
@@ -1122,8 +964,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         
 #if 1
         DrawRectangleSlowly(Output, V2Basis, Entry->Color,
-                            Entry->Texture, Entry->NormalMap,
-                            Entry->Top, Entry->Middle, Entry->Bottom,
+                            Entry->Texture,
                             PtM);
 #endif
         

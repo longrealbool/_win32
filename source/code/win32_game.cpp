@@ -1036,7 +1036,14 @@ HandleDebugCycleCounters(game_memory *Memory) {
   
 #if GAME_INTERNAL  
   
-  OutputDebugStringA("DebugCycleCount \r\n");
+  local_persist real64 Summ = 0;
+  local_persist uint32 NumberOfCounted = 0;
+  uint32 NumberOfAverage = 300;
+  
+  
+  
+  
+//  OutputDebugStringA("DebugCycleCount \r\n");
   for(uint32 CounterIndex = 0;
       CounterIndex < ArrayCount(Memory->Counters);
       ++CounterIndex) {
@@ -1045,7 +1052,8 @@ HandleDebugCycleCounters(game_memory *Memory) {
     debug_cycle_counter *Counter = Memory->Counters + CounterIndex;
     
     if(Counter->HitCount) {
-      
+
+      #if 0
       char TextBuffer[256];
       _snprintf_s(TextBuffer, sizeof(TextBuffer),
                   "  %d: (%dh) %I64uc %I64uc/h \n", 
@@ -1055,6 +1063,27 @@ HandleDebugCycleCounters(game_memory *Memory) {
                   Counter->CycleCount/Counter->HitCount);
       
       OutputDebugStringA(TextBuffer);
+      #endif
+      
+      if(CounterIndex == DebugCycleCounter_ProcessPixel) {
+        Summ +=  (real32)Counter->CycleCount;
+        NumberOfCounted++;
+      }
+      
+      if(NumberOfCounted > (NumberOfAverage - 1)) {
+        
+        char TextBuffer[256];
+        _snprintf_s(TextBuffer, sizeof(TextBuffer),
+                    "  Average: %F64uc/h \n",
+                    Summ/(real32)NumberOfCounted);
+        
+        NumberOfCounted = 0;
+        Summ = 0;
+        
+        OutputDebugStringA(TextBuffer);
+      }
+                    
+      
     }
     else {
       
