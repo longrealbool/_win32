@@ -591,7 +591,7 @@ struct OpCounts {
 };
 
 
-#if 1
+#if 1 // NOTE(Egor): IACA SWITCH
 #include "iacaMarks.h"
 #else
 
@@ -715,6 +715,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 XMin_4x = _mm_set1_ps((real32)XMin);
   XMin_4x = _mm_add_ps(XMin_4x, Add3210_m_OriginX);
   
+  int32 TexturePitch = Texture->Pitch;
+  void *TextureMemory = Texture->Memory;
+  
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
 #define mm_square(a) _mm_mul_ps(a, a)
@@ -813,25 +816,44 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i SampleC;
         __m128i SampleD;
         
-
-        
         // NOTE(Egor): fetch 4 texels from texture buffer
-        for(int32 I = 0; I < 4; ++I) {
-          
-          int32 FetchX = Mi(FetchX_4x, I);
-          int32 FetchY = Mi(FetchY_4x, I);
-          
-          // NOTE(Egor): don't need that when we clamp, USE AS NEEDED, DO NOT DELETE
-          //          Assert(FetchX >= 0 && FetchX <= (Texture->Width - 1));
-          //          Assert(FetchY >= 0 && FetchY <= (Texture->Height - 1));
-          
-          uint8 *TexelPtr = (((uint8 *)Texture->Memory) +
-                             FetchY*Texture->Pitch + FetchX*BITMAP_BYTES_PER_PIXEL);
-          Mi(SampleA, I) = *(uint32 *)(TexelPtr);
-          Mi(SampleB, I) = *(uint32 *)(TexelPtr + sizeof(uint32));
-          Mi(SampleC, I) = *(uint32 *)(TexelPtr + Texture->Pitch);
-          Mi(SampleD, I) = *(uint32 *)(TexelPtr + Texture->Pitch + sizeof(uint32));
-        }
+        int32 FetchX0 = Mi(FetchX_4x, 0);
+        int32 FetchY0 = Mi(FetchY_4x, 0);
+        int32 FetchX1 = Mi(FetchX_4x, 1);
+        int32 FetchY1 = Mi(FetchY_4x, 1);
+        int32 FetchX2 = Mi(FetchX_4x, 2);
+        int32 FetchY2 = Mi(FetchY_4x, 2);
+        int32 FetchX3 = Mi(FetchX_4x, 3);
+        int32 FetchY3 = Mi(FetchY_4x, 3);
+        
+        uint8 *TexelPtr0 = (((uint8 *)TextureMemory) +
+                           FetchY0*TexturePitch + FetchX0*BITMAP_BYTES_PER_PIXEL);
+        uint8 *TexelPtr1 = (((uint8 *)TextureMemory) +
+                           FetchY1*TexturePitch + FetchX1*BITMAP_BYTES_PER_PIXEL);
+        uint8 *TexelPtr2 = (((uint8 *)TextureMemory) +
+                           FetchY2*TexturePitch + FetchX2*BITMAP_BYTES_PER_PIXEL);
+        uint8 *TexelPtr3 = (((uint8 *)TextureMemory) +
+                           FetchY3*TexturePitch + FetchX3*BITMAP_BYTES_PER_PIXEL);
+        
+        Mi(SampleA, 0) = *(uint32 *)(TexelPtr0);
+        Mi(SampleB, 0) = *(uint32 *)(TexelPtr0 + sizeof(uint32));
+        Mi(SampleC, 0) = *(uint32 *)(TexelPtr0 + TexturePitch);
+        Mi(SampleD, 0) = *(uint32 *)(TexelPtr0 + TexturePitch + sizeof(uint32));
+        
+        Mi(SampleA, 1) = *(uint32 *)(TexelPtr1);
+        Mi(SampleB, 1) = *(uint32 *)(TexelPtr1 + sizeof(uint32));
+        Mi(SampleC, 1) = *(uint32 *)(TexelPtr1 + TexturePitch);
+        Mi(SampleD, 1) = *(uint32 *)(TexelPtr1 + TexturePitch + sizeof(uint32));
+        
+        Mi(SampleA, 2) = *(uint32 *)(TexelPtr2);
+        Mi(SampleB, 2) = *(uint32 *)(TexelPtr2 + sizeof(uint32));
+        Mi(SampleC, 2) = *(uint32 *)(TexelPtr2 + TexturePitch);
+        Mi(SampleD, 2) = *(uint32 *)(TexelPtr2 + TexturePitch + sizeof(uint32));
+        
+        Mi(SampleA, 3) = *(uint32 *)(TexelPtr3);
+        Mi(SampleB, 3) = *(uint32 *)(TexelPtr3 + sizeof(uint32));
+        Mi(SampleC, 3) = *(uint32 *)(TexelPtr3 + TexturePitch);
+        Mi(SampleD, 3) = *(uint32 *)(TexelPtr3 + TexturePitch + sizeof(uint32));
         
         
         //////
@@ -963,9 +985,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         // NOTE(Egor): convert back to gamma 
         // v4 Blended255 = Linear1ToSRGB255(Blended);
-        BlendedR = _mm_sqrt_ps(BlendedR);
-        BlendedG = _mm_sqrt_ps(BlendedG);
-        BlendedB = _mm_sqrt_ps(BlendedB);
+        BlendedR = _mm_mul_ps(BlendedR, _mm_rsqrt_ps(BlendedR));
+        BlendedG = _mm_mul_ps(BlendedG, _mm_rsqrt_ps(BlendedG));
+        BlendedB = _mm_mul_ps(BlendedB, _mm_rsqrt_ps(BlendedB));
         BlendedA = _mm_mul_ps(One255_4x, BlendedA);
         
         // NOTE(Egor): set _cvtps_ (round to nearest)
