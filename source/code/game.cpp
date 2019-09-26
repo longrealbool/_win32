@@ -1340,7 +1340,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
 #if 1
   
-  Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 0.0f));
+  Clear(RenderGroup, V4(0.25f, 0.00f, 0.25f, 0.0f));
   
 #else
   

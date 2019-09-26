@@ -417,35 +417,9 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 #endif
 
 
-
-
-struct OpCounts {
-  
-  uint32 mm_add_ps; 
-  uint32 mm_sub_ps; 
-  uint32 mm_mul_ps; 
-  uint32 mm_and_ps; 
-  uint32 mm_and_si128; 
-  uint32 mm_or_ps; 
-  uint32 mm_or_si128; 
-  uint32 mm_andnot_si128;
-  uint32 mm_castps_si128; 
-  uint32 mm_cvtepi32_ps; 
-  uint32 mm_cvttps_epi32;
-  uint32 mm_cvtps_epi32; 
-  uint32 mm_cmple_ps; 
-  uint32 mm_cmpge_ps; 
-  uint32 mm_max_ps; 
-  uint32 mm_min_ps; 
-  uint32 mm_slli_epi32; 
-  uint32 mm_srli_epi32; 
-  uint32 mm_sqrt_ps; 
-};
-
-
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
-                    loaded_bitmap *Texture, real32 PtM) {
+                    loaded_bitmap *Texture, real32 PtM, bool32 Odd) {
   
   BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
   
@@ -462,7 +436,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   // NOTE(Egor): Clip buffers to not overwrite on the next line
   int32 Width = Buffer->Width - 1 - 3;
-  int32 Height = Buffer->Height - 1 - 3;
+  int32 Height = Buffer->Height - 1;
   real32 InvWidth = 1.0f/(real32)Width;
   real32 InvHeight = 1.0f/(real32)Height;
   
@@ -506,6 +480,16 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   if(XMax > Width) XMax = Width;
   if(YMax > Height) YMax = Height;
   
+  // NOTE(Egor): interleaved alternating scanning lines
+  if(Odd && (YMin % 2 == 0)) {
+    
+    YMin += 1;
+  }
+  if(!Odd && (YMin % 2 != 0)) {
+    
+    YMin += 1;
+  }
+  
   uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*BITMAP_BYTES_PER_PIXEL;
   
   v2 nXAxis = InvXAxisLengthSq * Basis.XAxis;
@@ -528,18 +512,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 ColorA_INV_4x = _mm_set1_ps(Color.a*Inv255);
   
   __m128 One = _mm_set1_ps(1.0f);
+  __m128 Two = _mm_set1_ps(2.0f);
   __m128 Zero = _mm_set1_ps(0.0f);
   __m128 Four = _mm_set1_ps(4.0f);
-  __m128 OneHalf_4x = _mm_set1_ps(0.5f);
-  __m128i Mask1FF = _mm_set1_epi32(0x1FF);
-  __m128i Mask10000 = _mm_set1_epi32(0x10000);
   __m128i MaskFF = _mm_set1_epi32(0xFF);
   __m128i MaskFFFF = _mm_set1_epi32(0xFFFF);
   __m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
-  
-  __m128 Inv255_4x = _mm_set1_ps(Inv255);
-  
-  __m128 One255_4x = _mm_set1_ps(255.0f);
   
   __m128 Squared255 = _mm_set1_ps(255.0f*255.0f);
   
@@ -564,7 +542,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 #define mm_square(a) _mm_mul_ps(a, a)
   
   
-  
   BEGIN_TIMED_BLOCK(ProcessPixel);
   
   
@@ -575,7 +552,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 PixelPY = _mm_set1_ps((real32)YMin);
   PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
   
-  for(int32 Y = YMin; Y <= YMax; ++Y) {
+  uint32 RowAdvance = Buffer->Pitch*2;
+  
+  for(int32 Y = YMin; Y <= YMax; Y += 2) {
     
     // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
     // --> we find the vector, that point to a pixel inside a texture basis
@@ -584,7 +563,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
     __m128 PixelPX = XMin_4x;
     
-#define TEST_PixelPY_x_NXAxisY 0 // NOTE(Egor): looks like it's faster ¯\_(-_-)_/¯ 
+#define TEST_PixelPY_x_NXAxisY 0 // NOTE(Egor): looks like disabled it's faster ¯\_(-_-)_/¯ 
     
 #if TEST_PixelPY_x_NXAxisY
     // NOTE(Egor): only changes between Y - runs
@@ -697,7 +676,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i TexelArb = _mm_and_si128(SampleA, MaskFF00FF);
         __m128i TexelAag = _mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF00FF);
         TexelArb = _mm_mullo_epi16(TexelArb, TexelArb);
-        
         __m128 TexelAa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelAag, 16));
         TexelAag = _mm_mullo_epi16(TexelAag, TexelAag);
         
@@ -705,7 +683,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
         __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
         TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
-        
         __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
         TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
         
@@ -713,7 +690,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i TexelCrb = _mm_and_si128(SampleC, MaskFF00FF);
         __m128i TexelCag = _mm_and_si128(_mm_srli_epi32(SampleC,  8), MaskFF00FF);
         TexelCrb = _mm_mullo_epi16(TexelCrb, TexelCrb);
-        
         __m128 TexelCa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCag, 16));
         TexelCag = _mm_mullo_epi16(TexelCag, TexelCag);
         
@@ -721,11 +697,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i TexelDrb = _mm_and_si128(SampleD, MaskFF00FF);
         __m128i TexelDag = _mm_and_si128(_mm_srli_epi32(SampleD,  8), MaskFF00FF);
         TexelDrb = _mm_mullo_epi16(TexelDrb, TexelDrb);
-        
         __m128 TexelDa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDag, 16));
         TexelDag = _mm_mullo_epi16(TexelDag, TexelDag);
-        
-
         
         // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
         __m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));
@@ -761,7 +734,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i Destrb = _mm_and_si128(OriginalDest, MaskFF00FF);
         __m128i Destag = _mm_and_si128(_mm_srli_epi32(OriginalDest,  8), MaskFF00FF);
         Destrb = _mm_mullo_epi16(Destrb, Destrb);
-        
         __m128 DestA = _mm_cvtepi32_ps(_mm_srli_epi32(Destag, 16));
         Destag = _mm_mullo_epi16(Destag, Destag);
         
@@ -857,18 +829,16 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         IACA_VC64_END;
       }
       
-      
       PixelPX = _mm_add_ps(PixelPX, Four);
       Pixel += 4;
     }
     
-    Row += Buffer->Pitch;
-    PixelPY = _mm_add_ps(PixelPY, One);
+    // NOTE(Egor): alternating lines 
+    Row += RowAdvance;
+    PixelPY = _mm_add_ps(PixelPY, Two);
   }
   
-  
   END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
-  
   
   END_TIMED_BLOCK(DrawRectangleSlowly);
 }
@@ -923,7 +893,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         Basis.XAxis *= BasisP.Scale*(real32)Entry->Size.x;
         Basis.YAxis *= BasisP.Scale*(real32)Entry->Size.y;
         
-        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM);
+        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM, false);
 #endif
         
       } break;
@@ -965,7 +935,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
 #if 1
         DrawRectangleSlowly(Output, V2Basis, Entry->Color,
                             Entry->Texture,
-                            PtM);
+                            PtM, false);
 #endif
         
 #if 0
