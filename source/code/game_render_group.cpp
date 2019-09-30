@@ -419,7 +419,7 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
-                    loaded_bitmap *Texture, real32 PtM, bool32 Odd) {
+                    loaded_bitmap *Texture, real32 PtM, bool32 Even) {
   
   BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
   
@@ -475,17 +475,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     if(YMax < CeilY) YMax = CeilY;
   }
   
-  if(XMin < 0) XMin = 0;
-  if(YMin < 0) YMin = 0;
-  if(XMax > Width) XMax = Width;
-  if(YMax > Height) YMax = Height;
+  rectangle2i ClipRect = {128, 128, 256, 256};
+
+  if(XMin < ClipRect.XMin) XMin = ClipRect.XMin;
+  if(YMin < ClipRect.YMin) YMin = ClipRect.YMin;
+  if(XMax > ClipRect.XMax) XMax = ClipRect.XMax;
+  if(YMax > ClipRect.YMax) YMax = ClipRect.YMax;
   
   // NOTE(Egor): interleaved alternating scanning lines
-  if(Odd && (YMin % 2 == 0)) {
-    
-    YMin += 1;
-  }
-  if(!Odd && (YMin % 2 != 0)) {
+  if(!Even == (YMin & 1)) {
     
     YMin += 1;
   }
@@ -893,6 +891,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         Basis.XAxis *= BasisP.Scale*(real32)Entry->Size.x;
         Basis.YAxis *= BasisP.Scale*(real32)Entry->Size.y;
         
+        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM, true);
         DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM, false);
 #endif
         

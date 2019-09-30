@@ -137,6 +137,7 @@ struct rectangle2 {
   v2 Max;
 };
 
+
 struct rectangle3 {
   
   v3 Min;
@@ -860,6 +861,35 @@ GetCenter(rectangle3 Rect) {
   v3 Result = 0.5f*(Rect.Min + Rect.Max);
   return Result;
 }
+
+
+/////
+////
+////
+struct rectangle2i {
+  
+  int32 XMin, YMin;
+  int32 XMax, YMax;
+};
+
+rectangle2i Intersect(rectangle2i A, rectangle2i B) {
+  
+  
+//  if(XMin < ClipRect.XMin) XMin = ClipRect.XMin;
+//  if(YMin < ClipRect.YMin) YMin = ClipRect.YMin;
+//  if(XMax > ClipRect.XMax) XMax = ClipRect.XMax;
+//  if(YMax > ClipRect.YMax) YMax = ClipRect.YMax;
+  
+  rectangle2i Result;
+  
+  Result.XMin = Min(A.XMin, B.XMin);
+  Result.YMin = Min(A.YMin, B.YMin);
+  Result.XMax = Max(A.XMax, B.XMax);
+  Result.YMax = Max(A.YMax, B.YMax);
+  
+  return Result;
+}
+
 
 #define GAME_MATH_H
 #endif
