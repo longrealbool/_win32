@@ -1383,7 +1383,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       Basis->P = Delta;
       
       PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0), World->ChunkDimInMeters.x);
-      //PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
     }
   }
   

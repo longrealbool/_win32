@@ -423,72 +423,51 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
   
-  real32 XAxisLength = Length(Basis.XAxis);
-  real32 YAxisLength = Length(Basis.YAxis);
-  
-  v2 NXAxis = YAxisLength/XAxisLength * Basis.XAxis;
-  v2 NYAxis = XAxisLength/YAxisLength * Basis.YAxis;
-  
-  real32 NZScale = (XAxisLength + YAxisLength)*0.5f;
-  
   //NOTE(Egor): premultiply color
   Color.rgb *= Color.a;
-  
+
   // NOTE(Egor): Clip buffers to not overwrite on the next line
-  int32 Width = Buffer->Width - 1 - 3;
-  int32 Height = Buffer->Height - 1;
-  real32 InvWidth = 1.0f/(real32)Width;
-  real32 InvHeight = 1.0f/(real32)Height;
+  int32 Width = Buffer->Width - 3;
+  int32 Height = Buffer->Height - 3;
+  // NOTE(Egor): specific order for algorithm
+  rectangle2i FillRect = {Width, Height, 0, 0};
   
-  real32 OriginZ = 0.0f;
-  real32 OriginY = (Basis.Origin + 0.5f*Basis.YAxis + 0.5f*Basis.XAxis).y;
-  real32 FixedCastY = InvHeight*OriginY;
-  
-  int32 YMin = Height;
-  int32 XMin = Width;
-  int32 XMax = 0;
-  int32 YMax = 0;
-  
+  // NOTE(Egor): take points of (possibly) rotated coordinate axis to determine
+  // area that includes shape
   v2 Min = Basis.Origin;
   v2 Max = Basis.Origin + Basis.XAxis + Basis.YAxis;
-  v2 toAxisX = Min + Basis.XAxis;
-  v2 toAxisY = Min + Basis.YAxis;
-  
-  real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
-  real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
-  
-  
   v2 P[4] = {Min, Min + Basis.XAxis, Min + Basis.YAxis, Max};
   
   for(uint32 Index = 0; Index < ArrayCount(P); ++Index) {
     
     v2 *TestP = P + Index;
     
-    int32 CeilX = CeilReal32ToInt32(TestP->x);
+    int32 CeilX = CeilReal32ToInt32(TestP->x) + 1;
     int32 FloorX = FloorReal32ToInt32(TestP->x);
-    int32 CeilY = CeilReal32ToInt32(TestP->y);
+    int32 CeilY = CeilReal32ToInt32(TestP->y) + 1;
     int32 FloorY = FloorReal32ToInt32(TestP->y);
     
-    if(XMin > FloorX) XMin = FloorX;
-    if(YMin > FloorY) YMin = FloorY;
-    if(XMax < CeilX) XMax = CeilX;
-    if(YMax < CeilY) YMax = CeilY;
+    if(FillRect.XMin > FloorX) FillRect.XMin = FloorX;
+    if(FillRect.YMin > FloorY) FillRect.YMin = FloorY;
+    if(FillRect.XMax < CeilX) FillRect.XMax = CeilX;
+    if(FillRect.YMax < CeilY) FillRect.YMax = CeilY;
   }
   
   rectangle2i ClipRect = {128, 128, 256, 256};
 
-  if(XMin < ClipRect.XMin) XMin = ClipRect.XMin;
-  if(YMin < ClipRect.YMin) YMin = ClipRect.YMin;
-  if(XMax > ClipRect.XMax) XMax = ClipRect.XMax;
-  if(YMax > ClipRect.YMax) YMax = ClipRect.YMax;
   
+  FillRect = Intersect(ClipRect, FillRect);
+
   // NOTE(Egor): interleaved alternating scanning lines
-  if(!Even == (YMin & 1)) {
+  if(!Even == (FillRect.YMin & 1)) {
     
-    YMin += 1;
+    FillRect.YMin += 1;
   }
   
-  uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*BITMAP_BYTES_PER_PIXEL;
+  real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
+  real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
+  
+  uint8 *Row = (uint8 *)Buffer->Memory + FillRect.YMin*Buffer->Pitch + FillRect.XMin*BITMAP_BYTES_PER_PIXEL;
   
   v2 nXAxis = InvXAxisLengthSq * Basis.XAxis;
   v2 nYAxis = InvYAxisLengthSq * Basis.YAxis;
@@ -519,49 +498,47 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   __m128 Squared255 = _mm_set1_ps(255.0f*255.0f);
   
-  __m128 OriginX_4x = _mm_set1_ps(Basis.Origin.x);
-  __m128 OriginY_4x = _mm_set1_ps(Basis.Origin.y);
-  
   __m128 WidthM2_4x = _mm_set1_ps((real32)(Texture->Width - 2));
   __m128 HeightM2_4x = _mm_set1_ps((real32)(Texture->Height - 2));
   
-  __m128 Add3210_m_OriginX = _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f);
-  Add3210_m_OriginX = _mm_sub_ps(Add3210_m_OriginX, OriginX_4x);
-  
-  __m128 XMin_4x = _mm_set1_ps((real32)XMin);
-  XMin_4x = _mm_add_ps(XMin_4x, Add3210_m_OriginX);
-
   int32 TexturePitch = Texture->Pitch;
   __m128i TexturePitch_4x = _mm_set1_epi32(TexturePitch);
   void *TextureMemory = Texture->Memory;
+  uint32 RowAdvance = Buffer->Pitch*2;
   
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
 #define mm_square(a) _mm_mul_ps(a, a)
   
+#if 0 // NOTE(Egor): disable gamma correction
+  
+#undef mm_square
+#define mm_square(a) a;
+#define _mm_sqrt_ps(a) a
+#endif
+  
+  __m128 OriginX_4x = _mm_set1_ps(Basis.Origin.x);
+  __m128 OriginY_4x = _mm_set1_ps(Basis.Origin.y);
+  
+  // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
+  // --> we find the vector, that point to a pixel inside a texture basis
+  // NOTE(Egor): Get all 4 Pixels (X-OriginX)+3 (X-OriginX)+2 (X-OriginX)+1 (X-OriginX)+0
+  // NOTE(Egor): Add3210_m_OriginX has baked in OriginX_4x
+  // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
+  __m128 Add3210_m_OriginX = _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f);
+  Add3210_m_OriginX = _mm_sub_ps(Add3210_m_OriginX, OriginX_4x);
+  __m128 XMin_4x = _mm_set1_ps((real32)FillRect.XMin);
+  XMin_4x = _mm_add_ps(XMin_4x, Add3210_m_OriginX);
+  
+  // NOTE(Egor): Get quad (Y-OriginY) pixel
+  __m128 PixelPY = _mm_set1_ps((real32)FillRect.YMin);
+  PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
   
   BEGIN_TIMED_BLOCK(ProcessPixel);
   
-  
-  // NOTE(Egor): this routine works with _ON_SCREEN_ pixels, and correspond them with
-  // Texels inside Actual Texture that drawn to that part of _SCREEN_
-  
-  // NOTE(Egor): Get quad (Y-OriginY) pixel
-  __m128 PixelPY = _mm_set1_ps((real32)YMin);
-  PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
-  
-  uint32 RowAdvance = Buffer->Pitch*2;
-  
-  for(int32 Y = YMin; Y <= YMax; Y += 2) {
+  for(int32 Y = FillRect.YMin; Y < FillRect.YMax; Y += 2) {
     
-    // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
-    // --> we find the vector, that point to a pixel inside a texture basis
-    // NOTE(Egor): Get all 4 Pixels (X-OriginX)+3 (X-OriginX)+2 (X-OriginX)+1 (X-OriginX)+0
-    // NOTE(Egor): Add3210_m_OriginX has baked in OriginX_4x
-    // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
-    __m128 PixelPX = XMin_4x;
-    
-#define TEST_PixelPY_x_NXAxisY 0 // NOTE(Egor): looks like disabled it's faster ¯\_(-_-)_/¯ 
+#define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like disabled it's faster ¯\_(-_-)_/¯ 
     
 #if TEST_PixelPY_x_NXAxisY
     // NOTE(Egor): only changes between Y - runs
@@ -569,18 +546,15 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     __m128 PixelPY_x_NYAxisY = _mm_mul_ps(nYAxisY_4x, PixelPY);
 #endif
     
+    __m128 PixelPX = XMin_4x;
     uint32 *Pixel = (uint32 *)Row;
-    for(int32 XI = XMin; XI <= XMax; XI += 4) {
-      
-      
-#if 0 // NOTE(Egor): disable gamma correction
-      
-      //#undef mm_square
-      //#define mm_square(a) a;
-      //#define _mm_sqrt_ps(a) a
-#endif
+
+    for(int32 XI = FillRect.XMin; XI < FillRect.XMax; XI += 4) {
       
       IACA_VC64_START;
+      
+      // NOTE(Egor): this routine works with _ON_SCREEN_ pixels, and correspond them with
+      // Texels inside Actual Texture that drawn to that part of _SCREEN_
       
       // NOTE(Egor): inner product that compute X and Y component of vector
       // 1. U and V is a normalized coefficients, U = X_component/XAxis_length
@@ -823,12 +797,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         __m128i MaskedOut = _mm_or_si128(New, Old);
         
         _mm_store_si128((__m128i *)Pixel, MaskedOut);
-        
-        IACA_VC64_END;
       }
       
       PixelPX = _mm_add_ps(PixelPX, Four);
       Pixel += 4;
+      
+      IACA_VC64_END;
     }
     
     // NOTE(Egor): alternating lines 
@@ -836,7 +810,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     PixelPY = _mm_add_ps(PixelPY, Two);
   }
   
-  END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
+  int32 PixelCount = GetClampedArea(FillRect)/2;
+  END_TIMED_BLOCK_COUNTED(ProcessPixel, PixelCount);
   
   END_TIMED_BLOCK(DrawRectangleSlowly);
 }

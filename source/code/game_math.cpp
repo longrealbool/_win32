@@ -872,13 +872,7 @@ struct rectangle2i {
   int32 XMax, YMax;
 };
 
-rectangle2i Intersect(rectangle2i A, rectangle2i B) {
-  
-  
-//  if(XMin < ClipRect.XMin) XMin = ClipRect.XMin;
-//  if(YMin < ClipRect.YMin) YMin = ClipRect.YMin;
-//  if(XMax > ClipRect.XMax) XMax = ClipRect.XMax;
-//  if(YMax > ClipRect.YMax) YMax = ClipRect.YMax;
+rectangle2i Union(rectangle2i A, rectangle2i B) {
   
   rectangle2i Result;
   
@@ -886,6 +880,32 @@ rectangle2i Intersect(rectangle2i A, rectangle2i B) {
   Result.YMin = Min(A.YMin, B.YMin);
   Result.XMax = Max(A.XMax, B.XMax);
   Result.YMax = Max(A.YMax, B.YMax);
+  
+  return Result;
+}
+
+rectangle2i Intersect(rectangle2i A, rectangle2i B) {
+  
+  rectangle2i Result;
+  
+  Result.XMin = Max(A.XMin, B.XMin);
+  Result.YMin = Max(A.YMin, B.YMin);
+  Result.XMax = Min(A.XMax, B.XMax);
+  Result.YMax = Min(A.YMax, B.YMax);
+  
+  return Result;
+}
+
+int32 GetClampedArea(rectangle2i A) {
+  
+  int32 Width = A.XMax - A.XMin;
+  int32 Height = A.YMax - A.YMin;
+  int32 Result = 0;
+  
+  if((Width > 0) && (Height > 0)) {
+    
+    Result = Width*Height;
+  }
   
   return Result;
 }
