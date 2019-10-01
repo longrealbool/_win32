@@ -453,21 +453,35 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     if(FillRect.YMax < CeilY) FillRect.YMax = CeilY;
   }
   
+  // NOTE(Egor): padding 1 row for test purposes
+  //  rectangle2i ClipRect = {0, 0, Width, Height};
+  
   rectangle2i ClipRect = {128, 128, 256, 256};
-
   
   FillRect = Intersect(ClipRect, FillRect);
-
+  
   // NOTE(Egor): interleaved alternating scanning lines
   if(!Even == (FillRect.YMin & 1)) {
     
     FillRect.YMin += 1;
   }
   
+#if 1
+  int32 FillWidth = FillRect.XMax - FillRect.XMin;
+  int32 FillWidthAlign = FillWidth & 0x3;
+  int32 Adjust = (~FillWidthAlign + 1) & 0x3;
+  FillWidth += Adjust;
+  FillRect.XMin = FillRect.XMax - FillWidth;
+
+  // TODO(Egor): get rid of this madskillz
+  __m128i Dummy = _mm_setr_epi32(0,1,2,3);
+  __m128i StartupClipMask = _mm_sub_epi32(Dummy, _mm_set1_epi32(Adjust));
+  StartupClipMask = _mm_cmplt_epi32(StartupClipMask, _mm_set1_epi32(0));
+  StartupClipMask = _mm_andnot_si128(StartupClipMask, _mm_set1_epi8(-1));
+#endif
+  
   real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
   real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
-  
-  uint8 *Row = (uint8 *)Buffer->Memory + FillRect.YMin*Buffer->Pitch + FillRect.XMin*BITMAP_BYTES_PER_PIXEL;
   
   v2 nXAxis = InvXAxisLengthSq * Basis.XAxis;
   v2 nYAxis = InvYAxisLengthSq * Basis.YAxis;
@@ -506,6 +520,12 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   void *TextureMemory = Texture->Memory;
   uint32 RowAdvance = Buffer->Pitch*2;
   
+  uint8 *Row = (uint8 *)Buffer->Memory + FillRect.YMin*Buffer->Pitch + FillRect.XMin*BITMAP_BYTES_PER_PIXEL;
+#if 0
+  int32 Align = (uintptr)Row & (16 - 1);
+  Row -= Align;
+#endif
+  
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
 #define mm_square(a) _mm_mul_ps(a, a)
@@ -534,9 +554,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   __m128 PixelPY = _mm_set1_ps((real32)FillRect.YMin);
   PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
   
+
+  
   BEGIN_TIMED_BLOCK(ProcessPixel);
   
   for(int32 Y = FillRect.YMin; Y < FillRect.YMax; Y += 2) {
+    
+    __m128i ClipMask = StartupClipMask;
     
 #define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like disabled it's faster ¯\_(-_-)_/¯ 
     
@@ -547,8 +571,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 #endif
     
     __m128 PixelPX = XMin_4x;
+    
     uint32 *Pixel = (uint32 *)Row;
-
+    
     for(int32 XI = FillRect.XMin; XI < FillRect.XMax; XI += 4) {
       
       IACA_VC64_START;
@@ -578,6 +603,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                                                                  _mm_cmpge_ps(U, Zero)),
                                                       _mm_and_ps(_mm_cmple_ps(V, One),
                                                                  _mm_cmpge_ps(V, Zero))));
+      
+      WriteMask = _mm_and_si128(WriteMask, ClipMask);
       // TODO(Egor): check later if it helps
       //      if(_mm_movemask_epi8(WriteMask))
       {
@@ -801,6 +828,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       
       PixelPX = _mm_add_ps(PixelPX, Four);
       Pixel += 4;
+      // NOTE(Egor): we clipped first 4 pixels
+      ClipMask = _mm_set1_epi32(0xFFFFFFFF);
       
       IACA_VC64_END;
     }

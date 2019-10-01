@@ -81,6 +81,9 @@ extern "C" {
   typedef uint32_t uint32;
   typedef uint64_t uint64;
   
+  typedef intptr_t intptr;
+  typedef uintptr_t uintptr;
+  
   typedef size_t memory_index;
   
   typedef float real32;
