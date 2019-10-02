@@ -916,6 +916,24 @@ bool32 HasArea(rectangle2i A) {
   return Result;
 }
 
+inline rectangle2i InvertedHalfMaxRectangle() {
+ 
+  rectangle2i Result = {INT_MAX, INT_MAX, 0, 0};
+  return Result;
+}
+
+inline rectangle2i InvertedMaxRectangle() {
+  
+  rectangle2i Result = {INT_MAX, INT_MAX, -INT_MAX, -INT_MAX};
+  return Result;
+}
+
+inline rectangle2i HalfMaxRectangle() {
+  
+  rectangle2i Result = {0, 0, INT_MAX, INT_MAX};
+  return Result;
+}
+
 
 #define GAME_MATH_H
 #endif

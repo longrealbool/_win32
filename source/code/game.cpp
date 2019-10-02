@@ -194,7 +194,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
   
 }
 
-
+#if 0
 internal void
 DrawRectangleOutline(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
                      v4 Color) {
@@ -206,7 +206,8 @@ DrawRectangleOutline(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
   
   DrawRectangle(Buffer, V2(vMin.x - r, vMax.y - r), V2(vMax.x + r, vMax.y + r), Color);
   DrawRectangle(Buffer, V2(vMax.x - r, vMax.y - r), V2(vMax.x + r, vMin.y + r), Color);
-}  
+} 
+#endif
 
 
 struct add_low_entity_result {
@@ -564,7 +565,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   #endif
 
   
-  RenderPushBuffer(GroundGroup, Buffer);
+  TiledRenderPushBuffer(GroundGroup, Buffer);
   EndTemporaryMemory(GroundMemory);
 }
 
@@ -1725,7 +1726,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   }
   
 #endif
-  RenderPushBuffer(RenderGroup, DrawBuffer);
+  TiledRenderPushBuffer(RenderGroup, DrawBuffer);
  
   #if 0
   world_position WorldOrigin = {};

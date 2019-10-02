@@ -241,8 +241,10 @@ DrawBitmap(loaded_bitmap *Buffer,
 }
 
 internal void
-DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax, v4 Color)
+DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax, v4 Color, 
+              rectangle2i ClipRect, bool32 Even)
 {
+  
   
   int32 MinX = RoundReal32ToInt32(vMin.x);
   int32 MinY = RoundReal32ToInt32(vMin.y);
@@ -255,6 +257,8 @@ DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax, v4 Color)
   // we will write up to, but not including to final row and column
   if(MaxX > Buffer->Width) MaxX = Buffer->Width;
   if(MaxY > Buffer->Height) MaxY = Buffer->Height;
+  
+
   
   uint32 PixColor = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
                      (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
@@ -419,18 +423,23 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
-                    loaded_bitmap *Texture, real32 PtM, bool32 Even) {
+                    loaded_bitmap *Texture,
+                    rectangle2i ClipRect,
+                    real32 PtM, bool32 Even) {
   
   BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
   
   //NOTE(Egor): premultiply color
   Color.rgb *= Color.a;
   
-  // NOTE(Egor): Clip buffers to not overwrite on the next line
-  int32 Width = Buffer->Width - 3;
-  int32 Height = Buffer->Height - 3;
+#if 1
+  
   // NOTE(Egor): specific order for algorithm
-  rectangle2i FillRect = {Width, Height, 0, 0};
+  rectangle2i FillRect = InvertedMaxRectangle();
+#else
+  
+  rectangle2i FillRect = HalfMaxRectangle();
+#endif
   
   // NOTE(Egor): take points of (possibly) rotated coordinate axis to determine
   // area that includes shape
@@ -453,10 +462,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     if(FillRect.YMax < CeilY) FillRect.YMax = CeilY;
   }
   
-  // NOTE(Egor): padding 1 row for test purposes
-  //  rectangle2i ClipRect = {0, 0, Width, Height};
-  
-  rectangle2i ClipRect = {128, 128, 256, 256};
   FillRect = Intersect(ClipRect, FillRect);
   
   if(HasArea(FillRect)) {
@@ -847,7 +852,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 
 
 internal void
-RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
+RenderPushBuffer(render_group *Group, loaded_bitmap *Output,
+                 rectangle2i ClipRect, bool32 Even) {
   
   BEGIN_TIMED_BLOCK(RenderPushBuffer);
   
@@ -871,7 +877,8 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         
         DrawRectangle(Output, V2(0.0f, 0.0f),
                       V2((real32)Output->Width, (real32)Output->Height),
-                      Entry->Color);
+                      Entry->Color, 
+                      ClipRect, Even);
         
         BaseAddress += sizeof(*Entry);
         
@@ -883,10 +890,6 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         
         entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
         Assert(Entry->Bitmap);
-#if 0        
-
-        DrawBitmap(Output, Entry->Bitmap, P.x, P.y, 1.0f);
-#else
         
         render_v2_basis Basis;
         Basis.Origin = BasisP.P;
@@ -895,10 +898,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         Basis.XAxis *= BasisP.Scale*(real32)Entry->Size.x;
         Basis.YAxis *= BasisP.Scale*(real32)Entry->Size.y;
         
-        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM, true);
-        DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM, false);
-        
-#endif
+        DrawRectangleSlowly(Output, Basis, Entry->Color, Entry->Bitmap, ClipRect, PtM, Even);
         
       } break;
       case RenderGroupEntryType_render_entry_rectangle: {
@@ -908,50 +908,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         BaseAddress += sizeof(*Entry);
         
         entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
-        DrawRectangle(Output, BasisP.P, BasisP.P + BasisP.Scale*Entry->Dim, Entry->Color); 
-      } break;
-      case RenderGroupEntryType_render_entry_coordinate_system: {
-        
-        
-        render_entry_coordinate_system *Entry = (render_entry_coordinate_system *)Data;
-        BaseAddress += sizeof(*Entry);
-        
-        v2 DimOrigin = V2(2, 2);
-        
-        v2 P = Entry->Origin;
-        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
-        
-        P = Entry->Origin + Entry->XAxis;
-        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
-        
-        P = Entry->Origin + Entry->YAxis;
-        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
-        
-        
-        P = Entry->Origin + Entry->YAxis + Entry->XAxis; 
-        DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
-        
-        render_v2_basis V2Basis;
-        V2Basis.Origin = Entry->Origin;
-        V2Basis.XAxis = Entry->XAxis;
-        V2Basis.YAxis = Entry->YAxis;
-        
-#if 1
-        DrawRectangleSlowly(Output, V2Basis, Entry->Color,
-                            Entry->Texture,
-                            PtM, false);
-#endif
-        
-#if 0
-        for(uint32 I = 0; I < ArrayCount(Entry->Points); ++I) {
-          
-          v2 Point = Entry->Points[I];
-          
-          P = Entry->Origin + Point.x*Entry->XAxis + Point.y*Entry->YAxis; 
-          
-          DrawRectangle(Output, P - DimOrigin, P + DimOrigin, Entry->Color); 
-        }
-#endif
+        DrawRectangle(Output, BasisP.P, BasisP.P + BasisP.Scale*Entry->Dim, Entry->Color, ClipRect, Even); 
       } break;
       
       InvalidDefaultCase;
@@ -959,6 +916,18 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   }
   
   END_TIMED_BLOCK(RenderPushBuffer);
+}
+
+
+internal void
+TiledRenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
+  
+  bool32 Even = false;
+  //  rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
+  rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
+  
+  RenderPushBuffer(Group, Output, ClipRect, false);
+  RenderPushBuffer(Group, Output, ClipRect, true);
 }
 
 
