@@ -1382,9 +1382,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
       RenderGroup->DefaultBasis = Basis;
       Basis->P = Delta;
-      
+
+//      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
       PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0), World->ChunkDimInMeters.x);
-      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+
     }
   }
   
@@ -1440,7 +1441,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
-          //PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+//          PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
         }
       }
     }
