@@ -910,6 +910,12 @@ int32 GetClampedArea(rectangle2i A) {
   return Result;
 }
 
+bool32 HasArea(rectangle2i A) {
+ 
+  bool32 Result = ((A.XMin < A.XMax) && (A.YMin < A.YMax));
+  return Result;
+}
+
 
 #define GAME_MATH_H
 #endif

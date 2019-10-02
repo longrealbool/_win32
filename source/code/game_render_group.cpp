@@ -425,7 +425,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
   //NOTE(Egor): premultiply color
   Color.rgb *= Color.a;
-
+  
   // NOTE(Egor): Clip buffers to not overwrite on the next line
   int32 Width = Buffer->Width - 3;
   int32 Height = Buffer->Height - 3;
@@ -457,392 +457,392 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   //  rectangle2i ClipRect = {0, 0, Width, Height};
   
   rectangle2i ClipRect = {128, 128, 256, 256};
-  
   FillRect = Intersect(ClipRect, FillRect);
   
-  // NOTE(Egor): interleaved alternating scanning lines
-  if(!Even == (FillRect.YMin & 1)) {
+  if(HasArea(FillRect)) {
     
-    FillRect.YMin += 1;
-  }
-  
+    // NOTE(Egor): interleaved alternating scanning lines
+    if(!Even == (FillRect.YMin & 1)) {
+      
+      FillRect.YMin += 1;
+    }
+    
 #if 1
-  int32 FillWidth = FillRect.XMax - FillRect.XMin;
-  int32 FillWidthAlign = FillWidth & 0x3;
-  int32 Adjust = (~FillWidthAlign + 1) & 0x3;
-  FillWidth += Adjust;
-  FillRect.XMin = FillRect.XMax - FillWidth;
-
-  // TODO(Egor): get rid of this madskillz
-  __m128i Dummy = _mm_setr_epi32(0,1,2,3);
-  __m128i StartupClipMask = _mm_sub_epi32(Dummy, _mm_set1_epi32(Adjust));
-  StartupClipMask = _mm_cmplt_epi32(StartupClipMask, _mm_set1_epi32(0));
-  StartupClipMask = _mm_andnot_si128(StartupClipMask, _mm_set1_epi8(-1));
+    int32 FillWidth = FillRect.XMax - FillRect.XMin;
+    int32 FillWidthAlign = FillWidth & 0x3;
+    int32 Adjust = (~FillWidthAlign + 1) & 0x3;
+    FillWidth += Adjust;
+    FillRect.XMin = FillRect.XMax - FillWidth;
+    
+    // TODO(Egor): do not use madskills
+    __m128i Dummy = _mm_setr_epi32(0,1,2,3);
+    __m128i StartupClipMask = _mm_sub_epi32(Dummy, _mm_set1_epi32(Adjust));
+    StartupClipMask = _mm_cmplt_epi32(StartupClipMask, _mm_set1_epi32(0));
+    StartupClipMask = _mm_andnot_si128(StartupClipMask, _mm_set1_epi8(-1));
 #endif
-  
-  real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
-  real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
-  
-  v2 nXAxis = InvXAxisLengthSq * Basis.XAxis;
-  v2 nYAxis = InvYAxisLengthSq * Basis.YAxis;
-  
-  __m128 nXAxisX_4x = _mm_set1_ps(nXAxis.x);
-  __m128 nXAxisY_4x = _mm_set1_ps(nXAxis.y);
-  
-  __m128 nYAxisX_4x = _mm_set1_ps(nYAxis.x);
-  __m128 nYAxisY_4x = _mm_set1_ps(nYAxis.y);
-  
-  real32 Inv255 = 1.0f/255.0f;
-  
-  // NOTE(Egor): color modulation values in SIMD
-  __m128 ColorR_4x = _mm_set1_ps(Color.r);
-  __m128 ColorG_4x = _mm_set1_ps(Color.g);
-  __m128 ColorB_4x = _mm_set1_ps(Color.b);
-  __m128 ColorA_4x = _mm_set1_ps(Color.a);
-  
-  __m128 ColorA_INV_4x = _mm_set1_ps(Color.a*Inv255);
-  
-  __m128 One = _mm_set1_ps(1.0f);
-  __m128 Two = _mm_set1_ps(2.0f);
-  __m128 Zero = _mm_set1_ps(0.0f);
-  __m128 Four = _mm_set1_ps(4.0f);
-  __m128i MaskFF = _mm_set1_epi32(0xFF);
-  __m128i MaskFFFF = _mm_set1_epi32(0xFFFF);
-  __m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
-  
-  __m128 Squared255 = _mm_set1_ps(255.0f*255.0f);
-  
-  __m128 WidthM2_4x = _mm_set1_ps((real32)(Texture->Width - 2));
-  __m128 HeightM2_4x = _mm_set1_ps((real32)(Texture->Height - 2));
-  
-  int32 TexturePitch = Texture->Pitch;
-  __m128i TexturePitch_4x = _mm_set1_epi32(TexturePitch);
-  void *TextureMemory = Texture->Memory;
-  uint32 RowAdvance = Buffer->Pitch*2;
-  
-  uint8 *Row = (uint8 *)Buffer->Memory + FillRect.YMin*Buffer->Pitch + FillRect.XMin*BITMAP_BYTES_PER_PIXEL;
+    
+    real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
+    real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
+    
+    v2 nXAxis = InvXAxisLengthSq * Basis.XAxis;
+    v2 nYAxis = InvYAxisLengthSq * Basis.YAxis;
+    
+    __m128 nXAxisX_4x = _mm_set1_ps(nXAxis.x);
+    __m128 nXAxisY_4x = _mm_set1_ps(nXAxis.y);
+    
+    __m128 nYAxisX_4x = _mm_set1_ps(nYAxis.x);
+    __m128 nYAxisY_4x = _mm_set1_ps(nYAxis.y);
+    
+    real32 Inv255 = 1.0f/255.0f;
+    
+    // NOTE(Egor): color modulation values in SIMD
+    __m128 ColorR_4x = _mm_set1_ps(Color.r);
+    __m128 ColorG_4x = _mm_set1_ps(Color.g);
+    __m128 ColorB_4x = _mm_set1_ps(Color.b);
+    __m128 ColorA_4x = _mm_set1_ps(Color.a);
+    
+    __m128 ColorA_INV_4x = _mm_set1_ps(Color.a*Inv255);
+    
+    __m128 One = _mm_set1_ps(1.0f);
+    __m128 Two = _mm_set1_ps(2.0f);
+    __m128 Zero = _mm_set1_ps(0.0f);
+    __m128 Four = _mm_set1_ps(4.0f);
+    __m128i MaskFF = _mm_set1_epi32(0xFF);
+    __m128i MaskFFFF = _mm_set1_epi32(0xFFFF);
+    __m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
+    
+    __m128 Squared255 = _mm_set1_ps(255.0f*255.0f);
+    
+    __m128 WidthM2_4x = _mm_set1_ps((real32)(Texture->Width - 2));
+    __m128 HeightM2_4x = _mm_set1_ps((real32)(Texture->Height - 2));
+    
+    int32 TexturePitch = Texture->Pitch;
+    __m128i TexturePitch_4x = _mm_set1_epi32(TexturePitch);
+    void *TextureMemory = Texture->Memory;
+    uint32 RowAdvance = Buffer->Pitch*2;
+    
+    uint8 *Row = (uint8 *)Buffer->Memory + FillRect.YMin*Buffer->Pitch + FillRect.XMin*BITMAP_BYTES_PER_PIXEL;
 #if 0
-  int32 Align = (uintptr)Row & (16 - 1);
-  Row -= Align;
+    int32 Align = (uintptr)Row & (16 - 1);
+    Row -= Align;
 #endif
-  
+    
 #define M(a, I) ((real32 *)&(a))[I]
 #define Mi(a, I) ((uint32 *)&(a))[I]
 #define mm_square(a) _mm_mul_ps(a, a)
-  
+    
 #if 0 // NOTE(Egor): disable gamma correction
-  
+    
 #undef mm_square
 #define mm_square(a) a;
 #define _mm_sqrt_ps(a) a
 #endif
-  
-  __m128 OriginX_4x = _mm_set1_ps(Basis.Origin.x);
-  __m128 OriginY_4x = _mm_set1_ps(Basis.Origin.y);
-  
-  // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
-  // --> we find the vector, that point to a pixel inside a texture basis
-  // NOTE(Egor): Get all 4 Pixels (X-OriginX)+3 (X-OriginX)+2 (X-OriginX)+1 (X-OriginX)+0
-  // NOTE(Egor): Add3210_m_OriginX has baked in OriginX_4x
-  // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
-  __m128 Add3210_m_OriginX = _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f);
-  Add3210_m_OriginX = _mm_sub_ps(Add3210_m_OriginX, OriginX_4x);
-  __m128 XMin_4x = _mm_set1_ps((real32)FillRect.XMin);
-  XMin_4x = _mm_add_ps(XMin_4x, Add3210_m_OriginX);
-  
-  // NOTE(Egor): Get quad (Y-OriginY) pixel
-  __m128 PixelPY = _mm_set1_ps((real32)FillRect.YMin);
-  PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
-  
-
-  
-  BEGIN_TIMED_BLOCK(ProcessPixel);
-  
-  for(int32 Y = FillRect.YMin; Y < FillRect.YMax; Y += 2) {
     
-    __m128i ClipMask = StartupClipMask;
+    __m128 OriginX_4x = _mm_set1_ps(Basis.Origin.x);
+    __m128 OriginY_4x = _mm_set1_ps(Basis.Origin.y);
     
+    // NOTE(Egor): relative position of actual (ON_SCREEN) pixel inside texture
+    // --> we find the vector, that point to a pixel inside a texture basis
+    // NOTE(Egor): Get all 4 Pixels (X-OriginX)+3 (X-OriginX)+2 (X-OriginX)+1 (X-OriginX)+0
+    // NOTE(Egor): Add3210_m_OriginX has baked in OriginX_4x
+    // NOTE(Egor): This is when we reset PixelPX betwen Y - runs
+    __m128 Add3210_m_OriginX = _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f);
+    Add3210_m_OriginX = _mm_sub_ps(Add3210_m_OriginX, OriginX_4x);
+    __m128 XMin_4x = _mm_set1_ps((real32)FillRect.XMin);
+    XMin_4x = _mm_add_ps(XMin_4x, Add3210_m_OriginX);
+    
+    // NOTE(Egor): Get quad (Y-OriginY) pixel
+    __m128 PixelPY = _mm_set1_ps((real32)FillRect.YMin);
+    PixelPY = _mm_sub_ps(PixelPY, OriginY_4x);
+    
+    BEGIN_TIMED_BLOCK(ProcessPixel);
+    
+    for(int32 Y = FillRect.YMin; Y < FillRect.YMax; Y += 2) {
+      
+      __m128i ClipMask = StartupClipMask;
+      
 #define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like disabled it's faster ¯\_(-_-)_/¯ 
-    
+      
 #if TEST_PixelPY_x_NXAxisY
-    // NOTE(Egor): only changes between Y - runs
-    __m128 PixelPY_x_NXAxisY = _mm_mul_ps(nXAxisY_4x, PixelPY);
-    __m128 PixelPY_x_NYAxisY = _mm_mul_ps(nYAxisY_4x, PixelPY);
+      // NOTE(Egor): only changes between Y - runs
+      __m128 PixelPY_x_NXAxisY = _mm_mul_ps(nXAxisY_4x, PixelPY);
+      __m128 PixelPY_x_NYAxisY = _mm_mul_ps(nYAxisY_4x, PixelPY);
 #endif
-    
-    __m128 PixelPX = XMin_4x;
-    
-    uint32 *Pixel = (uint32 *)Row;
-    
-    for(int32 XI = FillRect.XMin; XI < FillRect.XMax; XI += 4) {
       
-      IACA_VC64_START;
+      __m128 PixelPX = XMin_4x;
       
-      // NOTE(Egor): this routine works with _ON_SCREEN_ pixels, and correspond them with
-      // Texels inside Actual Texture that drawn to that part of _SCREEN_
+      uint32 *Pixel = (uint32 *)Row;
       
-      // NOTE(Egor): inner product that compute X and Y component of vector
-      // 1. U and V is a normalized coefficients, U = X_component/XAxis_length
-      // 2. nXAxisX is premultiplied to InvXAxis_Length
-      // 3. PixelPY_x_NXAxisY is constant across all X - runs
+      for(int32 XI = FillRect.XMin; XI < FillRect.XMax; XI += 4) {
+        
+        IACA_VC64_START;
+        
+        // NOTE(Egor): this routine works with _ON_SCREEN_ pixels, and correspond them with
+        // Texels inside Actual Texture that drawn to that part of _SCREEN_
+        
+        // NOTE(Egor): inner product that compute X and Y component of vector
+        // 1. U and V is a normalized coefficients, U = X_component/XAxis_length
+        // 2. nXAxisX is premultiplied to InvXAxis_Length
+        // 3. PixelPY_x_NXAxisY is constant across all X - runs
 #if TEST_PixelPY_x_NXAxisY
-      
-      __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, PixelPX), PixelPY_x_NXAxisY);
-      __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, PixelPX), PixelPY_x_NYAxisY);
+        
+        __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, PixelPX), PixelPY_x_NXAxisY);
+        __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, PixelPX), PixelPY_x_NYAxisY);
 #else
-      
-      __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, PixelPX), _mm_mul_ps(nXAxisY_4x, PixelPY));
-      __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, PixelPX), _mm_mul_ps(nYAxisY_4x, PixelPY));
-      
+        
+        __m128 U = _mm_add_ps(_mm_mul_ps(nXAxisX_4x, PixelPX), _mm_mul_ps(nXAxisY_4x, PixelPY));
+        __m128 V = _mm_add_ps(_mm_mul_ps(nYAxisX_4x, PixelPX), _mm_mul_ps(nYAxisY_4x, PixelPY));
+        
 #endif
-      
-      // NOTE(Egor): generate write mask that determine if we should write 
-      // New Color Data, if pixels is out of bounds we just masked them out with
-      // Old Color Data (Was Called OriginalDest -- possibly renamed)
-      __m128i WriteMask = _mm_castps_si128(_mm_and_ps(_mm_and_ps(_mm_cmple_ps(U, One),
-                                                                 _mm_cmpge_ps(U, Zero)),
-                                                      _mm_and_ps(_mm_cmple_ps(V, One),
-                                                                 _mm_cmpge_ps(V, Zero))));
-      
-      WriteMask = _mm_and_si128(WriteMask, ClipMask);
-      // TODO(Egor): check later if it helps
-      //      if(_mm_movemask_epi8(WriteMask))
-      {
         
-        __m128i OriginalDest = _mm_loadu_si128((__m128i *)Pixel);
+        // NOTE(Egor): generate write mask that determine if we should write 
+        // New Color Data, if pixels is out of bounds we just masked them out with
+        // Old Color Data (Was Called OriginalDest -- possibly renamed)
+        __m128i WriteMask = _mm_castps_si128(_mm_and_ps(_mm_and_ps(_mm_cmple_ps(U, One),
+                                                                   _mm_cmpge_ps(U, Zero)),
+                                                        _mm_and_ps(_mm_cmple_ps(V, One),
+                                                                   _mm_cmpge_ps(V, Zero))));
         
-        // NOTE(Egor): clamp U and V to prevent fetching nonexistent texel data
-        // we could have U and V that exceeds 1.0f that can fetch outside of texture
-        // buffer
-        U = _mm_min_ps(_mm_max_ps(U, Zero), One);
-        V = _mm_min_ps(_mm_max_ps(V, Zero), One);
-        
-        // NOTE(Egor): texture boundary multiplication to determine which pixel 
-        // we need to fetch from texture buffer
-        __m128 tX = _mm_mul_ps(U, WidthM2_4x);
-        __m128 tY = _mm_mul_ps(V, HeightM2_4x);
-        
-        // NOTE(Egor): round with truncation
-        __m128i FetchX_4x = _mm_cvttps_epi32(tX);
-        __m128i FetchY_4x =_mm_cvttps_epi32(tY);
-        
-        // NOTE(Egor): take the fractional part of tX and tY
-        __m128 fX = _mm_sub_ps(tX, _mm_cvtepi32_ps(FetchX_4x));
-        __m128 fY = _mm_sub_ps(tY, _mm_cvtepi32_ps(FetchY_4x));
-        
-        // NOTE(Egor): fetch 4 texels from texture buffer
-        
-        FetchX_4x = _mm_slli_epi32(FetchX_4x, 2); 
-        FetchY_4x = _mm_mullo_epi32(FetchY_4x, TexturePitch_4x); 
-        FetchX_4x = _mm_add_epi32(FetchX_4x, FetchY_4x); 
-        
-        int32 Fetch0 = Mi(FetchX_4x, 0);
-        int32 Fetch1 = Mi(FetchX_4x, 1);
-        int32 Fetch2 = Mi(FetchX_4x, 2);
-        int32 Fetch3 = Mi(FetchX_4x, 3);
-        
-        uint8 *TexelPtr0 = (((uint8 *)TextureMemory) + Fetch0);
-        uint8 *TexelPtr1 = (((uint8 *)TextureMemory) + Fetch1);
-        uint8 *TexelPtr2 = (((uint8 *)TextureMemory) + Fetch2);
-        uint8 *TexelPtr3 = (((uint8 *)TextureMemory) + Fetch3);
-        
-        __m128i SampleA;
-        __m128i SampleB;
-        __m128i SampleC;
-        __m128i SampleD;
-        
-        SampleA = _mm_setr_epi32(*(uint32 *)(TexelPtr0), 
-                                 *(uint32 *)(TexelPtr1),
-                                 *(uint32 *)(TexelPtr2),
-                                 *(uint32 *)(TexelPtr3));
-        
-        SampleB = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + sizeof(uint32)),
-                                 *(uint32 *)(TexelPtr1 + sizeof(uint32)),
-                                 *(uint32 *)(TexelPtr2 + sizeof(uint32)),
-                                 *(uint32 *)(TexelPtr3 + sizeof(uint32)));
-        
-        SampleC = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + TexturePitch),
-                                 *(uint32 *)(TexelPtr1 + TexturePitch),
-                                 *(uint32 *)(TexelPtr2 + TexturePitch),
-                                 *(uint32 *)(TexelPtr3 + TexturePitch));
-        
-        SampleD = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + TexturePitch + sizeof(uint32)),
-                                 *(uint32 *)(TexelPtr1 + TexturePitch + sizeof(uint32)),
-                                 *(uint32 *)(TexelPtr2 + TexturePitch + sizeof(uint32)),
-                                 *(uint32 *)(TexelPtr3 + TexturePitch + sizeof(uint32)));
-        
-        //////
-        __m128i TexelArb = _mm_and_si128(SampleA, MaskFF00FF);
-        __m128i TexelAag = _mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF00FF);
-        TexelArb = _mm_mullo_epi16(TexelArb, TexelArb);
-        __m128 TexelAa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelAag, 16));
-        TexelAag = _mm_mullo_epi16(TexelAag, TexelAag);
-        
-        //////
-        __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
-        __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
-        TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
-        __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
-        TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
-        
-        //////
-        __m128i TexelCrb = _mm_and_si128(SampleC, MaskFF00FF);
-        __m128i TexelCag = _mm_and_si128(_mm_srli_epi32(SampleC,  8), MaskFF00FF);
-        TexelCrb = _mm_mullo_epi16(TexelCrb, TexelCrb);
-        __m128 TexelCa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCag, 16));
-        TexelCag = _mm_mullo_epi16(TexelCag, TexelCag);
-        
-        //////
-        __m128i TexelDrb = _mm_and_si128(SampleD, MaskFF00FF);
-        __m128i TexelDag = _mm_and_si128(_mm_srli_epi32(SampleD,  8), MaskFF00FF);
-        TexelDrb = _mm_mullo_epi16(TexelDrb, TexelDrb);
-        __m128 TexelDa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDag, 16));
-        TexelDag = _mm_mullo_epi16(TexelDag, TexelDag);
-        
-        // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
-        __m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));
-        __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
-        __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
-        
-        __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
-        __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
-        __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
-        
-        __m128 TexelCr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCrb, 16));
-        __m128 TexelCg = _mm_cvtepi32_ps(_mm_and_si128(TexelCag, MaskFFFF));
-        __m128 TexelCb = _mm_cvtepi32_ps(_mm_and_si128(TexelCrb, MaskFFFF));
-        
-        __m128 TexelDr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDrb, 16));
-        __m128 TexelDg = _mm_cvtepi32_ps(_mm_and_si128(TexelDag, MaskFFFF));
-        __m128 TexelDb = _mm_cvtepi32_ps(_mm_and_si128(TexelDrb, MaskFFFF));
-        
-        // NOTE(Egor): convert to linear brightness space
-        // Dest = SRGB255ToLinear1(Dest);
-        
+        WriteMask = _mm_and_si128(WriteMask, ClipMask);
+        // TODO(Egor): check later if it helps
+        //      if(_mm_movemask_epi8(WriteMask))
+        {
+          
+          __m128i OriginalDest = _mm_loadu_si128((__m128i *)Pixel);
+          
+          // NOTE(Egor): clamp U and V to prevent fetching nonexistent texel data
+          // we could have U and V that exceeds 1.0f that can fetch outside of texture
+          // buffer
+          U = _mm_min_ps(_mm_max_ps(U, Zero), One);
+          V = _mm_min_ps(_mm_max_ps(V, Zero), One);
+          
+          // NOTE(Egor): texture boundary multiplication to determine which pixel 
+          // we need to fetch from texture buffer
+          __m128 tX = _mm_mul_ps(U, WidthM2_4x);
+          __m128 tY = _mm_mul_ps(V, HeightM2_4x);
+          
+          // NOTE(Egor): round with truncation
+          __m128i FetchX_4x = _mm_cvttps_epi32(tX);
+          __m128i FetchY_4x =_mm_cvttps_epi32(tY);
+          
+          // NOTE(Egor): take the fractional part of tX and tY
+          __m128 fX = _mm_sub_ps(tX, _mm_cvtepi32_ps(FetchX_4x));
+          __m128 fY = _mm_sub_ps(tY, _mm_cvtepi32_ps(FetchY_4x));
+          
+          // NOTE(Egor): fetch 4 texels from texture buffer
+          
+          FetchX_4x = _mm_slli_epi32(FetchX_4x, 2); 
+          FetchY_4x = _mm_mullo_epi32(FetchY_4x, TexturePitch_4x); 
+          FetchX_4x = _mm_add_epi32(FetchX_4x, FetchY_4x); 
+          
+          int32 Fetch0 = Mi(FetchX_4x, 0);
+          int32 Fetch1 = Mi(FetchX_4x, 1);
+          int32 Fetch2 = Mi(FetchX_4x, 2);
+          int32 Fetch3 = Mi(FetchX_4x, 3);
+          
+          uint8 *TexelPtr0 = (((uint8 *)TextureMemory) + Fetch0);
+          uint8 *TexelPtr1 = (((uint8 *)TextureMemory) + Fetch1);
+          uint8 *TexelPtr2 = (((uint8 *)TextureMemory) + Fetch2);
+          uint8 *TexelPtr3 = (((uint8 *)TextureMemory) + Fetch3);
+          
+          __m128i SampleA;
+          __m128i SampleB;
+          __m128i SampleC;
+          __m128i SampleD;
+          
+          SampleA = _mm_setr_epi32(*(uint32 *)(TexelPtr0), 
+                                   *(uint32 *)(TexelPtr1),
+                                   *(uint32 *)(TexelPtr2),
+                                   *(uint32 *)(TexelPtr3));
+          
+          SampleB = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + sizeof(uint32)),
+                                   *(uint32 *)(TexelPtr1 + sizeof(uint32)),
+                                   *(uint32 *)(TexelPtr2 + sizeof(uint32)),
+                                   *(uint32 *)(TexelPtr3 + sizeof(uint32)));
+          
+          SampleC = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + TexturePitch),
+                                   *(uint32 *)(TexelPtr1 + TexturePitch),
+                                   *(uint32 *)(TexelPtr2 + TexturePitch),
+                                   *(uint32 *)(TexelPtr3 + TexturePitch));
+          
+          SampleD = _mm_setr_epi32(*(uint32 *)(TexelPtr0 + TexturePitch + sizeof(uint32)),
+                                   *(uint32 *)(TexelPtr1 + TexturePitch + sizeof(uint32)),
+                                   *(uint32 *)(TexelPtr2 + TexturePitch + sizeof(uint32)),
+                                   *(uint32 *)(TexelPtr3 + TexturePitch + sizeof(uint32)));
+          
+          //////
+          __m128i TexelArb = _mm_and_si128(SampleA, MaskFF00FF);
+          __m128i TexelAag = _mm_and_si128(_mm_srli_epi32(SampleA,  8), MaskFF00FF);
+          TexelArb = _mm_mullo_epi16(TexelArb, TexelArb);
+          __m128 TexelAa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelAag, 16));
+          TexelAag = _mm_mullo_epi16(TexelAag, TexelAag);
+          
+          //////
+          __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
+          __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
+          TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
+          __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
+          TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
+          
+          //////
+          __m128i TexelCrb = _mm_and_si128(SampleC, MaskFF00FF);
+          __m128i TexelCag = _mm_and_si128(_mm_srli_epi32(SampleC,  8), MaskFF00FF);
+          TexelCrb = _mm_mullo_epi16(TexelCrb, TexelCrb);
+          __m128 TexelCa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCag, 16));
+          TexelCag = _mm_mullo_epi16(TexelCag, TexelCag);
+          
+          //////
+          __m128i TexelDrb = _mm_and_si128(SampleD, MaskFF00FF);
+          __m128i TexelDag = _mm_and_si128(_mm_srli_epi32(SampleD,  8), MaskFF00FF);
+          TexelDrb = _mm_mullo_epi16(TexelDrb, TexelDrb);
+          __m128 TexelDa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDag, 16));
+          TexelDag = _mm_mullo_epi16(TexelDag, TexelDag);
+          
+          // NOTE(Egor): Convert texture from SRGB to 'linear' brightness space
+          __m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));
+          __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
+          __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
+          
+          __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
+          __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
+          __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
+          
+          __m128 TexelCr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCrb, 16));
+          __m128 TexelCg = _mm_cvtepi32_ps(_mm_and_si128(TexelCag, MaskFFFF));
+          __m128 TexelCb = _mm_cvtepi32_ps(_mm_and_si128(TexelCrb, MaskFFFF));
+          
+          __m128 TexelDr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelDrb, 16));
+          __m128 TexelDg = _mm_cvtepi32_ps(_mm_and_si128(TexelDag, MaskFFFF));
+          __m128 TexelDb = _mm_cvtepi32_ps(_mm_and_si128(TexelDrb, MaskFFFF));
+          
+          // NOTE(Egor): convert to linear brightness space
+          // Dest = SRGB255ToLinear1(Dest);
+          
 #if 0        
-        __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(OriginalDest, MaskFF));
-        __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 8), MaskFF));
-        __m128 DestR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 16), MaskFF));
-        __m128 DestA = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 24), MaskFF));
-        DestR = mm_square(DestR);
-        DestG = mm_square(DestG);
-        DestB = mm_square(DestB);
-        
+          __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(OriginalDest, MaskFF));
+          __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 8), MaskFF));
+          __m128 DestR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 16), MaskFF));
+          __m128 DestA = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 24), MaskFF));
+          DestR = mm_square(DestR);
+          DestG = mm_square(DestG);
+          DestB = mm_square(DestB);
+          
 #else
-        // NOTE(Egor): load destination color
-        __m128i Destrb = _mm_and_si128(OriginalDest, MaskFF00FF);
-        __m128i Destag = _mm_and_si128(_mm_srli_epi32(OriginalDest,  8), MaskFF00FF);
-        Destrb = _mm_mullo_epi16(Destrb, Destrb);
-        __m128 DestA = _mm_cvtepi32_ps(_mm_srli_epi32(Destag, 16));
-        Destag = _mm_mullo_epi16(Destag, Destag);
-        
-        __m128 DestR = _mm_cvtepi32_ps(_mm_srli_epi32(Destrb, 16));
-        __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(Destag, MaskFFFF));
-        __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(Destrb, MaskFFFF));
-        
+          // NOTE(Egor): load destination color
+          __m128i Destrb = _mm_and_si128(OriginalDest, MaskFF00FF);
+          __m128i Destag = _mm_and_si128(_mm_srli_epi32(OriginalDest,  8), MaskFF00FF);
+          Destrb = _mm_mullo_epi16(Destrb, Destrb);
+          __m128 DestA = _mm_cvtepi32_ps(_mm_srli_epi32(Destag, 16));
+          Destag = _mm_mullo_epi16(Destag, Destag);
+          
+          __m128 DestR = _mm_cvtepi32_ps(_mm_srli_epi32(Destrb, 16));
+          __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(Destag, MaskFFFF));
+          __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(Destrb, MaskFFFF));
+          
 #endif
+          
+          // NOTE(Egor): compute coefficients for for subpixel rendering
+          __m128 ifX = _mm_sub_ps(One, fX);
+          __m128 ifY = _mm_sub_ps(One, fY);
+          __m128 L0 = _mm_mul_ps(ifY, ifX);
+          __m128 L1 = _mm_mul_ps(ifY, fX);
+          __m128 L2 = _mm_mul_ps(fY, ifX);
+          __m128 L3 = _mm_mul_ps(fY, fX);
+          
+          // NOTE(Egor): subpixel blending
+          // lerp 4 pixel square |A|B| into one pixel with weighted coefficients
+          //                     |C|D| 
+          // fX -> Fractional Part of X Texel from texture
+          // fY -> Fractional Part of Y Textl from texture
+          __m128 Texelr = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAr),
+                                                _mm_mul_ps(L1, TexelBr)),
+                                     _mm_add_ps(_mm_mul_ps(L2, TexelCr),
+                                                _mm_mul_ps(L3, TexelDr)));
+          
+          __m128 Texelg = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAg),
+                                                _mm_mul_ps(L1, TexelBg)),
+                                     _mm_add_ps(_mm_mul_ps(L2, TexelCg),
+                                                _mm_mul_ps(L3, TexelDg)));
+          
+          __m128 Texelb = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAb),
+                                                _mm_mul_ps(L1, TexelBb)),
+                                     _mm_add_ps(_mm_mul_ps(L2, TexelCb),
+                                                _mm_mul_ps(L3, TexelDb)));
+          
+          __m128 Texela = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAa),
+                                                _mm_mul_ps(L1, TexelBa)),
+                                     _mm_add_ps(_mm_mul_ps(L2, TexelCa),
+                                                _mm_mul_ps(L3, TexelDa)));
+          
+          // NOTE(Egor): Modulate by incoming color
+          Texelr = _mm_mul_ps(Texelr, ColorR_4x);
+          Texelg = _mm_mul_ps(Texelg, ColorG_4x);
+          Texelb = _mm_mul_ps(Texelb, ColorB_4x);
+          Texela = _mm_mul_ps(Texela, ColorA_INV_4x);
+          
+          // NOTE(Egor): clamp color to valid range
+          Texelr = _mm_min_ps(_mm_max_ps(Texelr, Zero), Squared255);
+          Texelg = _mm_min_ps(_mm_max_ps(Texelg, Zero), Squared255);
+          Texelb = _mm_min_ps(_mm_max_ps(Texelb, Zero), Squared255);
+          
+          // NOTE(Egor): alpha channel for composited bitmaps is in premultiplied alpha mode
+          // for case when we create intermediate buffer with two or more bitmaps blend with 
+          // each other 
+          
+          // NOTE(Egor): destination blend
+          //        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
+          __m128 OneComplementTexelA = _mm_sub_ps(One, Texela);
+          __m128 BlendedR = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestR), Texelr);
+          __m128 BlendedG = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestG), Texelg);
+          __m128 BlendedB = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestB), Texelb);
+          __m128 BlendedA = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestA), Texela);
+          
+          // NOTE(Egor): convert back to gamma 
+          // v4 Blended255 = Linear1ToSRGB255(Blended);
+          BlendedR = _mm_mul_ps(BlendedR, _mm_rsqrt_ps(BlendedR));
+          BlendedG = _mm_mul_ps(BlendedG, _mm_rsqrt_ps(BlendedG));
+          BlendedB = _mm_mul_ps(BlendedB, _mm_rsqrt_ps(BlendedB));
+          BlendedA = BlendedA;
+          
+          // NOTE(Egor): set _cvtps_ (round to nearest)
+          __m128i IntA = _mm_cvtps_epi32(BlendedA);
+          __m128i IntR = _mm_cvtps_epi32(BlendedR);
+          __m128i IntG = _mm_cvtps_epi32(BlendedG);
+          __m128i IntB = _mm_cvtps_epi32(BlendedB);
+          
+          IntA = _mm_slli_epi32(IntA, 24);
+          IntR = _mm_slli_epi32(IntR, 16);
+          IntG = _mm_slli_epi32(IntG, 8);
+          IntB = IntB;
+          
+          __m128i Out = _mm_or_si128(_mm_or_si128(IntR, IntG),
+                                     _mm_or_si128(IntB, IntA));
+          
+          __m128i New = _mm_and_si128(WriteMask, Out);
+          __m128i Old = _mm_andnot_si128(WriteMask, OriginalDest);
+          __m128i MaskedOut = _mm_or_si128(New, Old);
+          
+          _mm_store_si128((__m128i *)Pixel, MaskedOut);
+        }
         
-        // NOTE(Egor): compute coefficients for for subpixel rendering
-        __m128 ifX = _mm_sub_ps(One, fX);
-        __m128 ifY = _mm_sub_ps(One, fY);
-        __m128 L0 = _mm_mul_ps(ifY, ifX);
-        __m128 L1 = _mm_mul_ps(ifY, fX);
-        __m128 L2 = _mm_mul_ps(fY, ifX);
-        __m128 L3 = _mm_mul_ps(fY, fX);
+        PixelPX = _mm_add_ps(PixelPX, Four);
+        Pixel += 4;
+        // NOTE(Egor): we clipped first 4 pixels
+        ClipMask = _mm_set1_epi32(0xFFFFFFFF);
         
-        // NOTE(Egor): subpixel blending
-        // lerp 4 pixel square |A|B| into one pixel with weighted coefficients
-        //                     |C|D| 
-        // fX -> Fractional Part of X Texel from texture
-        // fY -> Fractional Part of Y Textl from texture
-        __m128 Texelr = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAr),
-                                              _mm_mul_ps(L1, TexelBr)),
-                                   _mm_add_ps(_mm_mul_ps(L2, TexelCr),
-                                              _mm_mul_ps(L3, TexelDr)));
-        
-        __m128 Texelg = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAg),
-                                              _mm_mul_ps(L1, TexelBg)),
-                                   _mm_add_ps(_mm_mul_ps(L2, TexelCg),
-                                              _mm_mul_ps(L3, TexelDg)));
-        
-        __m128 Texelb = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAb),
-                                              _mm_mul_ps(L1, TexelBb)),
-                                   _mm_add_ps(_mm_mul_ps(L2, TexelCb),
-                                              _mm_mul_ps(L3, TexelDb)));
-        
-        __m128 Texela = _mm_add_ps(_mm_add_ps(_mm_mul_ps(L0, TexelAa),
-                                              _mm_mul_ps(L1, TexelBa)),
-                                   _mm_add_ps(_mm_mul_ps(L2, TexelCa),
-                                              _mm_mul_ps(L3, TexelDa)));
-        
-        // NOTE(Egor): Modulate by incoming color
-        Texelr = _mm_mul_ps(Texelr, ColorR_4x);
-        Texelg = _mm_mul_ps(Texelg, ColorG_4x);
-        Texelb = _mm_mul_ps(Texelb, ColorB_4x);
-        Texela = _mm_mul_ps(Texela, ColorA_INV_4x);
-        
-        // NOTE(Egor): clamp color to valid range
-        Texelr = _mm_min_ps(_mm_max_ps(Texelr, Zero), Squared255);
-        Texelg = _mm_min_ps(_mm_max_ps(Texelg, Zero), Squared255);
-        Texelb = _mm_min_ps(_mm_max_ps(Texelb, Zero), Squared255);
-        
-        // NOTE(Egor): alpha channel for composited bitmaps is in premultiplied alpha mode
-        // for case when we create intermediate buffer with two or more bitmaps blend with 
-        // each other 
-        
-        // NOTE(Egor): destination blend
-        //        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
-        __m128 OneComplementTexelA = _mm_sub_ps(One, Texela);
-        __m128 BlendedR = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestR), Texelr);
-        __m128 BlendedG = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestG), Texelg);
-        __m128 BlendedB = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestB), Texelb);
-        __m128 BlendedA = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestA), Texela);
-        
-        // NOTE(Egor): convert back to gamma 
-        // v4 Blended255 = Linear1ToSRGB255(Blended);
-        BlendedR = _mm_mul_ps(BlendedR, _mm_rsqrt_ps(BlendedR));
-        BlendedG = _mm_mul_ps(BlendedG, _mm_rsqrt_ps(BlendedG));
-        BlendedB = _mm_mul_ps(BlendedB, _mm_rsqrt_ps(BlendedB));
-        BlendedA = BlendedA;
-        
-        // NOTE(Egor): set _cvtps_ (round to nearest)
-        __m128i IntA = _mm_cvtps_epi32(BlendedA);
-        __m128i IntR = _mm_cvtps_epi32(BlendedR);
-        __m128i IntG = _mm_cvtps_epi32(BlendedG);
-        __m128i IntB = _mm_cvtps_epi32(BlendedB);
-        
-        IntA = _mm_slli_epi32(IntA, 24);
-        IntR = _mm_slli_epi32(IntR, 16);
-        IntG = _mm_slli_epi32(IntG, 8);
-        IntB = IntB;
-        
-        __m128i Out = _mm_or_si128(_mm_or_si128(IntR, IntG),
-                                   _mm_or_si128(IntB, IntA));
-        
-        __m128i New = _mm_and_si128(WriteMask, Out);
-        __m128i Old = _mm_andnot_si128(WriteMask, OriginalDest);
-        __m128i MaskedOut = _mm_or_si128(New, Old);
-        
-        _mm_store_si128((__m128i *)Pixel, MaskedOut);
+        IACA_VC64_END;
       }
       
-      PixelPX = _mm_add_ps(PixelPX, Four);
-      Pixel += 4;
-      // NOTE(Egor): we clipped first 4 pixels
-      ClipMask = _mm_set1_epi32(0xFFFFFFFF);
-      
-      IACA_VC64_END;
+      // NOTE(Egor): alternating lines 
+      Row += RowAdvance;
+      PixelPY = _mm_add_ps(PixelPY, Two);
     }
     
-    // NOTE(Egor): alternating lines 
-    Row += RowAdvance;
-    PixelPY = _mm_add_ps(PixelPY, Two);
+    int32 PixelCount = GetClampedArea(FillRect)/2;
+    END_TIMED_BLOCK_COUNTED(ProcessPixel, PixelCount);
+    
+    END_TIMED_BLOCK(DrawRectangleSlowly);
   }
-  
-  int32 PixelCount = GetClampedArea(FillRect)/2;
-  END_TIMED_BLOCK_COUNTED(ProcessPixel, PixelCount);
-  
-  END_TIMED_BLOCK(DrawRectangleSlowly);
 }
 
 
@@ -897,6 +897,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
         
         DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM, true);
         DrawRectangleSlowly(Output, Basis, Entry->Color,Entry->Bitmap, PtM, false);
+        
 #endif
         
       } break;
