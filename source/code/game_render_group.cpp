@@ -434,7 +434,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
 #if 1
   
   // NOTE(Egor): specific order for algorithm
-  rectangle2i FillRect = InvertedMaxRectangle();
+  rectangle2i FillRect = InvertedHalfMaxRectangle();
 #else
   
   rectangle2i FillRect = HalfMaxRectangle();
@@ -682,13 +682,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           TexelAag = _mm_mullo_epi16(TexelAag, TexelAag);
           
           //////
-          __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
-          __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
-          TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
-          __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
-          TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
-          
-          //////
           __m128i TexelCrb = _mm_and_si128(SampleC, MaskFF00FF);
           __m128i TexelCag = _mm_and_si128(_mm_srli_epi32(SampleC,  8), MaskFF00FF);
           TexelCrb = _mm_mullo_epi16(TexelCrb, TexelCrb);
@@ -707,10 +700,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
           __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
           
-          __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
-          __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
-          __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
-          
           __m128 TexelCr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCrb, 16));
           __m128 TexelCg = _mm_cvtepi32_ps(_mm_and_si128(TexelCag, MaskFFFF));
           __m128 TexelCb = _mm_cvtepi32_ps(_mm_and_si128(TexelCrb, MaskFFFF));
@@ -721,8 +710,16 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           
           // NOTE(Egor): convert to linear brightness space
           // Dest = SRGB255ToLinear1(Dest);
-          
 #if 0        
+          
+          __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(SampleB, MaskFF));
+          __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB, 8), MaskFF));
+          __m128 TexelBr = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB, 16), MaskFF));
+          __m128 TexelBa = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB, 24), MaskFF));
+          TexelBr = mm_square(TexelBr);
+          TexelBg = mm_square(TexelBg);
+          TexelBb = mm_square(TexelBb);
+          
           __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(OriginalDest, MaskFF));
           __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 8), MaskFF));
           __m128 DestR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 16), MaskFF));
@@ -732,6 +729,18 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           DestB = mm_square(DestB);
           
 #else
+          
+          //////
+          __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
+          __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
+          TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
+          __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
+          TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
+          
+          __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
+          __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
+          __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
+          
           // NOTE(Egor): load destination color
           __m128i Destrb = _mm_and_si128(OriginalDest, MaskFF00FF);
           __m128i Destag = _mm_and_si128(_mm_srli_epi32(OriginalDest,  8), MaskFF00FF);
@@ -923,7 +932,7 @@ TiledRenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
   bool32 Even = false;
 //    rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
-  rectangle2i ClipRect = {1, 1, Output->Width - 1, Output->Height - 1};
+  rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
   
   RenderPushBuffer(Group, Output, ClipRect, false);
   RenderPushBuffer(Group, Output, ClipRect, true);
