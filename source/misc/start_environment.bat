@@ -1,8 +1,9 @@
 @echo off
-cd C:\_asm\projects\_win32
+cd %~dp0
+cd ..\..
 git pull origin master
 cd source\code
 CALL build.bat
 start 4ed game.cpp
-start devenv ../../build/win32_game.sln
+start devenv ../../build/win32_test.sln
 cmd /k

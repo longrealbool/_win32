@@ -934,8 +934,26 @@ TiledRenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
 //    rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
   rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
   
-  RenderPushBuffer(Group, Output, ClipRect, false);
-  RenderPushBuffer(Group, Output, ClipRect, true);
+  int TileCountX = 4;
+  int TileCountY = 4;
+  
+  int TileWidth = Output->Width / TileCountX;
+  int TileHeight = Output->Height / TileCountY;
+  
+  for(int32 TileY = 0; TileY < TileCountY; ++TileY) {
+    for(int32 TileX = 0; TileX < TileCountX; ++TileX) {
+      
+      rectangle2i ClipRect;
+      
+      ClipRect.XMin = TileX*TileWidth + 4;
+      ClipRect.XMax = (TileX + 1)*TileWidth - 4;
+      ClipRect.YMin = TileY*TileHeight + 4;
+      ClipRect.YMax = (TileY + 1)*TileHeight - 4;
+    
+      RenderPushBuffer(Group, Output, ClipRect, false);
+      RenderPushBuffer(Group, Output, ClipRect, true);    
+    }
+  }
 }
 
 
