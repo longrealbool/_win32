@@ -1064,21 +1064,31 @@ HandleDebugCycleCounters(game_memory *Memory) {
 #endif
 }
 
+
+// TODO(Egor): double-check the write ordering on CPU
+#define WRITE_BARRIER _WriteBarrier(); _mm_sfence()
+#define READ_BARRIER _ReadBarrier()
+
 struct work_queue_entry {
   
   char *StringToPring;
 };
 
-global_variable uint32 NextJobToDo;
-global_variable uint32 EntryCount;
+global_variable uint32 volatile NextJobToDo;
+global_variable uint32 volatile EntryCount;
 work_queue_entry Entries[256];
 
 internal void
 PushString(char *String) {
- 
-  // NOTE(Egor): these writes should be in order
-  work_queue_entry *QEntry = Entries + EntryCount++;
+  
+  work_queue_entry *QEntry = Entries + EntryCount;
   QEntry->StringToPring = String;
+
+  // NOTE(Egor): these writes should be in order, we need to update routine
+  // before incrementing counter
+  WRITE_BARRIER;
+  
+  EntryCount++;
 }
 
 struct win32_thread_info {
@@ -1094,11 +1104,12 @@ DWORD WINAPI ThreadProc(LPVOID lpParamer) {
     
     if(NextJobToDo < EntryCount) {
       
-      // NOTE(Egor): this line should be interlocked
-      int JobIndex = NextJobToDo++;
+      int JobIndex = InterlockedIncrement((LONG volatile *)&NextJobToDo) - 1;
       
-      // NOTE(Egor): these reads should be in order
+      READ_BARRIER;
+      
       work_queue_entry *Entry = Entries + JobIndex;
+      
       char Buffer[256];
       wsprintf(Buffer, "Thread %u %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPring);
       OutputDebugStringA(Buffer);
