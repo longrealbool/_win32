@@ -1064,6 +1064,77 @@ HandleDebugCycleCounters(game_memory *Memory) {
 #endif
 }
 
+struct work_queue_entry {
+  
+  char *StringToPring;
+};
+
+global_variable uint32 NextJobToDo;
+global_variable uint32 EntryCount;
+work_queue_entry Entries[256];
+
+internal void
+PushString(char *String) {
+ 
+  // NOTE(Egor): these writes should be in order
+  work_queue_entry *QEntry = Entries + EntryCount++;
+  QEntry->StringToPring = String;
+}
+
+struct win32_thread_info {
+  
+  uint32 LogicalThreadIndex;
+};
+
+DWORD WINAPI ThreadProc(LPVOID lpParamer) {
+  
+  win32_thread_info *ThreadInfo = (win32_thread_info *)lpParamer;
+
+  for(;;) {
+    
+    if(NextJobToDo < EntryCount) {
+      
+      // NOTE(Egor): this line should be interlocked
+      int JobIndex = NextJobToDo++;
+      
+      // NOTE(Egor): these reads should be in order
+      work_queue_entry *Entry = Entries + JobIndex;
+      char Buffer[256];
+      wsprintf(Buffer, "Thread %u %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPring);
+      OutputDebugStringA(Buffer);
+    }
+  }
+}
+
+
+global_variable win32_thread_info Infos[15];
+
+internal void
+testFunc() {
+  
+  for(uint32 Index = 0; Index < ArrayCount(Infos); ++Index) {
+    
+    win32_thread_info *Info = Infos + Index;
+    Info->LogicalThreadIndex = Index;
+    
+    DWORD ThreadID;
+    HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Info, 0, &ThreadID);
+  }
+  
+  PushString("String 0");
+  PushString("String 1");
+  PushString("String 2");
+  PushString("String 3");
+  PushString("String 4");
+  PushString("String 5");
+  PushString("String 6");
+  PushString("String 7");
+  PushString("String 8");
+  PushString("String 9");
+  PushString("String 10");
+  PushString("String 11");
+}
+
 
 int CALLBACK
 WinMain(HINSTANCE Instance,
@@ -1072,6 +1143,9 @@ WinMain(HINSTANCE Instance,
         int ShowCode)
 {
   win32_state Win32State = {};
+  
+  
+  testFunc();
   
   LARGE_INTEGER PerfCountFrequencyResult;
   QueryPerformanceFrequency(&PerfCountFrequencyResult);
