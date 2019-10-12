@@ -1071,38 +1071,44 @@ HandleDebugCycleCounters(game_memory *Memory) {
 
 struct work_queue_entry {
   
-  char *StringToPring;
+  char *StringToPrint;
 };
 
+
+global_variable uint32 volatile JobsFinished;
 global_variable uint32 volatile NextJobToDo;
-global_variable uint32 volatile EntryCount;
+global_variable uint32 volatile JobsToDo;
 work_queue_entry Entries[256];
 
 internal void
 PushString(char *String) {
   
-  work_queue_entry *QEntry = Entries + EntryCount;
-  QEntry->StringToPring = String;
+  work_queue_entry *QEntry = Entries + JobsToDo;
+  QEntry->StringToPrint = String;
 
   // NOTE(Egor): these writes should be in order, we need to update routine
   // before incrementing counter
   WRITE_BARRIER;
   
-  EntryCount++;
+  JobsToDo++;
+  ReleaseSemaphore();
 }
 
 struct win32_thread_info {
-  
+
+  HANDLE Semaphore;
   uint32 LogicalThreadIndex;
 };
 
 DWORD WINAPI ThreadProc(LPVOID lpParamer) {
   
   win32_thread_info *ThreadInfo = (win32_thread_info *)lpParamer;
+  
+//  Sleep(100);
 
   for(;;) {
     
-    if(NextJobToDo < EntryCount) {
+    if(NextJobToDo < JobsToDo) {
       
       int JobIndex = InterlockedIncrement((LONG volatile *)&NextJobToDo) - 1;
       
@@ -1111,39 +1117,57 @@ DWORD WINAPI ThreadProc(LPVOID lpParamer) {
       work_queue_entry *Entry = Entries + JobIndex;
       
       char Buffer[256];
-      wsprintf(Buffer, "Thread %u %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPring);
+      wsprintf(Buffer, "Thread %u %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPrint);
       OutputDebugStringA(Buffer);
+      
+      InterlockedIncrement((LONG volatile *)&JobsFinished);
+    }
+    else {
+     
+      char Buffer[256];
+      wsprintf(Buffer, "Thread %u GOES TO SLEEP\n", ThreadInfo->LogicalThreadIndex);
+      OutputDebugStringA(Buffer);
+      WaitForSingleObjectEx(ThreadInfo->Semaphore, INFINITE, false);
+      
     }
   }
 }
 
 
-global_variable win32_thread_info Infos[15];
+global_variable win32_thread_info Infos[6];
 
 internal void
 testFunc() {
   
-  for(uint32 Index = 0; Index < ArrayCount(Infos); ++Index) {
+  
+  uint32 InitialCount = 0;
+  uint32 ThreadCount = ArrayCount(Infos);
+  // NOTE(Egor): fuck da safety
+  HANDLE Semaphore = CreateSemaphoreEx(0, InitialCount, ThreadCount,
+                                       "AllPurposeJobQueue", 0, SEMAPHORE_ALL_ACCESS);
+  
+  for(uint32 Index = 0; Index < ThreadCount; ++Index) {
     
     win32_thread_info *Info = Infos + Index;
     Info->LogicalThreadIndex = Index;
+    Info->Semaphore = Semaphore;
     
     DWORD ThreadID;
     HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Info, 0, &ThreadID);
+    CloseHandle(ThreadHandle);
   }
   
-  PushString("String 0");
-  PushString("String 1");
-  PushString("String 2");
-  PushString("String 3");
-  PushString("String 4");
-  PushString("String 5");
-  PushString("String 6");
-  PushString("String 7");
-  PushString("String 8");
-  PushString("String 9");
-  PushString("String 10");
-  PushString("String 11");
+  
+  char Buffer[256*100];
+
+  for(uint32 Count = 0; Count < 100; ++Count) {
+    
+    wsprintf((Buffer + 256*Count), "Test_String %u", Count);
+    PushString(Buffer + 256*Count);
+    
+  }
+  
+  while(JobsFinished != JobsToDo);
 }
 
 
