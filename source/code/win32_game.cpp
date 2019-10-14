@@ -1081,54 +1081,67 @@ global_variable uint32 volatile JobsToDo;
 work_queue_entry Entries[256];
 
 internal void
-PushString(char *String) {
+PushString(HANDLE Semaphore, char *String) {
   
   work_queue_entry *QEntry = Entries + JobsToDo;
   QEntry->StringToPrint = String;
-
+  
   // NOTE(Egor): these writes should be in order, we need to update routine
   // before incrementing counter
   WRITE_BARRIER;
   
   JobsToDo++;
-  ReleaseSemaphore();
+  ReleaseSemaphore(Semaphore, 1, 0);
 }
 
 struct win32_thread_info {
-
+  
   HANDLE Semaphore;
   uint32 LogicalThreadIndex;
 };
 
-DWORD WINAPI ThreadProc(LPVOID lpParamer) {
+
+inline bool32 
+IsThereWorkToDo(uint32 LogicalThreadIndex) {
+ 
+  bool32 Result = false;
+  if(NextJobToDo < JobsToDo) {
+    
+    int JobIndex = InterlockedIncrement((LONG volatile *)&NextJobToDo) - 1;
+    
+    READ_BARRIER;
+    
+    work_queue_entry *Entry = Entries + JobIndex;
+    
+    char Buffer[256];
+    wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, Entry->StringToPrint);
+    OutputDebugStringA(Buffer);
+    
+    InterlockedIncrement((LONG volatile *)&JobsFinished);
+    Result = true;
+  }
+  
+  return Result;
+}
+
+DWORD WINAPI 
+ThreadProc(LPVOID lpParamer) {
   
   win32_thread_info *ThreadInfo = (win32_thread_info *)lpParamer;
   
-//  Sleep(100);
-
   for(;;) {
     
-    if(NextJobToDo < JobsToDo) {
+    // NOTE(Egor): I assume that if we have work to do, it's always beneficial to start
+    // doing it immediately without calling OS so we Wait only if there is nothing to do
+    if(!IsThereWorkToDo(ThreadInfo->LogicalThreadIndex)) {
       
-      int JobIndex = InterlockedIncrement((LONG volatile *)&NextJobToDo) - 1;
-      
-      READ_BARRIER;
-      
-      work_queue_entry *Entry = Entries + JobIndex;
-      
-      char Buffer[256];
-      wsprintf(Buffer, "Thread %u %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPrint);
-      OutputDebugStringA(Buffer);
-      
-      InterlockedIncrement((LONG volatile *)&JobsFinished);
-    }
-    else {
-     
+#if 0      
       char Buffer[256];
       wsprintf(Buffer, "Thread %u GOES TO SLEEP\n", ThreadInfo->LogicalThreadIndex);
       OutputDebugStringA(Buffer);
-      WaitForSingleObjectEx(ThreadInfo->Semaphore, INFINITE, false);
+#endif
       
+      WaitForSingleObjectEx(ThreadInfo->Semaphore, INFINITE, false);
     }
   }
 }
@@ -1138,7 +1151,6 @@ global_variable win32_thread_info Infos[6];
 
 internal void
 testFunc() {
-  
   
   uint32 InitialCount = 0;
   uint32 ThreadCount = ArrayCount(Infos);
@@ -1162,12 +1174,20 @@ testFunc() {
 
   for(uint32 Count = 0; Count < 100; ++Count) {
     
-    wsprintf((Buffer + 256*Count), "Test_String %u", Count);
-    PushString(Buffer + 256*Count);
+    if(Count % 10 == 0) {
+      
+      Sleep(500);
+    }
     
+    wsprintf((Buffer + 256*Count), "Test_String %u", Count);
+    PushString(Semaphore, Buffer + 256*Count);
   }
   
-  while(JobsFinished != JobsToDo);
+  while(JobsFinished != JobsToDo) {
+    
+    IsThereWorkToDo(7);
+  }
+  
 }
 
 

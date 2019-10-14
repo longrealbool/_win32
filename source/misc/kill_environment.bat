@@ -1,3 +1,7 @@
-taskkill /f /fi "Imagename eq devenv*"
-taskkill /f /fi "Imagename eq 4ed*"
+@echo off
+taskkill /f /fi "WINDOWTITLE eq win32_test*" >> NUL
+taskkill /f /fi "Imagename eq 4ed*" >> NUL
+cmd
+
+
 
