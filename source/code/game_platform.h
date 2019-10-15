@@ -62,8 +62,6 @@ extern "C" {
 #define Max(A, B) (A > B ? A : B)
   
   
-  
-  
 #include <stdint.h>
 #include <stddef.h>
 #include <limits.h>

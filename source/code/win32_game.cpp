@@ -1069,71 +1069,105 @@ HandleDebugCycleCounters(game_memory *Memory) {
 #define WRITE_BARRIER _WriteBarrier(); _mm_sfence()
 #define READ_BARRIER _ReadBarrier()
 
-struct work_queue_entry {
+
+struct work_queue {
   
-  char *StringToPrint;
+  uint32 volatile WorksFinished;
+  uint32 volatile NextWorkToDo;
+  uint32 volatile WorksToDo;
+  
+  uint32 MaxEntryCount;
+  HANDLE Semaphore;
 };
-
-
-global_variable uint32 volatile JobsFinished;
-global_variable uint32 volatile NextJobToDo;
-global_variable uint32 volatile JobsToDo;
-work_queue_entry Entries[256];
 
 internal void
-PushString(HANDLE Semaphore, char *String) {
+PushWorkQueueEntry(work_queue *Queue) {
   
-  work_queue_entry *QEntry = Entries + JobsToDo;
-  QEntry->StringToPrint = String;
-  
-  // NOTE(Egor): these writes should be in order, we need to update routine
-  // before incrementing counter
   WRITE_BARRIER;
-  
-  JobsToDo++;
-  ReleaseSemaphore(Semaphore, 1, 0);
+  ++Queue->WorksToDo;
+  ReleaseSemaphore(Queue->Semaphore, 1, 0);
 }
 
-struct win32_thread_info {
+
+
+struct work_queue_item {
   
-  HANDLE Semaphore;
-  uint32 LogicalThreadIndex;
+  bool32 IsValid;
+  uint32 Index;
 };
 
-
-inline bool32 
-IsThereWorkToDo(uint32 LogicalThreadIndex) {
- 
-  bool32 Result = false;
-  if(NextJobToDo < JobsToDo) {
+internal work_queue_item
+GetNextWorkQueueItem(work_queue *Queue) {
+  
+  
+  work_queue_item Result;
+  Result.IsValid = false;
+  
+  if(Queue->NextWorkToDo < Queue->WorksToDo) {
     
-    int JobIndex = InterlockedIncrement((LONG volatile *)&NextJobToDo) - 1;
+    Result.Index = InterlockedIncrement((LONG volatile *)&Queue->NextWorkToDo) - 1;
+    Result.IsValid = true;
     
     READ_BARRIER;
-    
-    work_queue_entry *Entry = Entries + JobIndex;
-    
-    char Buffer[256];
-    wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, Entry->StringToPrint);
-    OutputDebugStringA(Buffer);
-    
-    InterlockedIncrement((LONG volatile *)&JobsFinished);
-    Result = true;
   }
   
   return Result;
 }
+
+internal void 
+MarkQueueItemCompleted(work_queue *Queue, work_queue_item Item) {
+  
+  InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
+}
+
+internal bool32
+QueueWorkStillInProgress(work_queue *Queue) {
+  
+  bool32 Result = Queue->WorksFinished != Queue->WorksToDo;
+  return Result;
+}
+
+struct work_queue_entry {
+  
+  char *StringToPrint;
+};
+work_queue_entry Entries[256];
+
+inline bool32 
+DoWork(work_queue *Queue, uint32 LogicalThreadIndex) {
+ 
+  work_queue_item Item = GetNextWorkQueueItem(Queue);
+  if(Item.IsValid) {
+    
+    char Buffer[256];
+    work_queue_entry *Entry = Entries + Item.Index;
+    wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, Entry->StringToPrint);
+    OutputDebugStringA(Buffer);
+    
+    MarkQueueItemCompleted(Queue, Item);
+  }
+  
+  return Item.IsValid;
+}
+
+struct win32_thread_info {
+  
+  work_queue *Queue;
+  HANDLE Semaphore;
+  uint32 LogicalThreadIndex;
+};
 
 DWORD WINAPI 
 ThreadProc(LPVOID lpParamer) {
   
   win32_thread_info *ThreadInfo = (win32_thread_info *)lpParamer;
   
+  
   for(;;) {
     
     // NOTE(Egor): I assume that if we have work to do, it's always beneficial to start
     // doing it immediately without calling OS so we Wait only if there is nothing to do
-    if(!IsThereWorkToDo(ThreadInfo->LogicalThreadIndex)) {
+    if(!DoWork(ThreadInfo->Queue, ThreadInfo->LogicalThreadIndex)) {
       
 #if 0      
       char Buffer[256];
@@ -1146,8 +1180,8 @@ ThreadProc(LPVOID lpParamer) {
   }
 }
 
-
 global_variable win32_thread_info Infos[6];
+
 
 internal void
 testFunc() {
@@ -1183,9 +1217,9 @@ testFunc() {
     PushString(Semaphore, Buffer + 256*Count);
   }
   
-  while(JobsFinished != JobsToDo) {
+  while(QueueWorkStillInProgress(ThreadInfo->Queue)) {
     
-    IsThereWorkToDo(7);
+    DoWork(ThreadInfo->Queue, 7);
   }
   
 }
