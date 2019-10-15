@@ -1180,6 +1180,9 @@ ThreadProc(LPVOID lpParamer) {
 #endif
       
       WaitForSingleObjectEx(ThreadInfo->Queue->Semaphore, INFINITE, false);
+      
+      wsprintf(Buffer, "Thread %u  AWAKE \n", ThreadInfo->LogicalThreadIndex);
+      OutputDebugStringA(Buffer);
     }
   }
 }
