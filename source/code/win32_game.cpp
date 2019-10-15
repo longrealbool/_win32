@@ -1074,36 +1074,41 @@ struct work_queue {
   
   uint32 volatile WorksFinished;
   uint32 volatile NextWorkToDo;
-  uint32 volatile WorksToDo;
+  uint32 volatile WorkCount;
   
   uint32 MaxEntryCount;
   HANDLE Semaphore;
 };
 
+internal uint32
+GetNextAvailableWorkQueueIndex(work_queue *Queue) {
+  
+  uint32 Result = Queue->WorkCount;
+  return(Result);
+}
+
 internal void
 PushWorkQueueEntry(work_queue *Queue) {
   
   WRITE_BARRIER;
-  ++Queue->WorksToDo;
+  ++Queue->WorkCount;
   ReleaseSemaphore(Queue->Semaphore, 1, 0);
 }
 
-
-
-struct work_queue_item {
+struct work_queue_entry {
   
   bool32 IsValid;
   uint32 Index;
 };
 
-internal work_queue_item
+internal work_queue_entry
 GetNextWorkQueueItem(work_queue *Queue) {
   
   
-  work_queue_item Result;
+  work_queue_entry Result;
   Result.IsValid = false;
   
-  if(Queue->NextWorkToDo < Queue->WorksToDo) {
+  if(Queue->NextWorkToDo < Queue->WorkCount) {
     
     Result.Index = InterlockedIncrement((LONG volatile *)&Queue->NextWorkToDo) - 1;
     Result.IsValid = true;
@@ -1115,7 +1120,7 @@ GetNextWorkQueueItem(work_queue *Queue) {
 }
 
 internal void 
-MarkQueueItemCompleted(work_queue *Queue, work_queue_item Item) {
+MarkQueueItemCompleted(work_queue *Queue, work_queue_entry Item) {
   
   InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
 }
@@ -1123,37 +1128,36 @@ MarkQueueItemCompleted(work_queue *Queue, work_queue_item Item) {
 internal bool32
 QueueWorkStillInProgress(work_queue *Queue) {
   
-  bool32 Result = Queue->WorksFinished != Queue->WorksToDo;
+  bool32 Result = Queue->WorksFinished != Queue->WorkCount;
   return Result;
 }
 
-struct work_queue_entry {
+struct string_entry {
   
   char *StringToPrint;
 };
-work_queue_entry Entries[256];
+string_entry Entries[256];
 
 inline bool32 
 DoWork(work_queue *Queue, uint32 LogicalThreadIndex) {
- 
-  work_queue_item Item = GetNextWorkQueueItem(Queue);
-  if(Item.IsValid) {
+  
+  work_queue_entry Entry = GetNextWorkQueueItem(Queue);
+  if(Entry.IsValid) {
     
     char Buffer[256];
-    work_queue_entry *Entry = Entries + Item.Index;
-    wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, Entry->StringToPrint);
+    string_entry *StringEntry = Entries + Entry.Index;
+    wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, StringEntry->StringToPrint);
     OutputDebugStringA(Buffer);
     
-    MarkQueueItemCompleted(Queue, Item);
+    MarkQueueItemCompleted(Queue, Entry);
   }
   
-  return Item.IsValid;
+  return Entry.IsValid;
 }
 
 struct win32_thread_info {
   
   work_queue *Queue;
-  HANDLE Semaphore;
   uint32 LogicalThreadIndex;
 };
 
@@ -1169,43 +1173,54 @@ ThreadProc(LPVOID lpParamer) {
     // doing it immediately without calling OS so we Wait only if there is nothing to do
     if(!DoWork(ThreadInfo->Queue, ThreadInfo->LogicalThreadIndex)) {
       
-#if 0      
+#if 1      
       char Buffer[256];
       wsprintf(Buffer, "Thread %u GOES TO SLEEP\n", ThreadInfo->LogicalThreadIndex);
       OutputDebugStringA(Buffer);
 #endif
       
-      WaitForSingleObjectEx(ThreadInfo->Semaphore, INFINITE, false);
+      WaitForSingleObjectEx(ThreadInfo->Queue->Semaphore, INFINITE, false);
     }
   }
 }
 
 global_variable win32_thread_info Infos[6];
 
+internal void
+PushString(work_queue *Queue, char *String) {
+  
+  uint32 Index = GetNextAvailableWorkQueueIndex(Queue);
+  Entries[Index].StringToPrint = String;
+  
+  PushWorkQueueEntry(Queue);
+}
+
 
 internal void
 testFunc() {
   
+  
+  work_queue Queue = {};
+  
   uint32 InitialCount = 0;
   uint32 ThreadCount = ArrayCount(Infos);
   // NOTE(Egor): fuck da safety
-  HANDLE Semaphore = CreateSemaphoreEx(0, InitialCount, ThreadCount,
-                                       "AllPurposeJobQueue", 0, SEMAPHORE_ALL_ACCESS);
+  Queue.Semaphore = CreateSemaphoreEx(0, InitialCount, ThreadCount,
+                                      "AllPurposeWorkQueue", 0, SEMAPHORE_ALL_ACCESS);
   
   for(uint32 Index = 0; Index < ThreadCount; ++Index) {
     
     win32_thread_info *Info = Infos + Index;
+    Info->Queue = &Queue;
     Info->LogicalThreadIndex = Index;
-    Info->Semaphore = Semaphore;
     
     DWORD ThreadID;
     HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Info, 0, &ThreadID);
     CloseHandle(ThreadHandle);
   }
   
-  
   char Buffer[256*100];
-
+  
   for(uint32 Count = 0; Count < 100; ++Count) {
     
     if(Count % 10 == 0) {
@@ -1214,14 +1229,13 @@ testFunc() {
     }
     
     wsprintf((Buffer + 256*Count), "Test_String %u", Count);
-    PushString(Semaphore, Buffer + 256*Count);
+    PushString(&Queue, Buffer + 256*Count);
   }
   
-  while(QueueWorkStillInProgress(ThreadInfo->Queue)) {
+  while(QueueWorkStillInProgress(&Queue)) {
     
-    DoWork(ThreadInfo->Queue, 7);
+    DoWork(&Queue, 7);
   }
-  
 }
 
 
