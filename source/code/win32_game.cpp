@@ -1370,7 +1370,7 @@ WinMain(HINSTANCE Instance,
       win32_sound_output SoundOutput = {};
       
       // TODO(Egor): How do we reliably query on this on Windows?
-      int MonitorRefreshHz = 60;
+      int MonitorRefreshHz = 30;
       HDC RefreshDC = GetDC(Window);
       int Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
       ReleaseDC(Window, RefreshDC);
@@ -1378,6 +1378,7 @@ WinMain(HINSTANCE Instance,
       {
         MonitorRefreshHz = Win32RefreshRate;
       }
+      MonitorRefreshHz = 400;
       real32 GameUpdateHz = (MonitorRefreshHz / 2.0f);
       real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
       
@@ -1891,7 +1892,7 @@ WinMain(HINSTANCE Instance,
             uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
             LastCycleCount = EndCycleCount;
             
-            real64 FPS = 0.0f;
+            real64 FPS = 1.0f / (MSPerFrame / 1000.0f);
             real64 MCPF = ((real64)CyclesElapsed / (1000.0f * 1000.0f));
             
             char FPSBuffer[256];
