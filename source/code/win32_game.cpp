@@ -1069,90 +1069,81 @@ HandleDebugCycleCounters(game_memory *Memory) {
 #define WRITE_BARRIER _WriteBarrier(); _mm_sfence()
 #define READ_BARRIER _ReadBarrier()
 
+struct work_queue_entry_storage {
+  
+  void * UserPointer;
+};
 
 struct work_queue {
   
   uint32 volatile WorksFinished;
   uint32 volatile NextWorkToDo;
-  uint32 volatile WorkCount;
+  uint32 volatile EntryCount;
   
   uint32 MaxEntryCount;
   HANDLE Semaphore;
+  
+  work_queue_entry_storage Entries[1024];
 };
-
-internal uint32
-GetNextAvailableWorkQueueIndex(work_queue *Queue) {
-  
-  uint32 Result = Queue->WorkCount;
-  return(Result);
-}
-
-internal void
-PushWorkQueueEntry(work_queue *Queue) {
-  
-  WRITE_BARRIER;
-  ++Queue->WorkCount;
-  ReleaseSemaphore(Queue->Semaphore, 1, 0);
-}
 
 struct work_queue_entry {
   
   bool32 IsValid;
-  uint32 Index;
+  void *Data;
 };
 
+internal void
+PushWorkQueueEntry(work_queue *Queue, void *Pointer) {
+
+  Assert(Queue->EntryCount < ArrayCount(Queue->Entries));
+  Queue->Entries[Queue->EntryCount].UserPointer = Pointer;
+  WRITE_BARRIER;
+  ++Queue->EntryCount;
+  
+  ReleaseSemaphore(Queue->Semaphore, 1, 0);
+}
+
+
 internal work_queue_entry
-GetNextWorkQueueItem(work_queue *Queue) {
+CompleteAndGetNextWorkQueueItem(work_queue *Queue, work_queue_entry Completed) {
   
-  
-  work_queue_entry Result;
+  work_queue_entry Result = {};
   Result.IsValid = false;
   
-  if(Queue->NextWorkToDo < Queue->WorkCount) {
+  if(Completed.IsValid) {
     
-    Result.Index = InterlockedIncrement((LONG volatile *)&Queue->NextWorkToDo) - 1;
+    InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
+  }
+  
+  if(Queue->NextWorkToDo < Queue->EntryCount) {
+    
+    uint32 Index = InterlockedIncrement((LONG volatile *)&Queue->NextWorkToDo) - 1;
+    Assert(Queue->Entries[Index].UserPointer);
+    Result.Data = Queue->Entries[Index].UserPointer;
     Result.IsValid = true;
-    
     READ_BARRIER;
   }
   
   return Result;
 }
 
-internal void 
-MarkQueueItemCompleted(work_queue *Queue, work_queue_entry Item) {
-  
-  InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
-}
 
 internal bool32
-QueueWorkStillInProgress(work_queue *Queue) {
+IsWorkStillInProgress(work_queue *Queue) {
   
-  bool32 Result = Queue->WorksFinished != Queue->WorkCount;
+  bool32 Result = Queue->WorksFinished != Queue->EntryCount;
   return Result;
 }
 
-struct string_entry {
-  
-  char *StringToPrint;
-};
-string_entry Entries[256];
 
-inline bool32 
-DoWork(work_queue *Queue, uint32 LogicalThreadIndex) {
+inline void 
+DoWork(work_queue_entry Entry, uint32 LogicalThreadIndex) {
   
-  work_queue_entry Entry = GetNextWorkQueueItem(Queue);
-  if(Entry.IsValid) {
-    
-    char Buffer[256];
-    string_entry *StringEntry = Entries + Entry.Index;
-    wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, StringEntry->StringToPrint);
-    OutputDebugStringA(Buffer);
-    
-    MarkQueueItemCompleted(Queue, Entry);
-  }
+  Assert(Entry.IsValid);
   
-  return Entry.IsValid;
+  char Buffer[256];
+  wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, (char *)Entry.Data);
+  OutputDebugStringA(Buffer);
 }
 
 struct win32_thread_info {
@@ -1166,23 +1157,21 @@ ThreadProc(LPVOID lpParamer) {
   
   win32_thread_info *ThreadInfo = (win32_thread_info *)lpParamer;
   
+  work_queue_entry Entry = {};
   
   for(;;) {
     
-    // NOTE(Egor): I assume that if we have work to do, it's always beneficial to start
-    // doing it immediately without calling OS so we Wait only if there is nothing to do
-    if(!DoWork(ThreadInfo->Queue, ThreadInfo->LogicalThreadIndex)) {
+    // NOTE(Egor): one in one out
+    Entry = CompleteAndGetNextWorkQueueItem(ThreadInfo->Queue, Entry );
+    
+    if(Entry.IsValid) {
       
-#if 1      
-      char Buffer[256];
-      wsprintf(Buffer, "Thread %u GOES TO SLEEP\n", ThreadInfo->LogicalThreadIndex);
-      OutputDebugStringA(Buffer);
-#endif
+      DoWork(Entry, ThreadInfo->LogicalThreadIndex);
+        
+    }
+    else {
       
       WaitForSingleObjectEx(ThreadInfo->Queue->Semaphore, INFINITE, false);
-      
-      wsprintf(Buffer, "Thread %u  AWAKE \n", ThreadInfo->LogicalThreadIndex);
-      OutputDebugStringA(Buffer);
     }
   }
 }
@@ -1192,10 +1181,7 @@ global_variable win32_thread_info Infos[6];
 internal void
 PushString(work_queue *Queue, char *String) {
   
-  uint32 Index = GetNextAvailableWorkQueueIndex(Queue);
-  Entries[Index].StringToPrint = String;
-  
-  PushWorkQueueEntry(Queue);
+  PushWorkQueueEntry(Queue, String);
 }
 
 
@@ -1222,22 +1208,81 @@ testFunc() {
     CloseHandle(ThreadHandle);
   }
   
-  char Buffer[256*100];
   
-  for(uint32 Count = 0; Count < 100; ++Count) {
+  PushString(&Queue, "String A0");
+  PushString(&Queue, "String A1");
+  PushString(&Queue, "String A2");
+  PushString(&Queue, "String A3");
+  PushString(&Queue, "String A4");
+  PushString(&Queue, "String A5");
+  PushString(&Queue, "String A6");
+  PushString(&Queue, "String A7");
+  PushString(&Queue, "String A8");
+  PushString(&Queue, "String A9");
+  
+  PushString(&Queue, "String B0");
+  PushString(&Queue, "String B1");
+  PushString(&Queue, "String B2");
+  PushString(&Queue, "String B3");
+  PushString(&Queue, "String B4");
+  PushString(&Queue, "String B5");
+  PushString(&Queue, "String B6");
+  PushString(&Queue, "String B7");
+  PushString(&Queue, "String B8");
+  PushString(&Queue, "String B9");
+  
+  PushString(&Queue, "String C0");
+  PushString(&Queue, "String C1");
+  PushString(&Queue, "String C2");
+  PushString(&Queue, "String C3");
+  PushString(&Queue, "String C4");
+  PushString(&Queue, "String C5");
+  PushString(&Queue, "String C6");
+  PushString(&Queue, "String C7");
+  PushString(&Queue, "String C8");
+  PushString(&Queue, "String C9");
+  
+  PushString(&Queue, "String A0");
+  PushString(&Queue, "String A1");
+  PushString(&Queue, "String A2");
+  PushString(&Queue, "String A3");
+  PushString(&Queue, "String A4");
+  PushString(&Queue, "String A5");
+  PushString(&Queue, "String A6");
+  PushString(&Queue, "String A7");
+  PushString(&Queue, "String A8");
+  PushString(&Queue, "String A9");
+  
+  PushString(&Queue, "String B0");
+  PushString(&Queue, "String B1");
+  PushString(&Queue, "String B2");
+  PushString(&Queue, "String B3");
+  PushString(&Queue, "String B4");
+  PushString(&Queue, "String B5");
+  PushString(&Queue, "String B6");
+  PushString(&Queue, "String B7");
+  PushString(&Queue, "String B8");
+  PushString(&Queue, "String B9");
+  
+  PushString(&Queue, "String C0");
+  PushString(&Queue, "String C1");
+  PushString(&Queue, "String C2");
+  PushString(&Queue, "String C3");
+  PushString(&Queue, "String C4");
+  PushString(&Queue, "String C5");
+  PushString(&Queue, "String C6");
+  PushString(&Queue, "String C7");
+  PushString(&Queue, "String C8");
+  PushString(&Queue, "String C9");
+  
+  work_queue_entry Entry = {};
+  while(IsWorkStillInProgress(&Queue)) {
     
-    if(Count % 10 == 0) {
+    Entry = CompleteAndGetNextWorkQueueItem(&Queue, Entry);
+    if(Entry.IsValid) {
       
-      Sleep(500);
+      DoWork(Entry, 7);
     }
-    
-    wsprintf((Buffer + 256*Count), "Test_String %u", Count);
-    PushString(&Queue, Buffer + 256*Count);
-  }
-  
-  while(QueueWorkStillInProgress(&Queue)) {
-    
-    DoWork(&Queue, 7);
   }
 }
 
