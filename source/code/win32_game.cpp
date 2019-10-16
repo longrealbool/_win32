@@ -1077,7 +1077,7 @@ struct work_queue_entry_storage {
 struct work_queue {
   
   uint32 volatile WorksFinished;
-  uint32 volatile NextWorkToDo;
+  uint32 volatile NextEntryToExecute;
   uint32 volatile EntryCount;
   
   uint32 MaxEntryCount;
@@ -1094,7 +1094,7 @@ struct work_queue_entry {
 
 internal void
 PushWorkQueueEntry(work_queue *Queue, void *Pointer) {
-
+  
   Assert(Queue->EntryCount < ArrayCount(Queue->Entries));
   Queue->Entries[Queue->EntryCount].UserPointer = Pointer;
   WRITE_BARRIER;
@@ -1105,7 +1105,7 @@ PushWorkQueueEntry(work_queue *Queue, void *Pointer) {
 
 
 internal work_queue_entry
-CompleteAndGetNextWorkQueueItem(work_queue *Queue, work_queue_entry Completed) {
+CompleteAndGetNextEntry(work_queue *Queue, work_queue_entry Completed) {
   
   work_queue_entry Result = {};
   Result.IsValid = false;
@@ -1115,13 +1115,20 @@ CompleteAndGetNextWorkQueueItem(work_queue *Queue, work_queue_entry Completed) {
     InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
   }
   
-  if(Queue->NextWorkToDo < Queue->EntryCount) {
+  uint32 OriginalNextEntryToExecute = Queue->NextEntryToExecute;
+  if(OriginalNextEntryToExecute < Queue->EntryCount) {
     
-    uint32 Index = InterlockedIncrement((LONG volatile *)&Queue->NextWorkToDo) - 1;
-    Assert(Queue->Entries[Index].UserPointer);
-    Result.Data = Queue->Entries[Index].UserPointer;
-    Result.IsValid = true;
-    READ_BARRIER;
+    // NOTE(Egor): if another thread beat this thread for increment, just do nothing
+    uint32 Index = InterlockedCompareExchange((LONG volatile *)&Queue->NextEntryToExecute,
+                                              OriginalNextEntryToExecute + 1,
+                                              OriginalNextEntryToExecute);
+    
+    if(Index == OriginalNextEntryToExecute) {
+      Assert(Queue->Entries[Index].UserPointer);
+      Result.Data = Queue->Entries[Index].UserPointer;
+      Result.IsValid = true;
+      READ_BARRIER;
+    }
   }
   
   return Result;
@@ -1162,7 +1169,7 @@ ThreadProc(LPVOID lpParamer) {
   for(;;) {
     
     // NOTE(Egor): one in one out
-    Entry = CompleteAndGetNextWorkQueueItem(ThreadInfo->Queue, Entry );
+    Entry = CompleteAndGetNextEntry(ThreadInfo->Queue, Entry );
     
     if(Entry.IsValid) {
       
@@ -1278,7 +1285,7 @@ testFunc() {
   work_queue_entry Entry = {};
   while(IsWorkStillInProgress(&Queue)) {
     
-    Entry = CompleteAndGetNextWorkQueueItem(&Queue, Entry);
+    Entry = CompleteAndGetNextEntry(&Queue, Entry);
     if(Entry.IsValid) {
       
       DoWork(Entry, 7);
@@ -1879,7 +1886,7 @@ WinMain(HINSTANCE Instance,
             OldInput = Temp;
             // TODO(Egor): Should I clear these here?
             
-#if 0
+#if 1
             uint64 EndCycleCount = __rdtsc();
             uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
             LastCycleCount = EndCycleCount;

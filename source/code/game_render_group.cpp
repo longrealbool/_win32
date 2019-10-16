@@ -54,7 +54,7 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 Resolution
   Result->DefaultBasis = PushStruct(Arena, render_basis);
   Result->DefaultBasis->P = V3(0.0f, 0.0f, 0.0f);
   Result->GlobalAlpha = 1.0f;
-
+  
   // NOTE(Egor): camera parameteres
   // TODO(Egor): values looks wrong
   Result->GameCamera.FocalLength = 0.6f;
@@ -62,7 +62,7 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 Resolution
   Result->GameCamera.NearClipPlane = 0.2f;
   
   Result->RenderCamera = Result->GameCamera;
-//  Result->RenderCamera.CameraDistanceAboveGround = 35.0f;
+  //  Result->RenderCamera.CameraDistanceAboveGround = 35.0f;
   
   // NOTE(Egor): monitor properties 0.635 m -- is average length of the monitor
   real32 WidthOfMonitor = 0.635f;
@@ -109,7 +109,7 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset, real32 Height,
     // NOTE(Egor): this is actual width and height in meters
     v2 Size = V2(Height * Bitmap->WidthOverHeight, Height);
     v2 Align = Hadamard(Bitmap->AlignPercentage, Size);
-
+    
     Piece->Size = Size;
     Piece->EntityBasis.Basis = Group->DefaultBasis;
     Piece->EntityBasis.Offset = Offset - ToV3(Align, 0);
@@ -296,7 +296,7 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
   entity_basis_p_result Result = {};
   
   v3 EntityBaseP = EntityBasis->Basis->P;
-
+  
   real32 FocalLength = Group->RenderCamera.FocalLength;
   real32 CameraDistanceAboveGround = Group->RenderCamera.CameraDistanceAboveGround;
   real32 NearClipPlane = Group->RenderCamera.NearClipPlane;
@@ -307,7 +307,7 @@ GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 
   if(DistanceToPz > NearClipPlane) {
     
     v3 ProjectedXY = (1.0f/DistanceToPz) * RawXY*FocalLength;
-
+    
     Result.P = ScreenCenter + Group->MtP*ProjectedXY.xy;
     Result.Scale = Group->MtP*ProjectedXY.z;
     Result.Valid = true;
@@ -931,9 +931,10 @@ internal void
 TiledRenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
   
   bool32 Even = false;
-//    rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
+  //    rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
   rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
   
+#if 0
   int TileCountX = 4;
   int TileCountY = 4;
   
@@ -954,6 +955,12 @@ TiledRenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
       RenderPushBuffer(Group, Output, ClipRect, true);    
     }
   }
+#else
+  
+  RenderPushBuffer(Group, Output, ClipRect, false);
+  RenderPushBuffer(Group, Output, ClipRect, true);    
+  
+#endif
 }
 
 
