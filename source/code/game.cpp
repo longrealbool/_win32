@@ -565,7 +565,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   #endif
 
   
-  TiledRenderPushBuffer(GroundGroup, Buffer);
+  TiledRenderPushBuffer(TranState->RenderQueue, GroundGroup, Buffer);
   EndTemporaryMemory(GroundMemory);
 }
 
@@ -883,6 +883,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   if(!Memory->IsInitialized)
   {
     
+    
+    PlatformAddEntry = Memory->PlatformAddEntry;
+    PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
+    
     uint32 TilesPerHeight = 9;
     uint32 TilesPerWidth = 17;
     
@@ -1169,6 +1173,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     InitializeArena(&TranState->TranArena, Memory->TransientStorageSize - sizeof(transient_state),
                     (uint8 *)Memory->TransientStorage + sizeof(transient_state));
     
+    
+    TranState->RenderQueue = Memory->RenderQueue;
     
     TranState->GroundBufferCount = 16;
     TranState->GroundBuffers = PushArray(&TranState->TranArena,
@@ -1727,7 +1733,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   }
   
 #endif
-  TiledRenderPushBuffer(RenderGroup, DrawBuffer);
+  TiledRenderPushBuffer(TranState->RenderQueue, RenderGroup, DrawBuffer);
  
   #if 0
   world_position WorldOrigin = {};

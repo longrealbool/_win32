@@ -926,9 +926,19 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output,
   END_TIMED_BLOCK(RenderPushBuffer);
 }
 
+internal 
+PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderingWork) {
+  
+  
+  
+}
+
 
 internal void
-TiledRenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
+TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
+                      loaded_bitmap *Output) {
+  
+  PlatformAddEntry(RenderQueue, DoTiledRenderingWork, 0);
   
   bool32 Even = false;
   //    rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};

@@ -216,6 +216,8 @@ struct game_state {
 
 struct transient_state {
   
+  platform_work_queue *RenderQueue;
+  
   bool32 Initialized;
   memory_arena TranArena;
   uint32 GroundBufferCount;
@@ -239,6 +241,9 @@ GetLowEntity(game_state *GameState, uint32 LowIndex) {
   
   return Result;
 }
+
+global_variable platform_add_entry *PlatformAddEntry;
+global_variable platform_complete_all_work *PlatformCompleteAllWork;
 
 #define GAME_H
 #endif

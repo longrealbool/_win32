@@ -1064,139 +1064,15 @@ HandleDebugCycleCounters(game_memory *Memory) {
 #endif
 }
 
-
-// TODO(Egor): double-check the write ordering on CPU
-#define WRITE_BARRIER _WriteBarrier(); _mm_sfence()
-#define READ_BARRIER _ReadBarrier()
-
-struct work_queue_entry_storage {
-  
-  void * UserPointer;
-};
-
-struct work_queue {
-  
-  uint32 volatile WorksFinished;
-  uint32 volatile NextEntryToExecute;
-  uint32 volatile EntryCount;
-  
-  uint32 MaxEntryCount;
-  HANDLE Semaphore;
-  
-  work_queue_entry_storage Entries[1024];
-};
-
-struct work_queue_entry {
-  
-  bool32 IsValid;
-  void *Data;
-};
-
-internal void
-PushWorkQueueEntry(work_queue *Queue, void *Pointer) {
-  
-  Assert(Queue->EntryCount < ArrayCount(Queue->Entries));
-  Queue->Entries[Queue->EntryCount].UserPointer = Pointer;
-  WRITE_BARRIER;
-  ++Queue->EntryCount;
-  
-  ReleaseSemaphore(Queue->Semaphore, 1, 0);
-}
-
-
-internal work_queue_entry
-CompleteAndGetNextEntry(work_queue *Queue, work_queue_entry Completed) {
-  
-  work_queue_entry Result = {};
-  Result.IsValid = false;
-  
-  if(Completed.IsValid) {
-    
-    InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
-  }
-  
-  uint32 OriginalNextEntryToExecute = Queue->NextEntryToExecute;
-  if(OriginalNextEntryToExecute < Queue->EntryCount) {
-    
-    // NOTE(Egor): if another thread beat this thread for increment, just do nothing
-    uint32 Index = InterlockedCompareExchange((LONG volatile *)&Queue->NextEntryToExecute,
-                                              OriginalNextEntryToExecute + 1,
-                                              OriginalNextEntryToExecute);
-    
-    if(Index == OriginalNextEntryToExecute) {
-      Assert(Queue->Entries[Index].UserPointer);
-      Result.Data = Queue->Entries[Index].UserPointer;
-      Result.IsValid = true;
-      READ_BARRIER;
-    }
-  }
-  
-  return Result;
-}
-
-
-internal bool32
-IsWorkStillInProgress(work_queue *Queue) {
-  
-  bool32 Result = Queue->WorksFinished != Queue->EntryCount;
-  return Result;
-}
-
-
-inline void 
-DoWork(work_queue_entry Entry, uint32 LogicalThreadIndex) {
-  
-  Assert(Entry.IsValid);
-  
-  char Buffer[256];
-  wsprintf(Buffer, "Thread %u %s\n", LogicalThreadIndex, (char *)Entry.Data);
-  OutputDebugStringA(Buffer);
-}
-
-struct win32_thread_info {
-  
-  work_queue *Queue;
-  uint32 LogicalThreadIndex;
-};
-
-DWORD WINAPI 
-ThreadProc(LPVOID lpParamer) {
-  
-  win32_thread_info *ThreadInfo = (win32_thread_info *)lpParamer;
-  
-  work_queue_entry Entry = {};
-  
-  for(;;) {
-    
-    // NOTE(Egor): one in one out
-    Entry = CompleteAndGetNextEntry(ThreadInfo->Queue, Entry );
-    
-    if(Entry.IsValid) {
-      
-      DoWork(Entry, ThreadInfo->LogicalThreadIndex);
-        
-    }
-    else {
-      
-      WaitForSingleObjectEx(ThreadInfo->Queue->Semaphore, INFINITE, false);
-    }
-  }
-}
+#include "win32_thread.h"
 
 global_variable win32_thread_info Infos[6];
-
-internal void
-PushString(work_queue *Queue, char *String) {
-  
-  PushWorkQueueEntry(Queue, String);
-}
-
 
 internal void
 testFunc() {
   
   
-  work_queue Queue = {};
+  platform_work_queue Queue = {};
   
   uint32 InitialCount = 0;
   uint32 ThreadCount = ArrayCount(Infos);
@@ -1216,81 +1092,11 @@ testFunc() {
   }
   
   
-  PushString(&Queue, "String A0");
-  PushString(&Queue, "String A1");
-  PushString(&Queue, "String A2");
-  PushString(&Queue, "String A3");
-  PushString(&Queue, "String A4");
-  PushString(&Queue, "String A5");
-  PushString(&Queue, "String A6");
-  PushString(&Queue, "String A7");
-  PushString(&Queue, "String A8");
-  PushString(&Queue, "String A9");
+
   
-  PushString(&Queue, "String B0");
-  PushString(&Queue, "String B1");
-  PushString(&Queue, "String B2");
-  PushString(&Queue, "String B3");
-  PushString(&Queue, "String B4");
-  PushString(&Queue, "String B5");
-  PushString(&Queue, "String B6");
-  PushString(&Queue, "String B7");
-  PushString(&Queue, "String B8");
-  PushString(&Queue, "String B9");
+  Win32CompleteAllWork(&Queue);
   
-  PushString(&Queue, "String C0");
-  PushString(&Queue, "String C1");
-  PushString(&Queue, "String C2");
-  PushString(&Queue, "String C3");
-  PushString(&Queue, "String C4");
-  PushString(&Queue, "String C5");
-  PushString(&Queue, "String C6");
-  PushString(&Queue, "String C7");
-  PushString(&Queue, "String C8");
-  PushString(&Queue, "String C9");
-  
-  PushString(&Queue, "String A0");
-  PushString(&Queue, "String A1");
-  PushString(&Queue, "String A2");
-  PushString(&Queue, "String A3");
-  PushString(&Queue, "String A4");
-  PushString(&Queue, "String A5");
-  PushString(&Queue, "String A6");
-  PushString(&Queue, "String A7");
-  PushString(&Queue, "String A8");
-  PushString(&Queue, "String A9");
-  
-  PushString(&Queue, "String B0");
-  PushString(&Queue, "String B1");
-  PushString(&Queue, "String B2");
-  PushString(&Queue, "String B3");
-  PushString(&Queue, "String B4");
-  PushString(&Queue, "String B5");
-  PushString(&Queue, "String B6");
-  PushString(&Queue, "String B7");
-  PushString(&Queue, "String B8");
-  PushString(&Queue, "String B9");
-  
-  PushString(&Queue, "String C0");
-  PushString(&Queue, "String C1");
-  PushString(&Queue, "String C2");
-  PushString(&Queue, "String C3");
-  PushString(&Queue, "String C4");
-  PushString(&Queue, "String C5");
-  PushString(&Queue, "String C6");
-  PushString(&Queue, "String C7");
-  PushString(&Queue, "String C8");
-  PushString(&Queue, "String C9");
-  
-  work_queue_entry Entry = {};
-  while(IsWorkStillInProgress(&Queue)) {
-    
-    Entry = CompleteAndGetNextEntry(&Queue, Entry);
-    if(Entry.IsValid) {
-      
-      DoWork(Entry, 7);
-    }
-  }
+
 }
 
 
@@ -1428,6 +1234,9 @@ WinMain(HINSTANCE Instance,
       GameMemory.DEBUGPlatformFreeFileMemory = DEBUGPlatformFreeFileMemory;
       GameMemory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
       GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
+      // NOTE(Egor): platform_work_queue stuff
+      GameMemory.PlatformAddEntry = Win32AddEntry;
+      GameMemory.PlatformCompleteAllWork = Win32CompleteAllWork;
       
       
       // TODO(Egor): Handle various memory footprints (USING
