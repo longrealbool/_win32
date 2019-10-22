@@ -13,14 +13,18 @@ struct platform_work_queue_entry {
 
 struct platform_work_queue {
   
-  uint32 volatile WorksFinished;
-  uint32 volatile NextEntryToExecute;
-  uint32 volatile EntryCount;
+  uint32 volatile EntryCompleted;
+  uint32 volatile CompletionTarget;
+  
+  uint32 volatile NextEntryToRead;
+  uint32 volatile NextEntryToWrite;
+  
   
   uint32 MaxEntryCount;
   HANDLE Semaphore;
   
-  platform_work_queue_entry Entries[1024];
+  // NOTE(Egor): has to be the power of 2
+  platform_work_queue_entry Entries[256];
 };
 
 
@@ -30,37 +34,54 @@ struct platform_work_queue {
 // NOTE(Egor): this is how we add entry to the list
 void Win32AddEntry(platform_work_queue *Queue, platform_work_queue_callback *Callback, void *Data) {
   
-  Assert(Queue->EntryCount < ArrayCount(Queue->Entries));
+  // NOTE(Egor): length of Entries should be the power of 2
+  uint32 NewNextEntryToWrite = (Queue->NextEntryToWrite + 1) & (ArrayCount(Queue->Entries) - 1);
   
-  platform_work_queue_entry *Entry = Queue->Entries + Queue->EntryCount;
-  Entry->Data = Data;
-  Entry->Callback = Callback;
-  WRITE_BARRIER;
-  
-  ++Queue->EntryCount;
-  ReleaseSemaphore(Queue->Semaphore, 1, 0);
+  if(NewNextEntryToWrite != Queue->NextEntryToRead) {
+    
+    platform_work_queue_entry *Entry = Queue->Entries + Queue->NextEntryToWrite;
+    Entry->Data = Data;
+    Entry->Callback = Callback;
+    // NOTE(Egor): is has to be written before entry creation signalled
+    ++Queue->CompletionTarget;
+    
+    WRITE_BARRIER;
+    
+    Queue->NextEntryToWrite = NewNextEntryToWrite;
+    ReleaseSemaphore(Queue->Semaphore, 1, 0);
+  }
+  else {
+    
+#if GAME_SLOW
+    
+    OutputDebugStringA("Queue overflow \r\n");
+#endif
+  }
 }
 
 
 internal bool32
 Win32DoNextQueueEntry(platform_work_queue *Queue) {
   
+  // NOTE(Egor): length of Entries should be the power of 2
+  uint32 NewNextEntryToRead = (Queue->NextEntryToRead + 1) & (ArrayCount(Queue->Entries - 1));
+  
   bool32 GoToSleep = false;
   
-  uint32 OriginalNextEntryToExecute = Queue->NextEntryToExecute;
-  if(OriginalNextEntryToExecute < Queue->EntryCount) {
+  uint32 OriginalNextEntryToRead = Queue->NextEntryToRead;
+  if(OriginalNextEntryToRead != Queue->NextEntryToWrite) {
     
     // NOTE(Egor): if another thread beat this thread for increment, just do nothing
-    uint32 Index = InterlockedCompareExchange((LONG volatile *)&Queue->NextEntryToExecute,
-                                              OriginalNextEntryToExecute + 1,
-                                              OriginalNextEntryToExecute);
+    uint32 Index = InterlockedCompareExchange((LONG volatile *)&Queue->NextEntryToRead,
+                                              NewNextEntryToRead,
+                                              OriginalNextEntryToRead);
     
-    if(Index == OriginalNextEntryToExecute) {
+    if(Index == OriginalNextEntryToRead) {
 
       platform_work_queue_entry *Entry = Queue->Entries + Index;
       Entry->Callback(Queue, Entry->Data);
       // NOTE(Egor): this is should make the fence needed
-      InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
+      InterlockedIncrement((LONG volatile *)&Queue->EntryCompleted);
     }
   }
   else {
@@ -73,15 +94,14 @@ Win32DoNextQueueEntry(platform_work_queue *Queue) {
 
 internal void Win32CompleteAllWork(platform_work_queue *Queue) {
   
-  while(Queue->WorksFinished != Queue->EntryCount) {
+  while(Queue->EntryCompleted != Queue->CompletionTarget) {
     
     Win32DoNextQueueEntry(Queue);
   }
   
   // NOTE(Egor): resets the queue, hack
-  Queue->WorksFinished = 0;
-  Queue->NextEntryToExecute = 0;
-  Queue->EntryCount = 0;
+  Queue->CompletionTarget = 0;
+  Queue->EntryCompleted = 0;
 }
 
 
