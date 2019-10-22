@@ -1,6 +1,7 @@
 // TODO(Egor): double-check the write ordering on CPU
 #define WRITE_BARRIER _WriteBarrier(); _mm_sfence()
 #define READ_BARRIER _ReadBarrier()
+#define READ_WRITE_BARRIER _ReadWriteBarrier(); _mm_fence()
 
 
 struct platform_work_queue_entry {
@@ -21,8 +22,6 @@ struct platform_work_queue {
   
   platform_work_queue_entry Entries[1024];
 };
-
-
 
 
 // TODO(Egor): move code below to .cpp file
@@ -46,7 +45,7 @@ void Win32AddEntry(platform_work_queue *Queue, platform_work_queue_callback *Cal
 internal bool32
 Win32DoNextQueueEntry(platform_work_queue *Queue) {
   
-  bool32 GoToSleep = true;
+  bool32 GoToSleep = false;
   
   uint32 OriginalNextEntryToExecute = Queue->NextEntryToExecute;
   if(OriginalNextEntryToExecute < Queue->EntryCount) {
@@ -57,12 +56,16 @@ Win32DoNextQueueEntry(platform_work_queue *Queue) {
                                               OriginalNextEntryToExecute);
     
     if(Index == OriginalNextEntryToExecute) {
-      
-      READ_BARRIER;
+
+      platform_work_queue_entry *Entry = Queue->Entries + Index;
+      Entry->Callback(Queue, Entry->Data);
+      // NOTE(Egor): this is should make the fence needed
       InterlockedIncrement((LONG volatile *)&Queue->WorksFinished);
-      
-      GoToSleep = false;
     }
+  }
+  else {
+    
+    GoToSleep = true;
   }
   
   return GoToSleep;
@@ -74,6 +77,11 @@ internal void Win32CompleteAllWork(platform_work_queue *Queue) {
     
     Win32DoNextQueueEntry(Queue);
   }
+  
+  // NOTE(Egor): resets the queue, hack
+  Queue->WorksFinished = 0;
+  Queue->NextEntryToExecute = 0;
+  Queue->EntryCount = 0;
 }
 
 
@@ -82,6 +90,7 @@ struct win32_thread_info {
   platform_work_queue *Queue;
   uint32 LogicalThreadIndex;
 };
+
 
 DWORD WINAPI 
 ThreadProc(LPVOID lpParamer) {
@@ -94,6 +103,15 @@ ThreadProc(LPVOID lpParamer) {
       WaitForSingleObjectEx(ThreadInfo->Queue->Semaphore, INFINITE, false);
     
   }
+}
+
+
+// NOTE(Egor): test code
+PLATFORM_WORK_QUEUE_CALLBACK(DoPrintingWork) {
+ 
+  char Buffer[256];
+  wsprintf(Buffer, "Thread %u %s\n", GetCurrentThreadId(), (char *)Data);
+  OutputDebugStringA(Buffer);
 }
 
 

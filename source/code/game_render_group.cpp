@@ -926,11 +926,20 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output,
   END_TIMED_BLOCK(RenderPushBuffer);
 }
 
+struct tile_render_work {
+  
+  render_group *Group;
+  loaded_bitmap *Output;
+  rectangle2i ClipRect;
+};
+
 internal 
 PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderingWork) {
   
+  tile_render_work *Work = (tile_render_work *)Data;
   
-  
+  RenderPushBuffer(Work->Group, Work->Output, Work->ClipRect, false);
+  RenderPushBuffer(Work->Group, Work->Output, Work->ClipRect, true);    
 }
 
 
@@ -938,21 +947,25 @@ internal void
 TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
                       loaded_bitmap *Output) {
   
-  PlatformAddEntry(RenderQueue, DoTiledRenderingWork, 0);
-  
   bool32 Even = false;
   //    rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
   rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
   
-#if 0
-  int TileCountX = 4;
-  int TileCountY = 4;
+#if 1
+  int const TileCountX = 4;
+  int const TileCountY = 4;
+  
+  tile_render_work WorkArray[TileCountX*TileCountY];
   
   int TileWidth = Output->Width / TileCountX;
   int TileHeight = Output->Height / TileCountY;
   
+  uint32 WorkCount = 0;
+  
   for(int32 TileY = 0; TileY < TileCountY; ++TileY) {
     for(int32 TileX = 0; TileX < TileCountX; ++TileX) {
+      
+      tile_render_work *Work = WorkArray + WorkCount++;
       
       rectangle2i ClipRect;
       
@@ -960,11 +973,16 @@ TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
       ClipRect.XMax = (TileX + 1)*TileWidth - 4;
       ClipRect.YMin = TileY*TileHeight + 4;
       ClipRect.YMax = (TileY + 1)*TileHeight - 4;
-    
-      RenderPushBuffer(Group, Output, ClipRect, false);
-      RenderPushBuffer(Group, Output, ClipRect, true);    
+      
+      Work->ClipRect = ClipRect;
+      Work->Output = Output;
+      Work->Group = Group;
+      
+      PlatformAddEntry(RenderQueue, DoTiledRenderingWork, Work);
     }
   }
+  
+  PlatformCompleteAllWork(RenderQueue);
 #else
   
   RenderPushBuffer(Group, Output, ClipRect, false);

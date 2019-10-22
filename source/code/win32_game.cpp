@@ -1090,13 +1090,30 @@ testFunc() {
     HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Info, 0, &ThreadID);
     CloseHandle(ThreadHandle);
   }
-  
-  
 
+  Win32AddEntry(&Queue, DoPrintingWork, "String A0");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A1");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A2");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A3");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A4");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A5");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A6");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A7");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A8");
+  Win32AddEntry(&Queue, DoPrintingWork, "String A9");
+  
+  Win32AddEntry(&Queue, DoPrintingWork, "String B0");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B1");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B2");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B3");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B4");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B5");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B6");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B7");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B8");
+  Win32AddEntry(&Queue, DoPrintingWork, "String B9");
   
   Win32CompleteAllWork(&Queue);
-  
-
 }
 
 
@@ -1184,7 +1201,6 @@ WinMain(HINSTANCE Instance,
       {
         MonitorRefreshHz = Win32RefreshRate;
       }
-      MonitorRefreshHz = 400;
       real32 GameUpdateHz = (MonitorRefreshHz / 2.0f);
       real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
       
@@ -1228,6 +1244,8 @@ WinMain(HINSTANCE Instance,
       LPVOID BaseAddress = 0;
 #endif
       
+      platform_work_queue RenderQueue = {};
+      
       game_memory GameMemory = {};
       GameMemory.PermanentStorageSize = Megabytes(512);
       GameMemory.TransientStorageSize = Gigabytes(1);
@@ -1237,6 +1255,7 @@ WinMain(HINSTANCE Instance,
       // NOTE(Egor): platform_work_queue stuff
       GameMemory.PlatformAddEntry = Win32AddEntry;
       GameMemory.PlatformCompleteAllWork = Win32CompleteAllWork;
+      GameMemory.RenderQueue = &RenderQueue;
       
       
       // TODO(Egor): Handle various memory footprints (USING
