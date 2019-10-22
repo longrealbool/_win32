@@ -1090,30 +1090,36 @@ testFunc() {
     HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Info, 0, &ThreadID);
     CloseHandle(ThreadHandle);
   }
-
-  Win32AddEntry(&Queue, DoPrintingWork, "String A0");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A1");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A2");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A3");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A4");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A5");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A6");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A7");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A8");
-  Win32AddEntry(&Queue, DoPrintingWork, "String A9");
   
-  Win32AddEntry(&Queue, DoPrintingWork, "String B0");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B1");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B2");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B3");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B4");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B5");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B6");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B7");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B8");
-  Win32AddEntry(&Queue, DoPrintingWork, "String B9");
+  for(uint32 Count = 0; Count < 100; ++Count) {
+    
+    Win32AddEntry(&Queue, DoPrintingWork, "String A0");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A1");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A2");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A3");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A4");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A5");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A6");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A7");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A8");
+    Win32AddEntry(&Queue, DoPrintingWork, "String A9");
+    
+    Win32AddEntry(&Queue, DoPrintingWork, "String B0");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B1");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B2");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B3");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B4");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B5");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B6");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B7");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B8");
+    Win32AddEntry(&Queue, DoPrintingWork, "String B9");
+    
+    Win32CompleteAllWork(&Queue);
+  }
   
-  Win32CompleteAllWork(&Queue);
+  uint32 ID = GetCurrentThreadId();
+  
 }
 
 

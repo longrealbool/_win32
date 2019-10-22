@@ -63,18 +63,23 @@ void Win32AddEntry(platform_work_queue *Queue, platform_work_queue_callback *Cal
 internal bool32
 Win32DoNextQueueEntry(platform_work_queue *Queue) {
   
-  // NOTE(Egor): length of Entries should be the power of 2
-  uint32 NewNextEntryToRead = (Queue->NextEntryToRead + 1) & (ArrayCount(Queue->Entries - 1));
-  
   bool32 GoToSleep = false;
   
+  // NOTE(Egor): length of Entries should be the power of 2
   uint32 OriginalNextEntryToRead = Queue->NextEntryToRead;
+  uint32 NewNextEntryToRead = (OriginalNextEntryToRead + 1) & (ArrayCount(Queue->Entries) - 1);
+  
   if(OriginalNextEntryToRead != Queue->NextEntryToWrite) {
     
     // NOTE(Egor): if another thread beat this thread for increment, just do nothing
     uint32 Index = InterlockedCompareExchange((LONG volatile *)&Queue->NextEntryToRead,
                                               NewNextEntryToRead,
                                               OriginalNextEntryToRead);
+    
+    if((NewNextEntryToRead - 1) != OriginalNextEntryToRead) {
+      
+      int a = 3;
+    }
     
     if(Index == OriginalNextEntryToRead) {
 
