@@ -948,8 +948,6 @@ TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
                       loaded_bitmap *Output) {
   
   bool32 Even = false;
-  //    rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
-  rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
   
 #if 1
   int const TileCountX = 4;
@@ -985,6 +983,7 @@ TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
   PlatformCompleteAllWork(RenderQueue);
 #else
   
+  rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
   RenderPushBuffer(Group, Output, ClipRect, false);
   RenderPushBuffer(Group, Output, ClipRect, true);    
   

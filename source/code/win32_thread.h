@@ -76,11 +76,6 @@ Win32DoNextQueueEntry(platform_work_queue *Queue) {
                                               NewNextEntryToRead,
                                               OriginalNextEntryToRead);
     
-    if((NewNextEntryToRead - 1) != OriginalNextEntryToRead) {
-      
-      int a = 3;
-    }
-    
     if(Index == OriginalNextEntryToRead) {
 
       platform_work_queue_entry *Entry = Queue->Entries + Index;

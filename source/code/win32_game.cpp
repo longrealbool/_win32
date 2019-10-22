@@ -1091,7 +1091,7 @@ testFunc() {
     CloseHandle(ThreadHandle);
   }
   
-  for(uint32 Count = 0; Count < 100; ++Count) {
+//  for(uint32 Count = 0; Count < 100; ++Count) {
     
     Win32AddEntry(&Queue, DoPrintingWork, "String A0");
     Win32AddEntry(&Queue, DoPrintingWork, "String A1");
@@ -1116,7 +1116,7 @@ testFunc() {
     Win32AddEntry(&Queue, DoPrintingWork, "String B9");
     
     Win32CompleteAllWork(&Queue);
-  }
+//  }
   
   uint32 ID = GetCurrentThreadId();
   
@@ -1169,7 +1169,8 @@ WinMain(HINSTANCE Instance,
      1080 -> 2048 = 2048-1080 -> pixels 968
      1024 + 128 = 1152
   */
-  Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
+//  Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
+  Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
   
   WindowClass.style = CS_HREDRAW|CS_VREDRAW;
   WindowClass.lpfnWndProc = Win32MainWindowCallback;
