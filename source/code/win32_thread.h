@@ -36,27 +36,17 @@ void Win32AddEntry(platform_work_queue *Queue, platform_work_queue_callback *Cal
   
   // NOTE(Egor): length of Entries should be the power of 2
   uint32 NewNextEntryToWrite = (Queue->NextEntryToWrite + 1) & (ArrayCount(Queue->Entries) - 1);
+  Assert(NewNextEntryToWrite != Queue->NextEntryToRead);
+  platform_work_queue_entry *Entry = Queue->Entries + Queue->NextEntryToWrite;
+  Entry->Data = Data;
+  Entry->Callback = Callback;
+  // NOTE(Egor): is has to be written before entry creation signalled
+  ++Queue->CompletionTarget;
   
-  if(NewNextEntryToWrite != Queue->NextEntryToRead) {
-    
-    platform_work_queue_entry *Entry = Queue->Entries + Queue->NextEntryToWrite;
-    Entry->Data = Data;
-    Entry->Callback = Callback;
-    // NOTE(Egor): is has to be written before entry creation signalled
-    ++Queue->CompletionTarget;
-    
-    WRITE_BARRIER;
-    
-    Queue->NextEntryToWrite = NewNextEntryToWrite;
-    ReleaseSemaphore(Queue->Semaphore, 1, 0);
-  }
-  else {
-    
-#if GAME_SLOW
-    
-    OutputDebugStringA("Queue overflow \r\n");
-#endif
-  }
+  WRITE_BARRIER;
+  
+  Queue->NextEntryToWrite = NewNextEntryToWrite;
+  ReleaseSemaphore(Queue->Semaphore, 1, 0);
 }
 
 

@@ -1069,8 +1069,50 @@ HandleDebugCycleCounters(game_memory *Memory) {
 global_variable win32_thread_info Infos[6];
 
 internal void
-testFunc() {
+testFunc(platform_work_queue *Queue) {
   
+  
+
+  
+  for(uint32 Count = 0; Count < 100; ++Count) {
+    
+    Win32AddEntry(Queue, DoPrintingWork, "String A0");
+    Win32AddEntry(Queue, DoPrintingWork, "String A1");
+    Win32AddEntry(Queue, DoPrintingWork, "String A2");
+    Win32AddEntry(Queue, DoPrintingWork, "String A3");
+    Win32AddEntry(Queue, DoPrintingWork, "String A4");
+    Win32AddEntry(Queue, DoPrintingWork, "String A5");
+    Win32AddEntry(Queue, DoPrintingWork, "String A6");
+    Win32AddEntry(Queue, DoPrintingWork, "String A7");
+    Win32AddEntry(Queue, DoPrintingWork, "String A8");
+    Win32AddEntry(Queue, DoPrintingWork, "String A9");
+    
+    Win32AddEntry(Queue, DoPrintingWork, "String B0");
+    Win32AddEntry(Queue, DoPrintingWork, "String B1");
+    Win32AddEntry(Queue, DoPrintingWork, "String B2");
+    Win32AddEntry(Queue, DoPrintingWork, "String B3");
+    Win32AddEntry(Queue, DoPrintingWork, "String B4");
+    Win32AddEntry(Queue, DoPrintingWork, "String B5");
+    Win32AddEntry(Queue, DoPrintingWork, "String B6");
+    Win32AddEntry(Queue, DoPrintingWork, "String B7");
+    Win32AddEntry(Queue, DoPrintingWork, "String B8");
+    Win32AddEntry(Queue, DoPrintingWork, "String B9");
+    
+    Win32CompleteAllWork(Queue);
+  }
+  
+  uint32 ID = GetCurrentThreadId();
+  
+}
+
+
+int CALLBACK
+WinMain(HINSTANCE Instance,
+        HINSTANCE PrevInstance,
+        LPSTR CommandLine,
+        int ShowCode)
+{
+  win32_state Win32State = {};
   
   platform_work_queue Queue = {};
   
@@ -1091,48 +1133,7 @@ testFunc() {
     CloseHandle(ThreadHandle);
   }
   
-//  for(uint32 Count = 0; Count < 100; ++Count) {
-    
-    Win32AddEntry(&Queue, DoPrintingWork, "String A0");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A1");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A2");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A3");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A4");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A5");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A6");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A7");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A8");
-    Win32AddEntry(&Queue, DoPrintingWork, "String A9");
-    
-    Win32AddEntry(&Queue, DoPrintingWork, "String B0");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B1");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B2");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B3");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B4");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B5");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B6");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B7");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B8");
-    Win32AddEntry(&Queue, DoPrintingWork, "String B9");
-    
-    Win32CompleteAllWork(&Queue);
-//  }
-  
-  uint32 ID = GetCurrentThreadId();
-  
-}
-
-
-int CALLBACK
-WinMain(HINSTANCE Instance,
-        HINSTANCE PrevInstance,
-        LPSTR CommandLine,
-        int ShowCode)
-{
-  win32_state Win32State = {};
-  
-  
-  testFunc();
+//  testFunc();
   
   LARGE_INTEGER PerfCountFrequencyResult;
   QueryPerformanceFrequency(&PerfCountFrequencyResult);
@@ -1208,7 +1209,8 @@ WinMain(HINSTANCE Instance,
       {
         MonitorRefreshHz = Win32RefreshRate;
       }
-      real32 GameUpdateHz = (MonitorRefreshHz / 2.0f);
+//      real32 GameUpdateHz = (real32)MonitorRefreshHz / 2.0f;
+      real32 GameUpdateHz = 90.0f;
       real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
       
       // TODO(Egor): Make this like sixty seconds?
@@ -1251,7 +1253,6 @@ WinMain(HINSTANCE Instance,
       LPVOID BaseAddress = 0;
 #endif
       
-      platform_work_queue RenderQueue = {};
       
       game_memory GameMemory = {};
       GameMemory.PermanentStorageSize = Megabytes(512);
@@ -1262,7 +1263,7 @@ WinMain(HINSTANCE Instance,
       // NOTE(Egor): platform_work_queue stuff
       GameMemory.PlatformAddEntry = Win32AddEntry;
       GameMemory.PlatformCompleteAllWork = Win32CompleteAllWork;
-      GameMemory.RenderQueue = &RenderQueue;
+      GameMemory.RenderQueue = &Queue;
       
       
       // TODO(Egor): Handle various memory footprints (USING

@@ -62,7 +62,7 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 Resolution
   Result->GameCamera.NearClipPlane = 0.2f;
   
   Result->RenderCamera = Result->GameCamera;
-  //  Result->RenderCamera.CameraDistanceAboveGround = 35.0f;
+  Result->RenderCamera.CameraDistanceAboveGround = 35.0f;
   
   // NOTE(Egor): monitor properties 0.635 m -- is average length of the monitor
   real32 WidthOfMonitor = 0.635f;
