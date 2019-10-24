@@ -62,7 +62,7 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 Resolution
   Result->GameCamera.NearClipPlane = 0.2f;
   
   Result->RenderCamera = Result->GameCamera;
-  Result->RenderCamera.CameraDistanceAboveGround = 35.0f;
+//  Result->RenderCamera.CameraDistanceAboveGround = 35.0f;
   
   // NOTE(Egor): monitor properties 0.635 m -- is average length of the monitor
   real32 WidthOfMonitor = 0.635f;
@@ -576,7 +576,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       __m128 PixelPX = XMin_4x;
       
       uint32 *Pixel = (uint32 *)Row;
-      
+
       for(int32 XI = FillRect.XMin; XI < FillRect.XMax; XI += 4) {
         
         IACA_VC64_START;
@@ -955,8 +955,11 @@ TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
   
   tile_render_work WorkArray[TileCountX*TileCountY];
   
+  Assert(((uintptr)Output->Memory & 0xF) == 0);
+  
   int TileWidth = Output->Width / TileCountX;
   int TileHeight = Output->Height / TileCountY;
+  TileWidth = ((TileWidth + 3) / 4)*4;
   
   uint32 WorkCount = 0;
   
@@ -967,23 +970,30 @@ TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
       
       rectangle2i ClipRect;
       
-      ClipRect.XMin = TileX*TileWidth + 4;
-      ClipRect.XMax = (TileX + 1)*TileWidth - 4;
-      ClipRect.YMin = TileY*TileHeight + 4;
-      ClipRect.YMax = (TileY + 1)*TileHeight - 4;
+      ClipRect.XMin = TileX*TileWidth;
+      ClipRect.XMax = ClipRect.XMin + TileWidth;
+      ClipRect.YMin = TileY*TileHeight;
+      ClipRect.YMax = ClipRect.YMin + TileHeight;
+      
+      if(ClipRect.XMax > Output->Width)
+        ClipRect.XMax = Output->Width;
       
       Work->ClipRect = ClipRect;
       Work->Output = Output;
       Work->Group = Group;
       
+#if 0
       PlatformAddEntry(RenderQueue, DoTiledRenderingWork, Work);
+#else
+      DoTiledRenderingWork(RenderQueue, Work);
+#endif
     }
   }
   
   PlatformCompleteAllWork(RenderQueue);
 #else
   
-  rectangle2i ClipRect = {4, 4, Output->Width - 4, Output->Height - 4};
+  rectangle2i ClipRect = {0, 0, Output->Width, Output->Height};
   RenderPushBuffer(Group, Output, ClipRect, false);
   RenderPushBuffer(Group, Output, ClipRect, true);    
   
