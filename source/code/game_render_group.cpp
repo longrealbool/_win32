@@ -500,11 +500,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       FillRect.XMax = (FillRect.XMax & ~3) + 4;
     }
     
-    if(FillRect.XMax > ClipRect.XMax) {
-      
-      int a = 3;
-    }
-      
 #if 0
     int32 FillWidth = FillRect.XMax - FillRect.XMin;
     int32 FillWidthAlign = FillWidth & 0x3;
@@ -1024,7 +1019,7 @@ TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
       Work->Output = Output;
       Work->Group = Group;
       
-#if 0
+#if 1
       PlatformAddEntry(RenderQueue, DoTiledRenderingWork, Work);
 #else
       DoTiledRenderingWork(RenderQueue, Work);

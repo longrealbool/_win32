@@ -47,6 +47,8 @@ extern "C" {
 #define Assert(Expression)
 #endif
   
+#define Align16(Value) ((Value + 0xF) & ~0xF)
+  
 #define InvalidCodePath Assert(!"Invalid Code Path");
 #define InvalidDefaultCase default: {InvalidCodePath;} break
   

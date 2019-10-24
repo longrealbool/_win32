@@ -407,12 +407,10 @@ Win32ResizeDIBSection(win32_offscreen_buffer *Buffer, int Width, int Height)
   Buffer->Info.bmiHeader.biBitCount = 32;
   Buffer->Info.bmiHeader.biCompression = BI_RGB;
   
-  // NOTE(Egor): Thank you to Chris Hecker of Spy Party fame
-  // for clarifying the deal with StretchDIBits and BitBlt!
-  // No more DC for us.
-  int BitmapMemorySize = (Buffer->Width*Buffer->Height)*BytesPerPixel;
+  Buffer->Pitch = Align16(Width*BytesPerPixel);
+  int BitmapMemorySize = (Buffer->Pitch*Buffer->Height);
   Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-  Buffer->Pitch = Width*BytesPerPixel;
+
   
   // TODO(Egor): Probably clear this to black
 }

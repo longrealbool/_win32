@@ -864,6 +864,8 @@ game_memory *DebugGlobalMemory;
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
   
+  PlatformAddEntry = Memory->PlatformAddEntry;
+  PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
 #if GAME_INTERNAL
   DebugGlobalMemory = Memory; 
 #endif
@@ -882,10 +884,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   if(!Memory->IsInitialized)
   {
-    
-    
-    PlatformAddEntry = Memory->PlatformAddEntry;
-    PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
     
     uint32 TilesPerHeight = 9;
     uint32 TilesPerWidth = 17;
@@ -939,8 +937,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     GameState->Sword = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//dagger.bmp", 30, 30);
     GameState->Tree1 = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
-//    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//tree1.bmp", 30, 30);
-    GameState->Tree = GameState->Tree1;
+    GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//tree1.bmp", 44, 70);
+//    GameState->Tree = GameState->Tree1;
     
     GameState->Stairwell = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp");
     
