@@ -471,7 +471,41 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       FillRect.YMin += 1;
     }
     
-#if 1
+    __m128i StartClipMask = _mm_set1_epi8(-1);
+    __m128i EndClipMask = _mm_set1_epi8(-1);
+    
+    __m128i StartClipMasks[] = {
+      _mm_slli_si128(StartClipMask, 0*4),
+      _mm_slli_si128(StartClipMask, 1*4),
+      _mm_slli_si128(StartClipMask, 2*4),
+      _mm_slli_si128(StartClipMask, 3*4),
+    };
+    
+    __m128i EndClipMasks[] = {
+      _mm_srli_si128(EndClipMask, 0*4),
+      _mm_srli_si128(EndClipMask, 3*4),
+      _mm_srli_si128(EndClipMask, 2*4),
+      _mm_srli_si128(EndClipMask, 1*4),
+    };
+    
+    if(FillRect.XMin & 3) {
+
+      StartClipMask = StartClipMasks[FillRect.XMin & 3];
+      FillRect.XMin = FillRect.XMin & ~3;
+    }
+    
+    if(FillRect.XMax & 3) {
+      
+      EndClipMask = EndClipMasks[FillRect.XMax & 3];
+      FillRect.XMax = (FillRect.XMax & ~3) + 4;
+    }
+    
+    if(FillRect.XMax > ClipRect.XMax) {
+      
+      int a = 3;
+    }
+      
+#if 0
     int32 FillWidth = FillRect.XMax - FillRect.XMin;
     int32 FillWidthAlign = FillWidth & 0x3;
     int32 Adjust = (~FillWidthAlign + 1) & 0x3;
@@ -563,7 +597,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     
     for(int32 Y = FillRect.YMin; Y < FillRect.YMax; Y += 2) {
       
-      __m128i ClipMask = StartupClipMask;
+      __m128i ClipMask = StartClipMask;
       
 #define TEST_PixelPY_x_NXAxisY 1 // NOTE(Egor): looks like disabled it's faster ¯\_(-_-)_/¯ 
       
@@ -576,7 +610,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
       __m128 PixelPX = XMin_4x;
       
       uint32 *Pixel = (uint32 *)Row;
-
+      
       for(int32 XI = FillRect.XMin; XI < FillRect.XMax; XI += 4) {
         
         IACA_VC64_START;
@@ -612,7 +646,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         //      if(_mm_movemask_epi8(WriteMask))
         {
           
-          __m128i OriginalDest = _mm_loadu_si128((__m128i *)Pixel);
+          __m128i OriginalDest = _mm_load_si128((__m128i *)Pixel);
           
           // NOTE(Egor): clamp U and V to prevent fetching nonexistent texel data
           // we could have U and V that exceeds 1.0f that can fetch outside of texture
@@ -840,9 +874,17 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
         
         PixelPX = _mm_add_ps(PixelPX, Four);
         Pixel += 4;
-        // NOTE(Egor): we clipped first 4 pixels
-        ClipMask = _mm_set1_epi32(0xFFFFFFFF);
         
+        if((XI + 8) < FillRect.XMax) {
+          
+          // NOTE(Egor): we clipped first 4 pixels
+          ClipMask = _mm_set1_epi8(-1);
+        }
+        else {
+          
+          ClipMask = EndClipMask;
+        }
+          
         IACA_VC64_END;
       }
       
