@@ -73,6 +73,45 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 Resolution
   return Result;
 }
 
+
+struct entity_basis_p_result {
+  
+  v2 P;
+  real32 Scale;
+  bool32 Valid;
+};
+
+inline entity_basis_p_result
+GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenDim) {
+  
+  v2 ScreenCenter = 0.5f*ScreenDim;
+  entity_basis_p_result Result = {};
+  
+  v3 EntityBaseP = EntityBasis->Basis->P;
+  
+  real32 FocalLength = Group->RenderCamera.FocalLength;
+  real32 CameraDistanceAboveGround = Group->RenderCamera.CameraDistanceAboveGround;
+  real32 NearClipPlane = Group->RenderCamera.NearClipPlane;
+  
+  real32 DistanceToPz = (CameraDistanceAboveGround - EntityBaseP.z);
+  v3 RawXY = ToV3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
+  
+  if(DistanceToPz > NearClipPlane) {
+    
+    v3 ProjectedXY = (1.0f/DistanceToPz) * RawXY*FocalLength;
+    
+    Result.P = ScreenCenter + Group->MtP*ProjectedXY.xy;
+    Result.Scale = Group->MtP*ProjectedXY.z;
+    Result.Valid = true;
+  }
+  
+  return Result;
+}
+
+
+
+
+
 #define PushRenderElement(Group, Type) (Type *)PushRenderElement_(Group, sizeof(Type), RenderGroupEntryType_##Type)
 
 internal void*
@@ -102,38 +141,49 @@ internal void
 PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset, real32 Height,
            v4 Color = V4(1,1,1,1)) {
   
+  Assert(Entry->Bitmap);  
+  entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
   
-  render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
-  if(Piece) {
+  if(Basis.Valid) {
     
-    // NOTE(Egor): this is actual width and height in meters
-    v2 Size = V2(Height * Bitmap->WidthOverHeight, Height);
-    v2 Align = Hadamard(Bitmap->AlignPercentage, Size);
-    
-    Piece->Size = Size;
-    Piece->EntityBasis.Basis = Group->DefaultBasis;
-    Piece->EntityBasis.Offset = Offset - ToV3(Align, 0);
-    Piece->Bitmap = Bitmap;
-    Piece->Color = Group->GlobalAlpha*Color;
-    //Piece->Color.a *= Group->GlobalAlpha;
+    render_entry_bitmap *Piece = PushRenderElement(Group, render_entry_bitmap);
+    if(Piece) {
+      
+      // NOTE(Egor): this is actual width and height in meters
+      v2 Size = V2(Height * Bitmap->WidthOverHeight, Height);
+      v2 Align = Hadamard(Bitmap->AlignPercentage, Size);
+      
+      Piece->Size = Size;
+      Piece->EntityBasis.Basis = Group->DefaultBasis;
+      Piece->EntityBasis.Offset = Offset - ToV3(Align, 0);
+      Piece->Bitmap = Bitmap;
+      Piece->Color = Group->GlobalAlpha*Color;
+      //Piece->Color.a *= Group->GlobalAlpha;
+    }
   }
 }
 
 internal void 
 PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color) {
   
-  render_entry_rectangle *Piece = PushRenderElement(Group, render_entry_rectangle);
-  if(Piece) {
+  entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
+  Assert(Entry->Bitmap);
+  
+  if(Basis.Valid) {
     
-    render_entity_basis EntityBasis;
-    EntityBasis.Basis = Group->DefaultBasis;
-    EntityBasis.Offset = (Offset - ToV3(0.5f*Dim, 0));
-    
-    Piece->EntityBasis = EntityBasis;
-    Piece->Dim = Dim;
-    Piece->Color = Color;
-    
-    Assert(Piece->EntityBasis.Basis);
+    render_entry_rectangle *Piece = PushRenderElement(Group, render_entry_rectangle);
+    if(Piece) {
+      
+      render_entity_basis EntityBasis;
+      EntityBasis.Basis = Group->DefaultBasis;
+      EntityBasis.Offset = (Offset - ToV3(0.5f*Dim, 0));
+      
+      Piece->EntityBasis = EntityBasis;
+      Piece->Dim = Dim;
+      Piece->Color = Color;
+      
+      Assert(Piece->EntityBasis.Basis);
+    }
   }
 }
 
@@ -282,39 +332,6 @@ DrawRectangle(loaded_bitmap *Buffer, v2 vMin, v2 vMax, v4 Color,
 }
 
 
-struct entity_basis_p_result {
-  
-  v2 P;
-  real32 Scale;
-  bool32 Valid;
-};
-
-inline entity_basis_p_result
-GetRenderEntityBasisP(render_group *Group, render_entity_basis *EntityBasis, v2 ScreenDim) {
-  
-  v2 ScreenCenter = 0.5f*ScreenDim;
-  entity_basis_p_result Result = {};
-  
-  v3 EntityBaseP = EntityBasis->Basis->P;
-  
-  real32 FocalLength = Group->RenderCamera.FocalLength;
-  real32 CameraDistanceAboveGround = Group->RenderCamera.CameraDistanceAboveGround;
-  real32 NearClipPlane = Group->RenderCamera.NearClipPlane;
-  
-  real32 DistanceToPz = (CameraDistanceAboveGround - EntityBaseP.z);
-  v3 RawXY = ToV3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
-  
-  if(DistanceToPz > NearClipPlane) {
-    
-    v3 ProjectedXY = (1.0f/DistanceToPz) * RawXY*FocalLength;
-    
-    Result.P = ScreenCenter + Group->MtP*ProjectedXY.xy;
-    Result.Scale = Group->MtP*ProjectedXY.z;
-    Result.Valid = true;
-  }
-  
-  return Result;
-}
 
 
 inline v4
@@ -933,15 +950,12 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output,
         render_entry_bitmap *Entry = (render_entry_bitmap *)Data;
         BaseAddress += sizeof(*Entry);
         
-        entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
-        Assert(Entry->Bitmap);
-        
         render_v2_basis Basis;
-        Basis.Origin = BasisP.P;
+        Basis.Origin = Entry->P;
         Basis.XAxis = V2(1.0f, 0.0f);
         Basis.YAxis = Perp(Basis.XAxis);
-        Basis.XAxis *= BasisP.Scale*(real32)Entry->Size.x;
-        Basis.YAxis *= BasisP.Scale*(real32)Entry->Size.y;
+        Basis.XAxis *= (real32)Entry->Size.x;
+        Basis.YAxis *= (real32)Entry->Size.y;
         
         DrawRectangleSlowly(Output, Basis, Entry->Color, Entry->Bitmap, ClipRect, PtM, Even);
         
@@ -953,7 +967,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output,
         BaseAddress += sizeof(*Entry);
         
         entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
-        DrawRectangle(Output, BasisP.P, BasisP.P + BasisP.Scale*Entry->Dim, Entry->Color, ClipRect, Even); 
+        DrawRectangle(Output, Entry->P, Entry->P + Entry->Dim, Entry->Color, ClipRect, Even); 
       } break;
       
       InvalidDefaultCase;
@@ -1049,28 +1063,31 @@ Clear(render_group *Group, v4 Color) {
   }
 }
 
-inline render_entry_coordinate_system *
+inline void
 PushCoordinateSystem(render_group *Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color,
                      loaded_bitmap *Bitmap, loaded_bitmap *NormalMap,
                      environment_map *Top, environment_map *Middle, environment_map *Bottom) {
+
+  entity_basis_p_result BasisP = GetRenderEntityBasisP(Group, &Entry->EntityBasis, ScreenDim);
   
-  render_entry_coordinate_system *Entry = PushRenderElement(Group, render_entry_coordinate_system);
-  
-  if(Entry) {
+  if(Basis.Valid) {  
     
-    Entry->EntityBasis.Basis = Group->DefaultBasis;
-    Entry->Origin = Origin;
-    Entry->XAxis = XAxis;
-    Entry->YAxis = YAxis;
-    Entry->Color = Color;
-    Entry->Texture = Bitmap;
-    Entry->NormalMap = NormalMap;
-    Entry->Top = Top;
-    Entry->Middle = Middle;
-    Entry->Bottom = Bottom;
+    render_entry_coordinate_system *Entry = PushRenderElement(Group, render_entry_coordinate_system);
+    
+    if(Entry) {
+      
+      Entry->EntityBasis.Basis = Group->DefaultBasis;
+      Entry->Origin = Origin;
+      Entry->XAxis = XAxis;
+      Entry->YAxis = YAxis;
+      Entry->Color = Color;
+      Entry->Texture = Bitmap;
+      Entry->NormalMap = NormalMap;
+      Entry->Top = Top;
+      Entry->Middle = Middle;
+      Entry->Bottom = Bottom;
+    }
   }
-  
-  return Entry;
 }
 
 inline v2

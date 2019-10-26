@@ -1492,7 +1492,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       move_spec MoveSpec = DefaultMoveSpec();
       v3 ddP = {};
       
-      
       v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
       
       real32 FadeTopEnd = 0.75f*GameState->FloorHeight;
@@ -1511,9 +1510,102 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         RenderGroup->GlobalAlpha = Clamp01MapToRange(FadeBottomEnd, CameraRelativeGroundP.z, FadeBottomStart);
       }
       
-      
-      // NOTE(Egor): entity processing here
+      // NOTE(Egor): SIMULATING ENTITIES
       hero_bitmaps *Hero = &GameState->Hero[Entity->FacingDirection];    
+      switch(Entity->Type) {
+        
+        case EntityType_Sword: {
+          
+          MoveSpec.Speed = 0.0f;
+          MoveSpec.Drag = 0.0f;
+          MoveSpec.UnitMaxAccelVector = true;
+          
+          if(Entity->DistanceLimit == 0.0f) {
+            
+            ClearCollisionRulesFor(GameState, Entity->StorageIndex);
+            MakeEntityNonSpatial(Entity);
+          }
+          
+          v2 Alignment = ConvertToBottomUpAlign(&GameState->Sword, V2(26, 37));
+          
+        } break;
+        case EntityType_Hero: {
+          
+          for(uint32 Index = 0; Index < ArrayCount(GameState->ControlledEntities); ++Index) {
+            
+            controlled_entity *Controlled = GameState->ControlledEntities + Index;
+            
+            if(Controlled->EntityIndex == Entity->StorageIndex) {
+              
+              if(Controlled->dZ) {
+                
+                Entity->dP.z = Controlled->dZ;
+              }
+              
+              MoveSpec.Speed = 50.0f;
+              MoveSpec.Drag = 8.0f;
+              MoveSpec.UnitMaxAccelVector = true;
+              ddP = ToV3(Controlled->ddP, 0);
+              
+              if((Controlled->dSword.x != 0.0f) || (Controlled->dSword.y != 0.0f)) {
+                
+                sim_entity *Sword = Entity->Sword.Ptr;
+                if(Sword && IsSet(Sword, EntityFlag_NonSpatial)) {
+                  
+                  Sword->DistanceLimit = 5.0f;
+                  MakeEntitySpatial(Sword, Entity->P, 5.0f*ToV3(Controlled->dSword, 0));
+                  AddCollisionRule(GameState, Entity->StorageIndex, Sword->StorageIndex, false);
+                }
+              }
+            }
+          }
+          
+        } break;
+        case EntityType_Familiar: {
+          
+          sim_entity *ClosestHero = 0;
+          real32 ClosestHeroDSq = Square(10.0f);
+          for(uint32 Index = 1; Index < SimRegion->EntityCount; ++Index) {
+            
+            sim_entity *TestEntity = SimRegion->Entities + Index;
+            if(TestEntity->Type == EntityType_Hero) {
+              
+              real32 TestDSq = LengthSq(TestEntity->P - Entity->P);
+              
+              if(ClosestHeroDSq > TestDSq && TestDSq > Square(3.0f)) {
+                
+                ClosestHero = TestEntity;
+                ClosestHeroDSq = TestDSq;
+              }
+            }
+          }
+          if(ClosestHero) {
+            
+            real32 Acceleration = 0.5f;
+            real32 OneOverLength = Acceleration / SquareRoot(ClosestHeroDSq);
+            ddP = (ClosestHero->P - Entity->P) * OneOverLength;
+          }
+          
+          MoveSpec.Speed = 50.0f;
+          MoveSpec.Drag = 8.0f;
+          MoveSpec.UnitMaxAccelVector = true;
+          
+        } break;
+        default: {
+          InvalidCodePath;
+        }
+      }
+      
+      if(!IsSet(Entity, EntityFlag_NonSpatial) &&
+         IsSet(Entity, EntityFlag_Moveable)) {
+        
+        MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
+      }
+      
+      Basis->P = GetEntityGroundPoint(Entity) + V3(0, 0, (real32)GameState->OffsetZ);
+      
+      // NOTE(Egor): RENDERING ENTITIES
+      
       switch(Entity->Type) {
         
         case EntityType_Sword: {
@@ -1641,13 +1733,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         }
       }
       
-      if(!IsSet(Entity, EntityFlag_NonSpatial) &&
-         IsSet(Entity, EntityFlag_Moveable)) {
-        
-        MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
-      }
       
-      Basis->P = GetEntityGroundPoint(Entity) + V3(0, 0, (real32)GameState->OffsetZ);
     }
   }
   
