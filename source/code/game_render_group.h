@@ -38,18 +38,6 @@ struct environment_map {
   real32 Pz;
 };
 
-struct render_basis {
-  
-  v3 P;
-};
-
-struct render_entity_basis {
-  
-  render_basis *Basis;
-  v3 Offset;
-};
-
-
 
 enum render_group_entry_type {
   
@@ -72,7 +60,6 @@ struct render_entry_clear {
 struct render_entry_bitmap {
   
   loaded_bitmap *Bitmap;
-  render_entity_basis EntityBasis;
   
   v4 Color;
   v2 P;
@@ -82,8 +69,10 @@ struct render_entry_bitmap {
 struct render_entry_rectangle {
   
   v4 Color;
-  render_entity_basis EntityBasis;
+  
+  uint32 Flag;
   v2 Dim;
+  v2 P;
 };
 
 
@@ -94,26 +83,29 @@ struct render_v2_basis {
   v2 YAxis;
 };
 
+struct render_transform {
 
-struct render_group_transform {
-  
+  real32 MtP;
   // NOTE(Egor): camera parameters
   real32 FocalLength;
+
   real32 CameraDistanceAboveGround;
   real32 NearClipPlane;
-  
+  v2 ScreenCenter;
   // NOTE(Egor): translates meters _on the monitor_ into pixels _on the monitor_
-  real32 MtP;
-  v2 MonitorHalfDimInMeters;
 
+  v3 OffsetP;
+  
+  uint32 DebugFlag = 0;
+  real32 Scale;
 };
 
 struct render_group {
   
-  render_group_camera GameCamera;
-  render_group_camera RenderCamera;
-
-  render_group_transform Transform;
+  render_transform Transform;
+  
+  v2 MonitorHalfDimInMeters;
+  
   real32 GlobalAlpha;
 
   uint32 MaxPushBufferSize;
@@ -124,13 +116,14 @@ struct render_group {
 // NOTE(Egor): for test only
 struct render_entry_coordinate_system {
   
-  render_entity_basis EntityBasis;
   v2 Origin;
   v2 XAxis;
   v2 YAxis;
   v4 Color;
   loaded_bitmap *Texture;
   loaded_bitmap *NormalMap;
+  
+//  real32 PixelsToMeters; 
   
   environment_map *Top;
   environment_map *Middle;

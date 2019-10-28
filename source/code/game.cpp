@@ -938,7 +938,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     GameState->Tree1 = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
     
     GameState->Tree = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//tree1.bmp", 44, 70);
-//    GameState->Tree = GameState->Tree1;
+    GameState->Tree = GameState->Tree1;
     
     GameState->Stairwell = DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_up.bmp");
     
@@ -1029,7 +1029,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 #else
       
       uint32 Choice = RandomChoice(&Series, ((DoorUp || DoorDown)? 2 : 4));
-      Choice = 1;
+      //Choice = 1;
 #endif
       //Choice = 3;
       
@@ -1383,20 +1383,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
       
-      render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
-      RenderGroup->DefaultBasis = Basis;
-      Basis->P = Delta;
-
-//      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
-      PushBitmap(RenderGroup, Bitmap, V3(0, 0, 0), World->ChunkDimInMeters.x);
+      //      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+      PushBitmap(RenderGroup, Bitmap, Delta, World->ChunkDimInMeters.x);
 
     }
   }
   
   #endif
   
-  RenderGroup->DefaultBasis = PushStruct(&TranState->TranArena, render_basis);
-  RenderGroup->DefaultBasis->P = V3(0,0,0);
   
   {
     world_position MinChunk = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBoundsInMeters));
@@ -1465,7 +1459,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   sim_region *SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World,
                                    SimCenterP, SimBounds, Input->dtForFrame);
   
-  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 1.0f, 1.0f)); 
+  RenderGroup->Transform.DebugFlag = 1;
+  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(ScreenBounds), V4(1.0f, 1.0f, 1.0f, 1.0f));
+  RenderGroup->Transform.DebugFlag = 0;
 //  PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimBounds).xy, V4(1.0f, 0.0f, 0.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->UpdateBounds).xy, V4(1.0f, 0.0f, 1.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0,0,0), GetDim(SimRegion->Bounds).xy, V4(0.0f, 0.0f, 1.0f, 1.0f));
@@ -1485,9 +1481,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     sim_entity *Entity = SimRegion->Entities + EntityIndex;
     
     if(Entity->Updatable) {
-      
-      render_basis *Basis = PushStruct(&TranState->TranArena, render_basis);
-      RenderGroup->DefaultBasis = Basis;
       
       move_spec MoveSpec = DefaultMoveSpec();
       v3 ddP = {};
@@ -1592,7 +1585,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
         } break;
         default: {
-          InvalidCodePath;
+//          InvalidCodePath;
         }
       }
       
@@ -1602,7 +1595,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
       }
       
-      Basis->P = GetEntityGroundPoint(Entity) + V3(0, 0, (real32)GameState->OffsetZ);
+      RenderGroup->Transform.OffsetP = GetEntityGroundPoint(Entity) + V3(0, 0, (real32)GameState->OffsetZ);
       
       // NOTE(Egor): RENDERING ENTITIES
       
