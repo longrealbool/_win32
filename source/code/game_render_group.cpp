@@ -44,7 +44,7 @@ UnscaleAndBiasNormal(v4 Normal) {
 
 
 internal render_group *
-AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 ResolutionPixels) {
+AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize) {
   
   render_group *Result = PushStruct(Arena, render_group);
   Result->PushBufferBase = (uint8 *)PushSize(Arena, MaxPushBufferSize);
@@ -53,24 +53,41 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize, v2 Resolution
   
   Result->GlobalAlpha = 1.0f;
   
-  // NOTE(Egor): monitor properties 0.635 m -- is average length of the monitor
-  real32 WidthOfMonitor = 0.635f;
-  real32 MtP = ResolutionPixels.x*WidthOfMonitor;
-  real32 PtM = 1.0f / MtP;
-  
-  Result->MonitorHalfDimInMeters = 0.5f*PtM*ResolutionPixels;
-  
-  Result->Transform.MtP = MtP;
-  Result->Transform.FocalLength = 0.6f;
-  Result->Transform.CameraDistanceAboveGround = 9.0f;
-  Result->Transform.NearClipPlane = 0.2f;
-  Result->Transform.ScreenCenter = 0.5f*ResolutionPixels;
-
   Result->Transform.OffsetP = V3(0, 0, 0);
   Result->Transform.Scale = 1.0f;
   
   return Result;
 }
+
+
+inline void
+Perspective(render_group *RenderGroup, v2 DimInPixels, real32 MtP,
+            real32 FocalLength, real32 CameraDistanceAboveGround) {
+
+  real32 PtM = 1.0f / MtP;  
+  RenderGroup->MonitorHalfDimInMeters = 0.5f*PtM*DimInPixels;
+  
+  RenderGroup->Transform.MtP = MtP;
+  RenderGroup->Transform.FocalLength = FocalLength;
+  RenderGroup->Transform.CameraDistanceAboveGround = CameraDistanceAboveGround;
+  RenderGroup->Transform.NearClipPlane = 0.2f;
+  RenderGroup->Transform.ScreenCenter = 0.5f*DimInPixels;
+}
+
+
+inline void
+Orthographic(render_group *RenderGroup, v2 DimInPixels, real32 MtP ) {
+  
+  real32 PtM = 1.0f / MtP;
+  RenderGroup->MonitorHalfDimInMeters = 0.5f*DimInPixels*PtM ;
+  
+  RenderGroup->Transform.MtP = MtP;
+  RenderGroup->Transform.FocalLength = 1.0f;
+  RenderGroup->Transform.CameraDistanceAboveGround = 1.0f;
+  RenderGroup->Transform.NearClipPlane = 0.2f;
+  RenderGroup->Transform.ScreenCenter = 0.5f*DimInPixels;
+}
+
 
 struct entity_basis_p_result {
   
@@ -88,7 +105,7 @@ GetRenderEntityBasisP(render_transform *Transform, v3 PushOffset) {
   
   v2 ScreenCenter = Transform->ScreenCenter;
   real32 FocalLength = Transform->FocalLength;
-  real32 CameraDistanceAboveGround = Transform->CameraDistanceAboveGround + 26.0f;
+  real32 CameraDistanceAboveGround = Transform->CameraDistanceAboveGround;// + 26.0f;
   real32 NearClipPlane = Transform->NearClipPlane;
   real32 MtP = Transform->MtP;
   

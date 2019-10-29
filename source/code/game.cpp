@@ -480,30 +480,34 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
 internal void
 FillGroundChunk(transient_state *TranState, game_state *GameState,
                 ground_buffer *GroundBuffer, world_position *Pos) {
-  
+
+
   temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-  // TODO(Egor): ground chunk resolution
+  GroundBuffer->P = *Pos;
+  
   loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
   
   Buffer->AlignPercentage = V2(0.5f, 0.5f);
   Buffer->WidthOverHeight = 1.0f;
   
-  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), V2i(Buffer->Width, Buffer->Height));
-  GroundBuffer->P = *Pos;
+  real32 Width = GameState->World->ChunkDimInMeters.x;
+  real32 Height = GameState->World->ChunkDimInMeters.y;
+  Assert(Width == Height);
+  v2 HalfDim = 0.5f*V2(Width, Height);
   
+  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
+  Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height), Width/ Buffer->Width);
   Clear(GroundGroup, V4(1.0f, 0.4f, 0.0f, 1.0f));
   
-#if 0
+  
+#if 1
   if(Pos->ChunkZ == 0) {
     // NOTE(Egor): the idea is: 
     // we take block that we want (Pos), generate 3x3 block centered at (Pos)
     // with rigid order, allowing to bitmaps blits over the top of our block generating
     // seemless texture and cut the center block - effectively our (Pos)
     
-    real32 Width = GameState->World->ChunkDimInMeters.x;
-    real32 Height = GameState->World->ChunkDimInMeters.y;
-    
-    v2 HalfDim = 0.5f*V2(Width, Height);
+
     HalfDim *= 2.0f;
     
     for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
@@ -1174,7 +1178,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     TranState->RenderQueue = Memory->RenderQueue;
     
-    TranState->GroundBufferCount = 16;
+    TranState->GroundBufferCount = 64;
     TranState->GroundBuffers = PushArray(&TranState->TranArena,
                                          TranState->GroundBufferCount, ground_buffer); 
     
@@ -1333,8 +1337,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   DrawBuffer->Pitch = Buffer->Pitch;
   
   temporary_memory RenderMem = BeginTemporaryMemory(&TranState->TranArena);
-  render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4),
-                                                  V2i(DrawBuffer->Width, DrawBuffer->Height));
+  render_group *RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
+  
+  // NOTE(Egor): monitor properties 0.635 m -- is average length of the monitor
+  real32 WidthOfMonitor = 0.635f;
+  real32 MtP = DrawBuffer->Width*WidthOfMonitor;
+  
+  Perspective(RenderGroup, V2i(DrawBuffer->Width, DrawBuffer->Height), MtP, 0.6f, 9.0f); 
   
   
 
@@ -1676,12 +1685,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Stairwell: {
           
-          PushRect(RenderGroup, V3(0.0f, 0.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0.1f, 1.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.2f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0.2f, 2.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.4f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0.3f, 3.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.6f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0.4f, 4.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 0.8f, 0.0f, 1.0f)); 
-          PushRect(RenderGroup, V3(0.5f, 5.0f * Entity->WalkableHeight/5, 0), Entity->WalkableDim, V4(1.0f, 1.0f, 0.0f, 1.0f)); 
+          PushRect(RenderGroup, V3(0.0f, 0.0f, 0), Entity->WalkableDim, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
         } break;
         case EntityType_Monster: {
           
