@@ -499,7 +499,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   
   render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(16));
   Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height), Buffer->Width/ Width);
-  Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 0.0f));
+  Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
   
   
   
@@ -1354,7 +1354,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   
   
-#if 0
+#if 1
   
   Clear(RenderGroup, V4(1.0f, 1.0f, 1.0f, 0.0f));
   

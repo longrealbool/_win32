@@ -449,6 +449,7 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 
 #endif
 
+#if 1
 
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
@@ -565,6 +566,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     __m128 ColorA_4x = _mm_set1_ps(Color.a);
     
     __m128 ColorA_INV_4x = _mm_set1_ps(Color.a*Inv255);
+    __m128 Inv255_4x = _mm_set1_ps(Inv255);
     
     __m128 One = _mm_set1_ps(1.0f);
     __m128 Two = _mm_set1_ps(2.0f);
@@ -575,6 +577,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     __m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
     
     __m128 Squared255 = _mm_set1_ps(255.0f*255.0f);
+    __m128 W255_4x = _mm_set1_ps(255.0f);
     
     __m128 WidthM2_4x = _mm_set1_ps((real32)(Texture->Width - 2));
     __m128 HeightM2_4x = _mm_set1_ps((real32)(Texture->Height - 2));
@@ -741,6 +744,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           TexelAag = _mm_mullo_epi16(TexelAag, TexelAag);
           
           //////
+          __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
+          __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
+          TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
+          __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
+          TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
+          
+          //////
           __m128i TexelCrb = _mm_and_si128(SampleC, MaskFF00FF);
           __m128i TexelCag = _mm_and_si128(_mm_srli_epi32(SampleC,  8), MaskFF00FF);
           TexelCrb = _mm_mullo_epi16(TexelCrb, TexelCrb);
@@ -759,6 +769,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           __m128 TexelAg = _mm_cvtepi32_ps(_mm_and_si128(TexelAag, MaskFFFF));
           __m128 TexelAb = _mm_cvtepi32_ps(_mm_and_si128(TexelArb, MaskFFFF));
           
+          __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
+          __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
+          __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
+          
           __m128 TexelCr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelCrb, 16));
           __m128 TexelCg = _mm_cvtepi32_ps(_mm_and_si128(TexelCag, MaskFFFF));
           __m128 TexelCb = _mm_cvtepi32_ps(_mm_and_si128(TexelCrb, MaskFFFF));
@@ -769,36 +783,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           
           // NOTE(Egor): convert to linear brightness space
           // Dest = SRGB255ToLinear1(Dest);
-#if 0        
-          
-          __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(SampleB, MaskFF));
-          __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB, 8), MaskFF));
-          __m128 TexelBr = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB, 16), MaskFF));
-          __m128 TexelBa = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(SampleB, 24), MaskFF));
-          TexelBr = mm_square(TexelBr);
-          TexelBg = mm_square(TexelBg);
-          TexelBb = mm_square(TexelBb);
-          
-          __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(OriginalDest, MaskFF));
-          __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 8), MaskFF));
-          __m128 DestR = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 16), MaskFF));
-          __m128 DestA = _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(OriginalDest, 24), MaskFF));
-          DestR = mm_square(DestR);
-          DestG = mm_square(DestG);
-          DestB = mm_square(DestB);
-          
-#else
           
           //////
-          __m128i TexelBrb = _mm_and_si128(SampleB, MaskFF00FF);
-          __m128i TexelBag = _mm_and_si128(_mm_srli_epi32(SampleB,  8), MaskFF00FF);
-          TexelBrb = _mm_mullo_epi16(TexelBrb, TexelBrb);
-          __m128 TexelBa = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBag, 16));
-          TexelBag = _mm_mullo_epi16(TexelBag, TexelBag);
-          
-          __m128 TexelBr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelBrb, 16));
-          __m128 TexelBg = _mm_cvtepi32_ps(_mm_and_si128(TexelBag, MaskFFFF));
-          __m128 TexelBb = _mm_cvtepi32_ps(_mm_and_si128(TexelBrb, MaskFFFF));
           
           // NOTE(Egor): load destination color
           __m128i Destrb = _mm_and_si128(OriginalDest, MaskFF00FF);
@@ -811,7 +797,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           __m128 DestG = _mm_cvtepi32_ps(_mm_and_si128(Destag, MaskFFFF));
           __m128 DestB = _mm_cvtepi32_ps(_mm_and_si128(Destrb, MaskFFFF));
           
-#endif
           
           // NOTE(Egor): compute coefficients for for subpixel rendering
           __m128 ifX = _mm_sub_ps(One, fX);
@@ -850,12 +835,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           Texelr = _mm_mul_ps(Texelr, ColorR_4x);
           Texelg = _mm_mul_ps(Texelg, ColorG_4x);
           Texelb = _mm_mul_ps(Texelb, ColorB_4x);
-          Texela = _mm_mul_ps(Texela, ColorA_INV_4x);
+          Texela = _mm_mul_ps(Texela, ColorA_4x);
           
           // NOTE(Egor): clamp color to valid range
           Texelr = _mm_min_ps(_mm_max_ps(Texelr, Zero), Squared255);
           Texelg = _mm_min_ps(_mm_max_ps(Texelg, Zero), Squared255);
           Texelb = _mm_min_ps(_mm_max_ps(Texelb, Zero), Squared255);
+          
           
           // NOTE(Egor): alpha channel for composited bitmaps is in premultiplied alpha mode
           // for case when we create intermediate buffer with two or more bitmaps blend with 
@@ -863,7 +849,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           
           // NOTE(Egor): destination blend
           //        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
-          __m128 OneComplementTexelA = _mm_sub_ps(One, Texela);
+          __m128 OneComplementTexelA = _mm_sub_ps(One, _mm_mul_ps(Inv255_4x, Texela));
           __m128 BlendedR = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestR), Texelr);
           __m128 BlendedG = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestG), Texelg);
           __m128 BlendedB = _mm_add_ps(_mm_mul_ps(OneComplementTexelA, DestB), Texelb);
@@ -924,6 +910,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     END_TIMED_BLOCK(DrawRectangleSlowly);
   }
 }
+
+#endif
 
 
 internal void
