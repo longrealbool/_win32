@@ -86,11 +86,12 @@ struct render_v2_basis {
 struct render_transform {
 
   real32 MtP;
+  
+  bool32 Orthographic;
   // NOTE(Egor): camera parameters
   real32 FocalLength;
 
   real32 CameraDistanceAboveGround;
-  real32 NearClipPlane;
   v2 ScreenCenter;
   // NOTE(Egor): translates meters _on the monitor_ into pixels _on the monitor_
 

@@ -495,9 +495,12 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   Assert(Width == Height);
   v2 HalfDim = 0.5f*V2(Width, Height);
   
-  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
-  Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height), Width/ Buffer->Width);
-  Clear(GroundGroup, V4(1.0f, 0.4f, 0.0f, 1.0f));
+  HalfDim *= 1.0f;
+  
+  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(16));
+  Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height), Buffer->Width/ Width);
+  Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 0.0f));
+  
   
   
 #if 1
@@ -506,9 +509,6 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     // we take block that we want (Pos), generate 3x3 block centered at (Pos)
     // with rigid order, allowing to bitmaps blits over the top of our block generating
     // seemless texture and cut the center block - effectively our (Pos)
-    
-
-    HalfDim *= 2.0f;
     
     for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
       for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
@@ -527,7 +527,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           
           if(RandomChoice(&Series, 2)) {
             
-            Stamp = GameState->Grass + RandomChoice(&Series,  ArrayCount(GameState->Grass));
+            Stamp = GameState->Grass;// + RandomChoice(&Series,  ArrayCount(GameState->Grass));
           }
           else {
             
@@ -536,9 +536,9 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           
           v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
                                                RandomBilateral(&Series)));
-          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 5.0f);
+          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f);
         }
-        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
+//        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
       }
       
       for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
@@ -560,7 +560,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
             
             v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
                                                  RandomBilateral(&Series)));
-            PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 1.0f);
+            PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 0.5f);
           }
         }
       }
@@ -950,6 +950,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     Bitmap->HeroHead = 
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//figurine.bmp", 51, 112);
+    Bitmap->HeroHead = 
+      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_head.bmp");
     Bitmap->HeroCape = 
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_right.bmp", 51, 112);
     Bitmap->Align = ConvertToBottomUpAlign(&Bitmap->HeroHead,V2(51, 112));
@@ -1352,9 +1354,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   
   
   
-#if 1
+#if 0
   
-  Clear(RenderGroup, V4(0.25f, 0.00f, 0.25f, 0.0f));
+  Clear(RenderGroup, V4(1.0f, 1.0f, 1.0f, 0.0f));
   
 #else
   
@@ -1392,7 +1394,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
       
-      //      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+//      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
       PushBitmap(RenderGroup, Bitmap, Delta, World->ChunkDimInMeters.x);
 
     }
@@ -1448,7 +1450,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
-//          PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+          PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
         }
       }
     }

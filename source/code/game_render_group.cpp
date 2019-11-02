@@ -70,8 +70,8 @@ Perspective(render_group *RenderGroup, v2 DimInPixels, real32 MtP,
   RenderGroup->Transform.MtP = MtP;
   RenderGroup->Transform.FocalLength = FocalLength;
   RenderGroup->Transform.CameraDistanceAboveGround = CameraDistanceAboveGround;
-  RenderGroup->Transform.NearClipPlane = 0.2f;
   RenderGroup->Transform.ScreenCenter = 0.5f*DimInPixels;
+  RenderGroup->Transform.Orthographic = false;
 }
 
 
@@ -84,8 +84,8 @@ Orthographic(render_group *RenderGroup, v2 DimInPixels, real32 MtP ) {
   RenderGroup->Transform.MtP = MtP;
   RenderGroup->Transform.FocalLength = 1.0f;
   RenderGroup->Transform.CameraDistanceAboveGround = 1.0f;
-  RenderGroup->Transform.NearClipPlane = 0.2f;
   RenderGroup->Transform.ScreenCenter = 0.5f*DimInPixels;
+  RenderGroup->Transform.Orthographic = true;
 }
 
 
@@ -98,27 +98,32 @@ struct entity_basis_p_result {
 
 inline entity_basis_p_result
 GetRenderEntityBasisP(render_transform *Transform, v3 PushOffset) {
-
-  entity_basis_p_result Result = {};
   
+  entity_basis_p_result Result = {};
   v3 P = PushOffset + Transform->OffsetP;
   
-  v2 ScreenCenter = Transform->ScreenCenter;
-  real32 FocalLength = Transform->FocalLength;
-  real32 CameraDistanceAboveGround = Transform->CameraDistanceAboveGround;// + 26.0f;
-  real32 NearClipPlane = Transform->NearClipPlane;
-  real32 MtP = Transform->MtP;
-  
-  real32 DistanceToPz = (CameraDistanceAboveGround - P.z);
-  v3 RawXY = ToV3(P.xy, 1.0f);
-  
-  if(DistanceToPz > NearClipPlane) {
+  if(Transform->Orthographic) {
     
-    v3 ProjectedXY = (1.0f/DistanceToPz) * RawXY*FocalLength;
-    
-    Result.P = ScreenCenter + MtP*ProjectedXY.xy;
-    Result.Scale = MtP*ProjectedXY.z;
+    Result.P = Transform->ScreenCenter + Transform->MtP*P.xy;
+    Result.Scale = Transform->MtP;
     Result.Valid = true;
+  }
+  else {
+    
+    real32 CameraDistanceAboveGround = Transform->CameraDistanceAboveGround;// + 26.0f;
+    real32 NearClipPlane = 0.2f;
+    
+    real32 DistanceToPz = (CameraDistanceAboveGround - P.z);
+    v3 RawXY = ToV3(P.xy, 1.0f);
+    
+    if(DistanceToPz > NearClipPlane) {
+      
+      v3 ProjectedXY = (1.0f/DistanceToPz) * RawXY*Transform->FocalLength;
+      
+      Result.P = Transform->ScreenCenter + Transform->MtP*ProjectedXY.xy;
+      Result.Scale = Transform->MtP*ProjectedXY.z;
+      Result.Valid = true;
+    }
   }
   
   return Result;
