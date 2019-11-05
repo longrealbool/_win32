@@ -217,6 +217,7 @@ struct game_state {
 struct transient_state {
   
   platform_work_queue *RenderQueue;
+  platform_work_queue *LowPriorityQueue;
   
   bool32 Initialized;
   memory_arena TranArena;

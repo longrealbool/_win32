@@ -1064,7 +1064,7 @@ HandleDebugCycleCounters(game_memory *Memory) {
 
 #include "win32_thread.h"
 
-global_variable win32_thread_info Infos[6];
+
 
 internal void
 testFunc(platform_work_queue *Queue) {
@@ -1103,6 +1103,30 @@ testFunc(platform_work_queue *Queue) {
   
 }
 
+global_variable win32_thread_info Infos[7];
+
+internal void
+Win32MakeQueue(platform_work_queue *Queue, uint32 ThreadCount) {
+  
+  Queue->EntryCompleted = 0;
+  Queue->CompletionTarget = 0;
+  Queue->NextEntryToRead = 0;
+  Queue->NextEntryToWrite = 0;
+  
+  uint32 InitialCount = 0;
+
+  // NOTE(Egor): fuck da safety
+  Queue->Semaphore = CreateSemaphoreEx(0, InitialCount, ThreadCount,
+                                      "AllPurposeWorkQueue", 0, SEMAPHORE_ALL_ACCESS);
+  
+  for(uint32 Index = 0; Index < ThreadCount; ++Index) {
+    
+    DWORD ThreadID;
+    HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Queue, 0, &ThreadID);
+    CloseHandle(ThreadHandle);
+  }
+}
+
 
 int CALLBACK
 WinMain(HINSTANCE Instance,
@@ -1113,23 +1137,11 @@ WinMain(HINSTANCE Instance,
   win32_state Win32State = {};
   
   platform_work_queue Queue = {};
+  platform_work_queue LowPriorityQueue = {};
   
-  uint32 InitialCount = 0;
   uint32 ThreadCount = ArrayCount(Infos);
-  // NOTE(Egor): fuck da safety
-  Queue.Semaphore = CreateSemaphoreEx(0, InitialCount, ThreadCount,
-                                      "AllPurposeWorkQueue", 0, SEMAPHORE_ALL_ACCESS);
-  
-  for(uint32 Index = 0; Index < ThreadCount; ++Index) {
-    
-    win32_thread_info *Info = Infos + Index;
-    Info->Queue = &Queue;
-    Info->LogicalThreadIndex = Index;
-    
-    DWORD ThreadID;
-    HANDLE ThreadHandle = CreateThread(0, 0, ThreadProc, Info, 0, &ThreadID);
-    CloseHandle(ThreadHandle);
-  }
+  Win32MakeQueue(&Queue, ThreadCount);
+  Win32MakeQueue(&LowPriorityQueue, 2);
   
 //  testFunc();
   
@@ -1208,7 +1220,7 @@ WinMain(HINSTANCE Instance,
         MonitorRefreshHz = Win32RefreshRate;
       }
 //      real32 GameUpdateHz = (real32)MonitorRefreshHz / 2.0f;
-      real32 GameUpdateHz = 90.0f;
+      real32 GameUpdateHz = 60.0f;
       real32 TargetSecondsPerFrame = 1.0f / (real32)GameUpdateHz;
       
       // TODO(Egor): Make this like sixty seconds?
@@ -1262,6 +1274,7 @@ WinMain(HINSTANCE Instance,
       GameMemory.PlatformAddEntry = Win32AddEntry;
       GameMemory.PlatformCompleteAllWork = Win32CompleteAllWork;
       GameMemory.RenderQueue = &Queue;
+      GameMemory.LowPriorityQueue = &LowPriorityQueue;
       
       
       // TODO(Egor): Handle various memory footprints (USING

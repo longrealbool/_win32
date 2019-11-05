@@ -449,10 +449,257 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, real32 Roughness,
 
 #endif
 
-#if 1
 
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
+                    loaded_bitmap *Texture, loaded_bitmap *NormalMap,
+                    environment_map *Top, environment_map *Middle, environment_map *Bottom,
+                    real32 PtM) {
+  
+  BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
+  
+  real32 XAxisLength = Length(Basis.XAxis);
+  real32 YAxisLength = Length(Basis.YAxis);
+  
+  v2 NXAxis = YAxisLength/XAxisLength * Basis.XAxis;
+  v2 NYAxis = XAxisLength/YAxisLength * Basis.YAxis;
+  
+  real32 NZScale = (XAxisLength + YAxisLength)*0.5f;
+  
+  //NOTE(Egor): premultiply color
+  Color.rgb *= Color.a;
+  
+  int32 Width = Buffer->Width - 1;
+  int32 Height = Buffer->Height - 1;
+  real32 InvWidth = 1.0f/(real32)Width;
+  real32 InvHeight = 1.0f/(real32)Height;
+  
+  real32 OriginZ = 0.0f;
+  real32 OriginY = (Basis.Origin + 0.5f*Basis.YAxis + 0.5f*Basis.XAxis).y;
+  real32 FixedCastY = InvHeight*OriginY;
+  
+  int32 YMin = Height;
+  int32 XMin = Width;
+  int32 XMax = 0;
+  int32 YMax = 0;
+  
+  v2 Min = Basis.Origin;
+  v2 Max = Basis.Origin + Basis.XAxis + Basis.YAxis;
+  v2 toAxisX = Min + Basis.XAxis;
+  v2 toAxisY = Min + Basis.YAxis;
+  
+  real32 InvXAxisLengthSq = 1.0f/LengthSq(Basis.XAxis);
+  real32 InvYAxisLengthSq = 1.0f/LengthSq(Basis.YAxis);
+  
+  
+  v2 P[4] = {Min, Min + Basis.XAxis, Min + Basis.YAxis, Max};
+  
+  for(uint32 Index = 0; Index < ArrayCount(P); ++Index) {
+    
+    v2 *TestP = P + Index;
+    
+    int32 CeilX = CeilReal32ToInt32(TestP->x);
+    int32 FloorX = FloorReal32ToInt32(TestP->x);
+    int32 CeilY = CeilReal32ToInt32(TestP->y);
+    int32 FloorY = FloorReal32ToInt32(TestP->y);
+    
+    if(XMin > FloorX) XMin = FloorX;
+    if(YMin > FloorY) YMin = FloorY;
+    if(XMax < CeilX) XMax = CeilX;
+    if(YMax < CeilY) YMax = CeilY;
+  }
+  
+  if(XMin < 0) XMin = 0;
+  if(YMin < 0) YMin = 0;
+  if(XMax > Width) XMax = Width;
+  if(YMax > Height) YMax = Height;
+  
+  uint32 PixColor = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
+                     (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
+                     (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
+                     (RoundReal32ToUInt32(Color.b * 255.0f) << 0));
+  
+  uint8 *Row = (uint8 *)Buffer->Memory + YMin*Buffer->Pitch + XMin*BITMAP_BYTES_PER_PIXEL;
+  
+  for(int32 Y = YMin; Y <= YMax; ++Y) {
+    
+    uint32 *Pixel = (uint32 *)Row;
+    for(int32 X = XMin; X <= XMax; ++X) {
+      
+      BEGIN_TIMED_BLOCK(TestPixel);
+      
+      v2 PixelP = V2i(X, Y);
+      v2 d = PixelP - Basis.Origin;
+      
+      
+      real32 Edge0 = Inner(d - Basis.XAxis - Basis.YAxis, Basis.XAxis);
+      real32 Edge1 = Inner(d - Basis.XAxis - Basis.YAxis, Basis.YAxis); 
+      real32 Edge2 = Inner(d, -Basis.XAxis); 
+      real32 Edge3 = Inner(d, -Basis.YAxis); 
+      
+      if(Edge0 < 0 &&
+         Edge1 < 0 &&
+         Edge2 < 0 &&
+         Edge3 < 0) {
+        
+        BEGIN_TIMED_BLOCK(FillPixel);
+        
+        v2 ScreenSpaceUV = V2((real32)X*InvWidth, FixedCastY);
+        
+        real32 ZDiff = PtM*((real32)Y - OriginY);
+        
+        v2 UV =  V2(InvXAxisLengthSq * Inner(Basis.XAxis,d),
+                    InvYAxisLengthSq * Inner(Basis.YAxis,d));
+        
+        // TODO(Egor): clamp this later
+        //Assert(UV.x >= 0 && UV.x <= 1.0f);
+        //Assert(UV.y >= 0 && UV.y <= 1.0f);
+        
+        real32 tX = (UV.x * (real32)(Texture->Width - 2));
+        real32 tY = (UV.y * (real32)(Texture->Height - 2));
+        
+        int32 PixelX = (int32)tX;
+        int32 PixelY = (int32)tY;
+        
+        // NOTE(Egor): take the fractional part of tX and tY
+        real32 fX = tX - (real32)PixelX;
+        real32 fY = tY - (real32)PixelY;
+        
+        Assert(PixelX >= 0 && PixelX <= (Texture->Width - 1));
+        Assert(PixelY >= 0 && PixelY <= (Texture->Height - 1));
+        
+        bilinear_sample TexelSample = BilinearSample(Texture, PixelX, PixelY);
+        v4 Texel = SRGBBilinearBlend(TexelSample, fX, fY);
+        
+        if(NormalMap) {
+          
+          bilinear_sample NormalSample = BilinearSample(NormalMap, PixelX, PixelY);
+          
+          v4 NormalA  = Unpack4x8(NormalSample.A);
+          v4 NormalB  = Unpack4x8(NormalSample.B);
+          v4 NormalC  = Unpack4x8(NormalSample.C);
+          v4 NormalD  = Unpack4x8(NormalSample.D);
+          
+          v4 Normal = Lerp(Lerp(NormalA, fX, NormalB),
+                           fY,
+                           Lerp(NormalC, fX, NormalD));
+          
+          Normal = UnscaleAndBiasNormal(Normal);
+          
+          Normal.xy = NXAxis*Normal.x + NYAxis*Normal.y;
+          Normal.z *= NZScale;
+          Normal.xyz = Normalize(Normal.xyz);
+          
+          // NOTE(Egor): this vector is pointing straing out of monitor
+          // EyeVector = (0, 0, 1) 
+          // NOTE(Egor): simplified version of <EyeVector, NormalVector>*NormalVecor*2 - EyeVector
+          // TODO(Egor): reconstruct the math, to have The EYE casting EYE vector,
+          // not the positioning vector of EYE
+          
+          v3 BounceDirection = 2.0f*Normal.z*Normal.xyz;
+          BounceDirection.z -= 1.0f;
+          BounceDirection.z = -BounceDirection.z;
+#if 1
+          
+          environment_map *FarMap = 0;
+          real32 Pz = OriginZ + ZDiff;
+          real32 MapZ = 2.0f;          
+          real32 tFarMap = 0.0f;
+          real32 tEnvMap = BounceDirection.y;
+          if(tEnvMap < -0.5f) {
+            
+            FarMap = Bottom;
+            tFarMap = -1.0f - tEnvMap*2.0f;
+          }
+          else if(tEnvMap > 0.5f) {
+            
+            FarMap = Top;
+            tFarMap = tEnvMap*2.0f - 1.0f;
+          }
+          
+          tFarMap *= tFarMap;
+          tFarMap *= tFarMap;
+          
+          v3 LightColor = V3(0, 0, 0); //SampleEnvironmentMap(ScreenSpaceUV, Normal.xYZ, Normal.w, Middle);
+          if(FarMap) {
+            
+            real32 DistanceFromMapInZ = FarMap->Pz - Pz;
+            v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection,
+                                                  Normal.w, FarMap, DistanceFromMapInZ);
+            LightColor = Lerp(LightColor, tFarMap, FarMapColor);
+          }
+          
+          Texel.rgb = Texel.rgb + LightColor*Texel.a;
+          
+#if 0
+          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*BounceDirection;
+          Texel.rgb *= Texel.a;
+#endif
+          
+#else
+          
+          /*real32 IsoLine = -0.9f;
+          
+          if(BounceDirection.y >= IsoLine - 0.05f &&
+             BounceDirection.y <= IsoLine + 0.05f) {
+             
+            Texel.rgb = V3(1, 1, 1); 
+          }
+          else {
+          
+            Texel.rgb = V3(0, 0, 0);
+          }*/
+          
+          /*
+          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*BounceDirection;
+          Texel.r = 0.0f;
+          Texel.b = 0.0f;
+          Texel.a = 1.0f;
+          */
+          
+          /*
+          Texel.rgb = V3(0.5f, 0.5f, 0.5f) + 0.5f*Normal.rgb;
+          Texel.a = 1.0f;
+          */
+#endif
+          
+          
+          // NOTE(Egor): end of normal processing
+        }
+        // NOTE(Egor): color tinting and external opacity
+        Texel = Hadamard(Texel, Color);        
+        
+        Texel.r = Clamp01(Texel.r);
+        Texel.g = Clamp01(Texel.g);
+        Texel.b = Clamp01(Texel.b);
+        
+        v4 Dest = Unpack4x8(*Pixel);
+        Dest = SRGB255ToLinear1(Dest);
+        // NOTE(Egor): alpha channel for compisited bitmaps in premultiplied alpha mode
+        // for case when we create intermediate buffer with two or more bitmaps blend with 
+        // each other 
+        // (Texel.a + Dest.a - Texel.a*Dest.a))
+        v4 Blended = (1.0f - Texel.a)*Dest + Texel;
+        v4 Blended255 = Linear1ToSRGB255(Blended);
+        
+        *Pixel = (((uint32)(Blended255.a + 0.5f) << 24) |
+                  ((uint32)(Blended255.r + 0.5f) << 16) |
+                  ((uint32)(Blended255.g + 0.5f) << 8)  |
+                  ((uint32)(Blended255.b + 0.5f) << 0));
+        
+      }
+      
+      Pixel++;
+    }
+    
+    Row += Buffer->Pitch;
+  }
+  
+}
+
+
+internal void
+DrawRectangleQuickly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
                     loaded_bitmap *Texture,
                     rectangle2i ClipRect,
                     real32 PtM, bool32 Even) {
@@ -463,6 +710,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   Color.rgb *= Color.a;
   
 #if 1
+
   
   // NOTE(Egor): specific order for algorithm
   rectangle2i FillRect = InvertedHalfMaxRectangle();
@@ -568,6 +816,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
     __m128 ColorA_INV_4x = _mm_set1_ps(Color.a*Inv255);
     __m128 Inv255_4x = _mm_set1_ps(Inv255);
     
+    __m128 Half = _mm_set1_ps(0.5f);
     __m128 One = _mm_set1_ps(1.0f);
     __m128 Two = _mm_set1_ps(2.0f);
     __m128 Zero = _mm_set1_ps(0.0f);
@@ -682,10 +931,18 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
           U = _mm_min_ps(_mm_max_ps(U, Zero), One);
           V = _mm_min_ps(_mm_max_ps(V, Zero), One);
           
+#if 1
           // NOTE(Egor): texture boundary multiplication to determine which pixel 
           // we need to fetch from texture buffer
+          // NOTE(Egor): Bias texel coordinates to start on boundary 
+          // between 0,0 and 1,1 texels
+          __m128 tX = _mm_add_ps(Half, _mm_mul_ps(U, WidthM2_4x));
+          __m128 tY = _mm_add_ps(Half, _mm_mul_ps(V, HeightM2_4x));
+#else
+          
           __m128 tX = _mm_mul_ps(U, WidthM2_4x);
           __m128 tY = _mm_mul_ps(V, HeightM2_4x);
+#endif
           
           // NOTE(Egor): round with truncation
           __m128i FetchX_4x = _mm_cvttps_epi32(tX);
@@ -911,8 +1168,6 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   }
 }
 
-#endif
-
 
 internal void
 RenderPushBuffer(render_group *Group, loaded_bitmap *Output,
@@ -960,7 +1215,7 @@ RenderPushBuffer(render_group *Group, loaded_bitmap *Output,
         Basis.XAxis *= (real32)Entry->Size.x;
         Basis.YAxis *= (real32)Entry->Size.y;
         
-        DrawRectangleSlowly(Output, Basis, Entry->Color, Entry->Bitmap, ClipRect, NullPtM, Even);
+        DrawRectangleQuickly(Output, Basis, Entry->Color, Entry->Bitmap, ClipRect, NullPtM, Even);
         
       } break;
       case RenderGroupEntryType_render_entry_rectangle: {

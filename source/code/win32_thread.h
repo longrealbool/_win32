@@ -105,12 +105,12 @@ struct win32_thread_info {
 DWORD WINAPI 
 ThreadProc(LPVOID lpParamer) {
   
-  win32_thread_info *ThreadInfo = (win32_thread_info *)lpParamer;
+  platform_work_queue *Queue = (platform_work_queue *)lpParamer;
   
   for(;;) {
     
-    if(Win32DoNextQueueEntry(ThreadInfo->Queue))
-      WaitForSingleObjectEx(ThreadInfo->Queue->Semaphore, INFINITE, false);
+    if(Win32DoNextQueueEntry(Queue))
+      WaitForSingleObjectEx(Queue->Semaphore, INFINITE, false);
     
   }
 }

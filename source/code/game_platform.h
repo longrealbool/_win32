@@ -254,6 +254,7 @@ extern "C" {
     debug_platform_write_entire_file *DEBUGPlatformWriteEntireFile;
     
     platform_work_queue *RenderQueue;
+    platform_work_queue *LowPriorityQueue;
     
     platform_add_entry *PlatformAddEntry;
     platform_complete_all_work *PlatformCompleteAllWork;

@@ -83,7 +83,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     Result.Memory = Pixel;
     Result.Height = Header->Height;
     Result.Width = Header->Width;
-
+    
     
     Assert(Result.Height > 0);
     
@@ -93,7 +93,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     real32 PtM = 1.0f / 42.0f;
     Result.NativeHeight = Result.Height * PtM;
     
-
+    
     // NOTE(Egor): alignment
     v2 Align = V2i(AlignX, (Result.Height - 1) - AlignY);
     v2 AlignPercentage;
@@ -151,11 +151,11 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
         
         Texel = Linear1ToSRGB255(Texel);
         
-
         
-
         
-
+        
+        
+        
         
         // when we will take it back from sRGB space to linear
         // they were already in premultiplied format
@@ -480,8 +480,8 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
 internal void
 FillGroundChunk(transient_state *TranState, game_state *GameState,
                 ground_buffer *GroundBuffer, world_position *Pos) {
-
-
+  
+  
   temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
   GroundBuffer->P = *Pos;
   
@@ -498,7 +498,8 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   HalfDim *= 1.0f;
   
   render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(16));
-  Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height), Buffer->Width/ Width);
+  Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height),
+               (Buffer->Width - 2.0f)/ Width);
   Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
   
   
@@ -510,12 +511,29 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     // with rigid order, allowing to bitmaps blits over the top of our block generating
     // seemless texture and cut the center block - effectively our (Pos)
     
+    uint32 Toggle = 0;
+    
     for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
       for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
         
         int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
         int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
         int32 ChunkZ = Pos->ChunkZ;
+        
+        v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+#if 0        
+        if(ChunkX % 2 == ChunkY % 2) {
+          
+          Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
+          Toggle = 0;
+        }
+        else {
+          
+          Color = V4(0.0f, 0.0f, 1.0f, 1.0f);
+          Toggle = 1;
+        }
+#endif
+        
         
         // TODO(Egor): this is nuts, make sane spatial hashing
         random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
@@ -536,9 +554,9 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           
           v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
                                                RandomBilateral(&Series)));
-          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f);
+          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f, Color);
         }
-//        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
+        //        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
       }
       
       for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
@@ -566,8 +584,8 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       }
     }
   }
-  #endif
-
+#endif
+  
   
   TiledRenderPushBuffer(TranState->RenderQueue, GroundGroup, Buffer);
   EndTemporaryMemory(GroundMemory);
@@ -898,13 +916,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     GameState->World = PushStruct(&GameState->WorldArena, world);
     world *World = GameState->World;
-
+    
     
     GameState->FloorHeight = 3.0f;
     
     real32 TileSideInMeters = 1.4f;
     
-
+    
     v3 WorldChunkDimInMeters = V3((real32)GroundBufferWidth*PtM,
                                   (real32)GroundBufferHeight*PtM,
                                   (real32)GameState->FloorHeight);
@@ -950,8 +968,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     Bitmap->HeroHead = 
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//figurine.bmp", 51, 112);
-    Bitmap->HeroHead = 
-      DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//test_hero_front_head.bmp");
     Bitmap->HeroCape = 
       DEBUGLoadBMP(Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//arrow_right.bmp", 51, 112);
     Bitmap->Align = ConvertToBottomUpAlign(&Bitmap->HeroHead,V2(51, 112));
@@ -1179,6 +1195,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     
     TranState->RenderQueue = Memory->RenderQueue;
+//    TranState->LowPriorityQueue = Memory->LowPriorityQueue;
     
     TranState->GroundBufferCount = 64;
     TranState->GroundBuffers = PushArray(&TranState->TranArena,
@@ -1189,6 +1206,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         ++GroundBufferIndex) {
       
       ground_buffer *GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
+      
       GroundBuffer->Bitmap = MakeEmptyBitmap(&TranState->TranArena,
                                              GroundBufferWidth,
                                              GroundBufferHeight, false);
@@ -1330,7 +1348,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-
+  
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
   DrawBuffer->Width = Buffer->Width;
@@ -1345,10 +1363,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   real32 WidthOfMonitor = 0.635f;
   real32 MtP = DrawBuffer->Width*WidthOfMonitor;
   
-  Perspective(RenderGroup, V2i(DrawBuffer->Width, DrawBuffer->Height), MtP, 0.6f, 9.0f); 
+  real32 FocalLength = 0.6f;
+  real32 DistanceAboveTarget = 9.0f;
+  Perspective(RenderGroup, V2i(DrawBuffer->Width, DrawBuffer->Height),
+              MtP, FocalLength, DistanceAboveTarget); 
   
-  
-
   
   v2 ScreenCenter = {0.5f*DrawBuffer->Width, 0.5f*DrawBuffer->Height};
   
@@ -1380,8 +1399,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   CameraBoundsInMeters.Min.z = -3.0f*GameState->FloorHeight;
   CameraBoundsInMeters.Max.z = 1.0f*GameState->FloorHeight;
   
-
-  #if 1
+  
+#if 1
   
   // NOTE(Egor): groundbuffer scrolling
   for(uint32 Index = 0; Index < TranState->GroundBufferCount; ++Index) {
@@ -1394,8 +1413,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
       v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
       
-//      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
-      PushBitmap(RenderGroup, Bitmap, Delta, World->ChunkDimInMeters.x);
+      if(Delta.z >= -1.0f && Delta.z < 1.0f) {
+        //      PushRectOutline(RenderGroup, V3(0, 0, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+        PushBitmap(RenderGroup, Bitmap, Delta, World->ChunkDimInMeters.x*1.0f);
+      }
 
     }
   }
@@ -1450,7 +1471,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
               FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
           }
           
-          PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
+//          PushRectOutline(RenderGroup, ToV3(RelP.xy, 0), World->ChunkDimInMeters.xy, V4(1.0f, 1.0f, 0.0f, 1.0f));
         }
       }
     }
