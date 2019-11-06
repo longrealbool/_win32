@@ -477,87 +477,77 @@ MakeSimpleGroundedCollision(game_state *GameState, real32 DimX, real32 DimY, rea
 }
 
 
+internal task_with_memory *
+BeginTask(transient_state *TranState) {
+  
+  task_with_memory *FoundTask = 0;
+  
+  for (uint32 TaskIndex = 0; TaskIndex < ArrayCount(TranState->Tasks); ++TaskIndex) {
+    
+    task_with_memory *Task = TranState->Tasks + TaskIndex;
+    if(!Task->BeingUsed) {
+      
+      FoundTask = Task;
+      FoundTask->MemoryFlush = BeginTemporaryMemory(&FoundTask->Arena);
+      break;
+    }
+  }
+  
+  return(FoundTask);
+}
+
+
+internal void EndTask(task_with_memory *Task) {
+  
+  EndTemporaryMemory(Task->MemoryFlush);
+}
+
+
+internal PLATFORM_WORK_QUEUE_CALLBACK(DoGroundChunkRenderingWork) {
+  
+  
+  
+  EndTask(Task);
+}
+
+
 internal void
 FillGroundChunk(transient_state *TranState, game_state *GameState,
                 ground_buffer *GroundBuffer, world_position *Pos) {
   
+  task_with_memory *Task = BeginTask(TranState);
   
-  temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-  GroundBuffer->P = *Pos;
-  
-  loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
-  
-  Buffer->AlignPercentage = V2(0.5f, 0.5f);
-  Buffer->WidthOverHeight = 1.0f;
-  
-  real32 Width = GameState->World->ChunkDimInMeters.x;
-  real32 Height = GameState->World->ChunkDimInMeters.y;
-  Assert(Width == Height);
-  v2 HalfDim = 0.5f*V2(Width, Height);
-  
-  HalfDim *= 1.0f;
-  
-  render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(16));
-  Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height),
-               (Buffer->Width - 2.0f)/ Width);
-  Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
-  
-  
-  
+  if(Task) {  
+    
+    GroundBuffer->P = *Pos;
+    
+    loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
+    
+    Buffer->AlignPercentage = V2(0.5f, 0.5f);
+    Buffer->WidthOverHeight = 1.0f;
+    
+    real32 Width = GameState->World->ChunkDimInMeters.x;
+    real32 Height = GameState->World->ChunkDimInMeters.y;
+    Assert(Width == Height);
+    v2 HalfDim = 0.5f*V2(Width, Height);
+    
+    HalfDim *= 1.0f;
+    
+    render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(16));
+    Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height),
+                 (Buffer->Width - 2.0f)/ Width);
+    Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
+    
+    
+    
 #if 1
-  if(Pos->ChunkZ == 0) {
-    // NOTE(Egor): the idea is: 
-    // we take block that we want (Pos), generate 3x3 block centered at (Pos)
-    // with rigid order, allowing to bitmaps blits over the top of our block generating
-    // seemless texture and cut the center block - effectively our (Pos)
-    
-    uint32 Toggle = 0;
-    
-    for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-      for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-        
-        int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
-        int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
-        int32 ChunkZ = Pos->ChunkZ;
-        
-        v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
-#if 0        
-        if(ChunkX % 2 == ChunkY % 2) {
-          
-          Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
-          Toggle = 0;
-        }
-        else {
-          
-          Color = V4(0.0f, 0.0f, 1.0f, 1.0f);
-          Toggle = 1;
-        }
-#endif
-        
-        
-        // TODO(Egor): this is nuts, make sane spatial hashing
-        random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
-        
-        v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
-        
-        loaded_bitmap *Stamp = 0;
-        for(uint32 Index = 0; Index < 50; ++Index) {
-          
-          if(RandomChoice(&Series, 2)) {
-            
-            Stamp = GameState->Grass;// + RandomChoice(&Series,  ArrayCount(GameState->Grass));
-          }
-          else {
-            
-            Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
-          }
-          
-          v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
-                                               RandomBilateral(&Series)));
-          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f, Color);
-        }
-        //        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
-      }
+    if(Pos->ChunkZ == 0) {
+      // NOTE(Egor): the idea is: 
+      // we take block that we want (Pos), generate 3x3 block centered at (Pos)
+      // with rigid order, allowing to bitmaps blits over the top of our block generating
+      // seemless texture and cut the center block - effectively our (Pos)
+      
+      uint32 Toggle = 0;
       
       for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
         for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
@@ -566,29 +556,75 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
           int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
           int32 ChunkZ = Pos->ChunkZ;
           
+          v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+#if 0        
+          if(ChunkX % 2 == ChunkY % 2) {
+            
+            Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
+            Toggle = 0;
+          }
+          else {
+            
+            Color = V4(0.0f, 0.0f, 1.0f, 1.0f);
+            Toggle = 1;
+          }
+#endif
+          
+          
           // TODO(Egor): this is nuts, make sane spatial hashing
           random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
+          
           v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
           
           loaded_bitmap *Stamp = 0;
-          
-          for(uint32 Index = 0; Index < 5; ++Index) {
+          for(uint32 Index = 0; Index < 50; ++Index) {
             
-            Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+            if(RandomChoice(&Series, 2)) {
+              
+              Stamp = GameState->Grass;// + RandomChoice(&Series,  ArrayCount(GameState->Grass));
+            }
+            else {
+              
+              Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
+            }
             
             v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
                                                  RandomBilateral(&Series)));
-            PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 0.5f);
+            PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f, Color);
+          }
+          //        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
+        }
+        
+        for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+          for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
+            
+            int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
+            int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
+            int32 ChunkZ = Pos->ChunkZ;
+            
+            // TODO(Egor): this is nuts, make sane spatial hashing
+            random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
+            v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+            
+            loaded_bitmap *Stamp = 0;
+            
+            for(uint32 Index = 0; Index < 5; ++Index) {
+              
+              Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+              
+              v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
+                                                   RandomBilateral(&Series)));
+              PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 0.5f);
+            }
           }
         }
       }
     }
-  }
 #endif
-  
-  
-  TiledRenderPushBuffer(TranState->RenderQueue, GroundGroup, Buffer);
-  EndTemporaryMemory(GroundMemory);
+    
+    
+    TiledRenderPushBuffer(TranState->RenderQueue, GroundGroup, Buffer);
+  }
 }
 
 internal void
@@ -610,7 +646,7 @@ MakeEmptyBitmap(memory_arena *Arena, uint32 Width, uint32 Height, bool32 ClearTo
   Result.Height = Height;
   Result.Pitch = Result.Width * BITMAP_BYTES_PER_PIXEL;
   uint32 TotalBitmapSize = Result.Width*Result.Height * BITMAP_BYTES_PER_PIXEL;
-  Result.Memory = PushSize(Arena, TotalBitmapSize);
+  Result.Memory = PushSize(Arena, TotalBitmapSize, 16);
   if(ClearToZero) {
     ClearBitmap(&Result);
   }
@@ -1192,6 +1228,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     InitializeArena(&TranState->TranArena, Memory->TransientStorageSize - sizeof(transient_state),
                     (uint8 *)Memory->TransientStorage + sizeof(transient_state));
+    
+    for(uint32 TaskIndex = 0; TaskIndex < ArrayCount(TranState->Tasks); ++TaskIndex) {
+      
+      task_with_memory *Task = TranState->Tasks + TaskIndex;
+      Task->BeingUsed = false;
+      SubArena(&Task->Arena, &TranState->TranArena, Megabytes(1));
+    }
     
     
     TranState->RenderQueue = Memory->RenderQueue;

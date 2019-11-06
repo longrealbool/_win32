@@ -36,15 +36,33 @@ InitializeArena(memory_arena *Arena, size_t Size, void *Base) {
   Arena->TempCount = 0;
 }
 
-#define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
-#define PushArray(Arena, Count, type) (type *)PushSize_(Arena, (Count)*sizeof(type))
-#define PushSize(Arena, Size) PushSize_(Arena, Size)
-
-void *PushSize_(memory_arena *Arena, size_t Size) {
+internal void
+SubArena(memory_arena *SubArena, memory_arena *Arena, size_t Size) {
   
+  
+}
+
+// TODO(Egor): I have no fucking idea why ## __VA_ARGS__ has to be inserted in function call 
+#define PushStruct(Arena, type, ...) (type *)PushSize_(Arena, sizeof(type), ## __VA_ARGS__)
+#define PushArray(Arena, Count, type, ...) (type *)PushSize_(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
+#define PushSize(Arena, Size, ...) PushSize_(Arena, Size, ## __VA_ARGS__)
+
+void *PushSize_(memory_arena *Arena, size_t Size, size_t Alignment = 4) {
+  
+  size_t ResultPointer = (size_t)Arena->Base + Arena->Used;
+  size_t AlignmentOffset = 0;
+  
+  size_t AlignmentMask = Alignment - 1;
+  if(ResultPointer & AlignmentMask) {
+   
+    AlignmentOffset = Alignment - (ResultPointer & AlignmentMask);
+  }
+  Size += AlignmentOffset;
   Assert((Arena->Used + Size) <= Arena->Size);
-  void *Result = Arena->Base + Arena->Used;
   Arena->Used += Size;
+
+  void *Result = (void *)(ResultPointer + AlignmentOffset);
+
   return(Result);
 }
 
@@ -214,6 +232,14 @@ struct game_state {
 };
 
 
+struct task_with_memory {
+  
+  bool32 BeingUsed;
+  memory_arena Arena;
+  temporary_memory MemoryFlush;
+};
+
+
 struct transient_state {
   
   platform_work_queue *RenderQueue;
@@ -227,6 +253,8 @@ struct transient_state {
   uint32 EnvMapWidth;
   uint32 EnvMapHeight;
   environment_map EnvMaps[3];
+  
+  task_with_memory Tasks[4];
 };
 
 
