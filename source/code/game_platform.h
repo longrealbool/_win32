@@ -64,6 +64,13 @@ extern "C" {
 #define Max(A, B) (A > B ? A : B)
   
   
+  
+  // TODO(Egor): double-check the write ordering on CPU
+#define WRITE_BARRIER _WriteBarrier(); _mm_sfence()
+#define READ_BARRIER _ReadBarrier()
+#define READ_WRITE_BARRIER _ReadWriteBarrier(); _mm_fence()
+  
+  
 #include <stdint.h>
 #include <stddef.h>
 #include <limits.h>

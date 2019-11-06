@@ -496,18 +496,27 @@ BeginTask(transient_state *TranState) {
   return(FoundTask);
 }
 
-
-internal void EndTask(task_with_memory *Task) {
+inline void 
+EndTask(task_with_memory *Task) {
   
   EndTemporaryMemory(Task->MemoryFlush);
+  WRITE_BARRIER;
+  Task->BeingUsed = false;
 }
 
 
+struct fill_ground_chunk_work {
+  
+  render_group *Group;
+  loaded_bitmap *Output;
+  task_with_memory *Task;
+};
+
 internal PLATFORM_WORK_QUEUE_CALLBACK(DoGroundChunkRenderingWork) {
   
-  
-  
-  EndTask(Task);
+  fill_ground_chunk_work *Work = (fill_ground_chunk_work *)Data;
+  RenderPushBuffer(Work->Group, Work->Output);
+  EndTask(Work->Task);
 }
 
 
@@ -518,6 +527,8 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
   task_with_memory *Task = BeginTask(TranState);
   
   if(Task) {  
+    
+    fill_ground_chunk_work *Work = PushStruct(&Task->Arena, fill_ground_chunk_work);
     
     GroundBuffer->P = *Pos;
     
@@ -533,97 +544,84 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     
     HalfDim *= 1.0f;
     
-    render_group *GroundGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(16));
+    render_group *GroundGroup = AllocateRenderGroup(&Task->Arena, GetArenaSizeRemaining(Task->Arena));
     Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height),
                  (Buffer->Width - 2.0f)/ Width);
     Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
     
     
+    // NOTE(Egor): the idea is: 
+    // we take block that we want (Pos), generate 3x3 block centered at (Pos)
+    // with rigid order, allowing to bitmaps blits over the top of our block generating
+    // seemless texture and cut the center block - effectively our (Pos)
     
-#if 1
-    if(Pos->ChunkZ == 0) {
-      // NOTE(Egor): the idea is: 
-      // we take block that we want (Pos), generate 3x3 block centered at (Pos)
-      // with rigid order, allowing to bitmaps blits over the top of our block generating
-      // seemless texture and cut the center block - effectively our (Pos)
-      
-      uint32 Toggle = 0;
-      
-      for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-        for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
+    uint32 Toggle = 0;
+    
+    for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+      for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
+        
+        int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
+        int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
+        int32 ChunkZ = Pos->ChunkZ;
+        
+        v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+        
+        
+        // TODO(Egor): this is nuts, make sane spatial hashing
+        random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
+        
+        v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+        
+        loaded_bitmap *Stamp = 0;
+        for(uint32 Index = 0; Index < 50; ++Index) {
           
-          int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
-          int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
-          int32 ChunkZ = Pos->ChunkZ;
-          
-          v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
-#if 0        
-          if(ChunkX % 2 == ChunkY % 2) {
+          if(RandomChoice(&Series, 2)) {
             
-            Color = V4(1.0f, 0.0f, 0.0f, 1.0f);
-            Toggle = 0;
+            Stamp = GameState->Grass;// + RandomChoice(&Series,  ArrayCount(GameState->Grass));
           }
           else {
             
-            Color = V4(0.0f, 0.0f, 1.0f, 1.0f);
-            Toggle = 1;
+            Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
           }
-#endif
           
-          
-          // TODO(Egor): this is nuts, make sane spatial hashing
-          random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
-          
-          v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
-          
-          loaded_bitmap *Stamp = 0;
-          for(uint32 Index = 0; Index < 50; ++Index) {
-            
-            if(RandomChoice(&Series, 2)) {
-              
-              Stamp = GameState->Grass;// + RandomChoice(&Series,  ArrayCount(GameState->Grass));
-            }
-            else {
-              
-              Stamp = GameState->Stones + RandomChoice(&Series, ArrayCount(GameState->Stones));
-            }
-            
-            v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
-                                                 RandomBilateral(&Series)));
-            PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f, Color);
-          }
-          //        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
+          v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
+                                               RandomBilateral(&Series)));
+          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f, Color);
         }
+        //        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
+      }
+    }
+    
+    for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+      for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
         
-        for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-          for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-            
-            int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
-            int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
-            int32 ChunkZ = Pos->ChunkZ;
-            
-            // TODO(Egor): this is nuts, make sane spatial hashing
-            random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
-            v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
-            
-            loaded_bitmap *Stamp = 0;
-            
-            for(uint32 Index = 0; Index < 5; ++Index) {
-              
-              Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
-              
-              v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
-                                                   RandomBilateral(&Series)));
-              PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 0.5f);
-            }
-          }
+        int32 ChunkX = Pos->ChunkX + ChunkOffsetX;
+        int32 ChunkY = Pos->ChunkY + ChunkOffsetY;
+        int32 ChunkZ = Pos->ChunkZ;
+        
+        // TODO(Egor): this is nuts, make sane spatial hashing
+        random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
+        v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+        
+        loaded_bitmap *Stamp = 0;
+        
+        for(uint32 Index = 0; Index < 5; ++Index) {
+          
+          Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+          
+          v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
+                                               RandomBilateral(&Series)));
+          PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 0.5f);
         }
       }
     }
-#endif
     
+    Work->Group = GroundGroup;
+    Work->Output = Buffer;
+    Work->Task = Task;
     
-    TiledRenderPushBuffer(TranState->RenderQueue, GroundGroup, Buffer);
+    PlatformAddEntry(TranState->LowPriorityQueue, DoGroundChunkRenderingWork, Work);
+    
   }
 }
 

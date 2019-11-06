@@ -1295,6 +1295,29 @@ TiledRenderPushBuffer(platform_work_queue *RenderQueue, render_group *Group,
 }
 
 
+internal void
+RenderPushBuffer(render_group *Group, loaded_bitmap *Output) {
+  
+  bool32 Even = false;
+  Assert(((uintptr)Output->Memory & 0xF) == 0);
+  
+  rectangle2i ClipRect;
+  
+  ClipRect.XMin = 0;
+  ClipRect.XMax = Output->Width;
+  ClipRect.YMin = 0;
+  ClipRect.YMax = Output->Height;
+  
+  tile_render_work Work;
+  
+  Work.ClipRect = ClipRect;
+  Work.Output = Output;
+  Work.Group = Group;
+  
+  DoTiledRenderingWork(0, &Work);
+}
+
+
 inline void
 Clear(render_group *Group, v4 Color) {
   

@@ -1,7 +1,4 @@
-// TODO(Egor): double-check the write ordering on CPU
-#define WRITE_BARRIER _WriteBarrier(); _mm_sfence()
-#define READ_BARRIER _ReadBarrier()
-#define READ_WRITE_BARRIER _ReadWriteBarrier(); _mm_fence()
+
 
 
 struct platform_work_queue_entry {
