@@ -36,11 +36,31 @@ InitializeArena(memory_arena *Arena, size_t Size, void *Base) {
   Arena->TempCount = 0;
 }
 
-internal void
-SubArena(memory_arena *SubArena, memory_arena *Arena, size_t Size) {
+inline size_t
+GetAlignmentOffset(memory_arena *Arena, size_t Alignment) {
   
+  size_t ResultPointer = (size_t)Arena->Base + Arena->Used;
+  size_t AlignmentOffset = 0;
   
+  size_t AlignmentMask = Alignment - 1;
+  if(ResultPointer & AlignmentMask) {
+    
+    AlignmentOffset = Alignment - (ResultPointer & AlignmentMask);
+  }
+  
+  return AlignmentOffset;
 }
+
+internal size_t
+GetArenaSizeRemaining(memory_arena *Arena, size_t Alignment = 4) {
+  
+  size_t Result = Arena->Size - (Arena->Used + GetAlignmentOffset(Arena, Alignment));
+  
+  return Result;
+}
+
+
+
 
 // TODO(Egor): I have no fucking idea why ## __VA_ARGS__ has to be inserted in function call 
 #define PushStruct(Arena, type, ...) (type *)PushSize_(Arena, sizeof(type), ## __VA_ARGS__)
@@ -49,21 +69,24 @@ SubArena(memory_arena *SubArena, memory_arena *Arena, size_t Size) {
 
 void *PushSize_(memory_arena *Arena, size_t Size, size_t Alignment = 4) {
   
-  size_t ResultPointer = (size_t)Arena->Base + Arena->Used;
-  size_t AlignmentOffset = 0;
-  
-  size_t AlignmentMask = Alignment - 1;
-  if(ResultPointer & AlignmentMask) {
-   
-    AlignmentOffset = Alignment - (ResultPointer & AlignmentMask);
-  }
+  size_t AlignmentOffset = GetAlignmentOffset(Arena, Alignment);
+
   Size += AlignmentOffset;
   Assert((Arena->Used + Size) <= Arena->Size);
   Arena->Used += Size;
 
-  void *Result = (void *)(ResultPointer + AlignmentOffset);
+  void *Result = (void *)(Arena->Base + Arena->Used + AlignmentOffset);
 
   return(Result);
+}
+
+
+internal void
+SubArena(memory_arena *Result, memory_arena *Arena, size_t Size, size_t Alignment = 16) {
+  
+  *Result = {};
+  Result->Size = Size;
+  Result->Base = (uint8 *)PushSize(Arena, Size, Alignment);
 }
 
 struct temporary_memory {

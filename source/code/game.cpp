@@ -544,7 +544,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     
     HalfDim *= 1.0f;
     
-    render_group *GroundGroup = AllocateRenderGroup(&Task->Arena, GetArenaSizeRemaining(Task->Arena));
+    render_group *GroundGroup = AllocateRenderGroup(&Task->Arena, (uint32)GetArenaSizeRemaining(&Task->Arena));
     Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height),
                  (Buffer->Width - 2.0f)/ Width);
     Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
