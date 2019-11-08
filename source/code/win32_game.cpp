@@ -1180,8 +1180,8 @@ WinMain(HINSTANCE Instance,
      1080 -> 2048 = 2048-1080 -> pixels 968
      1024 + 128 = 1152
   */
-//  Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
-  Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
+  Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
+//  Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
   
   WindowClass.style = CS_HREDRAW|CS_VREDRAW;
   WindowClass.lpfnWndProc = Win32MainWindowCallback;

@@ -73,9 +73,9 @@ void *PushSize_(memory_arena *Arena, size_t Size, size_t Alignment = 4) {
 
   Size += AlignmentOffset;
   Assert((Arena->Used + Size) <= Arena->Size);
-  Arena->Used += Size;
 
   void *Result = (void *)(Arena->Base + Arena->Used + AlignmentOffset);
+  Arena->Used += Size;
 
   return(Result);
 }

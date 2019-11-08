@@ -47,6 +47,12 @@ internal render_group *
 AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize) {
   
   render_group *Result = PushStruct(Arena, render_group);
+  
+  if(MaxPushBufferSize == 0) {
+   
+    MaxPushBufferSize = (uint32)GetArenaSizeRemaining(Arena);
+  }
+  
   Result->PushBufferBase = (uint8 *)PushSize(Arena, MaxPushBufferSize);
   Result->PushBufferSize = 0;
   Result->MaxPushBufferSize = MaxPushBufferSize;

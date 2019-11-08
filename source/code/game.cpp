@@ -489,6 +489,7 @@ BeginTask(transient_state *TranState) {
       
       FoundTask = Task;
       FoundTask->MemoryFlush = BeginTemporaryMemory(&FoundTask->Arena);
+      FoundTask->BeingUsed = true;
       break;
     }
   }
@@ -508,14 +509,14 @@ EndTask(task_with_memory *Task) {
 struct fill_ground_chunk_work {
   
   render_group *Group;
-  loaded_bitmap *Output;
+  loaded_bitmap *Buffer;
   task_with_memory *Task;
 };
 
 internal PLATFORM_WORK_QUEUE_CALLBACK(DoGroundChunkRenderingWork) {
   
   fill_ground_chunk_work *Work = (fill_ground_chunk_work *)Data;
-  RenderPushBuffer(Work->Group, Work->Output);
+  RenderPushBuffer(Work->Group, Work->Buffer);
   EndTask(Work->Task);
 }
 
@@ -544,7 +545,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     
     HalfDim *= 1.0f;
     
-    render_group *GroundGroup = AllocateRenderGroup(&Task->Arena, (uint32)GetArenaSizeRemaining(&Task->Arena));
+    render_group *GroundGroup = AllocateRenderGroup(&Task->Arena, 0);
     Orthographic(GroundGroup, V2i(Buffer->Width, Buffer->Height),
                  (Buffer->Width - 2.0f)/ Width);
     Clear(GroundGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
@@ -617,7 +618,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     }
     
     Work->Group = GroundGroup;
-    Work->Output = Buffer;
+    Work->Buffer = Buffer;
     Work->Task = Task;
     
     PlatformAddEntry(TranState->LowPriorityQueue, DoGroundChunkRenderingWork, Work);
@@ -885,24 +886,6 @@ MakeSphereNormalMapDebug(loaded_bitmap *Bitmap, real32 Roughness) {
     
   }
 }
-
-
-#if 0
-internal void 
-RequestGroundBuffers(world_position CenterP, rectangle3 Bounds) {
-  
-  Bounds = Offset(Bounds, CenterP.Offset_);
-  CenterP.Offset_ = V3(0, 0, 0);
-  
-  for(uint32 ) {
-    
-    
-  }
-  
-  FillGroundChunk(TranState, GameState, TranState->GroundBuffers,
-                  &GameState->CameraP);
-}
-#endif
 
 
 internal v2
@@ -1236,7 +1219,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     
     TranState->RenderQueue = Memory->RenderQueue;
-//    TranState->LowPriorityQueue = Memory->LowPriorityQueue;
+    TranState->LowPriorityQueue = Memory->LowPriorityQueue;
     
     TranState->GroundBufferCount = 64;
     TranState->GroundBuffers = PushArray(&TranState->TranArena,
@@ -1448,7 +1431,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     ground_buffer *GroundBuffer = TranState->GroundBuffers + Index;
     
-    if(IsValid(GroundBuffer->P) && GroundBuffer->P.ChunkZ == 0) {
+    if(IsValid(GroundBuffer->P)) {
       
       // NOTE(Egor): recreate bitmap from template
       loaded_bitmap *Bitmap = &GroundBuffer->Bitmap;
