@@ -44,7 +44,7 @@ UnscaleAndBiasNormal(v4 Normal) {
 
 
 internal render_group *
-AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize) {
+AllocateRenderGroup(memory_arena *Arena, game_assets *Assets, uint32 MaxPushBufferSize) {
   
   render_group *Result = PushStruct(Arena, render_group);
   
@@ -52,6 +52,8 @@ AllocateRenderGroup(memory_arena *Arena, uint32 MaxPushBufferSize) {
    
     MaxPushBufferSize = (uint32)GetArenaSizeRemaining(Arena);
   }
+  
+  Result->Assets = Assets;
   
   Result->PushBufferBase = (uint8 *)PushSize(Arena, MaxPushBufferSize);
   Result->PushBufferSize = 0;
@@ -183,6 +185,18 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset, real32 Height,
       Entry->Bitmap = Bitmap;
       Entry->Color = Group->GlobalAlpha*Color;
     }
+  }
+}
+
+internal void
+PushBitmap(render_group *Group, game_assets_id ID, v3 Offset, real32 Height,
+           v4 Color = V4(1,1,1,1)) {
+  
+  loaded_bitmap *Bitmap = GetBitmap(Group->Assets,ID);
+  
+  if(Bitmap) {
+    
+    PushBitmap(Group, Bitmap, Offset, Height, Color);
   }
 }
 

@@ -202,6 +202,52 @@ struct ground_buffer {
   loaded_bitmap Bitmap;
 };
 
+
+#if 0
+
+// NOTE(Egor): unique assets
+loaded_bitmap Backdrop;
+loaded_bitmap Tree;
+loaded_bitmap Sword;
+
+#endif
+
+enum game_assets_id {
+  
+  GAID_Backdrop,
+  GAID_Tree,
+  GAID_Sword,
+  
+  GAID_Count,
+};
+
+struct game_assets {
+
+  loaded_bitmap *Bitmap[GAID_Count];
+  
+  // NOTE(Egor): array of assets
+  loaded_bitmap Grass[2];
+  loaded_bitmap Stones[4];
+  loaded_bitmap Tuft[3];
+  loaded_bitmap Slumps[4];
+  
+  // NOTE(Egor): structured assets
+  hero_bitmaps Hero[4];
+  
+  // NOTE(Egor): test assets
+  loaded_bitmap TestDiffuse;
+  loaded_bitmap TestNormal;
+};
+
+inline loaded_bitmap *
+GetBitmap(game_assets *Assets, game_assets_id ID) {
+ 
+  loaded_bitmap *Result = Assets->Bitmap[ID];
+  
+  return Result;
+}
+
+
 struct game_state {
   
   memory_arena WorldArena;
@@ -212,22 +258,8 @@ struct game_state {
   uint32 LowEntityCount;
   low_entity LowEntity[10000];
   
-  loaded_bitmap Grass[2];
-  loaded_bitmap Stones[4];
-  loaded_bitmap Tuft[3];
-  loaded_bitmap Slumps[4];
-  
   uint32 CameraFollowingEntityIndex;
   world_position CameraP;
-  
-  loaded_bitmap Backdrop;
-  hero_bitmaps Hero[4];
-  
-  
-  loaded_bitmap Tree;
-  loaded_bitmap Tree1;
-  loaded_bitmap Sword;
-  loaded_bitmap Stairwell;
   
   // TODO(Egor): must be a power of two
   pairwise_collision_rule *CollisionRuleHash[256];
@@ -249,9 +281,6 @@ struct game_state {
   real32 Time;
   real32 Scale;
   real32 Angle;
-  
-  loaded_bitmap TestDiffuse;
-  loaded_bitmap TestNormal;
 };
 
 
@@ -272,6 +301,8 @@ struct transient_state {
   memory_arena TranArena;
   uint32 GroundBufferCount;
   ground_buffer *GroundBuffers;
+  
+  game_assets Assets;
 
   uint32 EnvMapWidth;
   uint32 EnvMapHeight;

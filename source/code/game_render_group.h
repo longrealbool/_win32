@@ -102,7 +102,8 @@ struct render_transform {
 };
 
 struct render_group {
-  
+
+  struct game_assets *Assets;
   render_transform Transform;
   
   v2 MonitorHalfDimInMeters;
