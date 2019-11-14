@@ -212,7 +212,7 @@ loaded_bitmap Sword;
 
 #endif
 
-enum game_assets_id {
+enum game_asset_id {
   
   GAID_Backdrop,
   GAID_Tree,
@@ -222,6 +222,12 @@ enum game_assets_id {
 };
 
 struct game_assets {
+  
+  struct transient_state *TranState;
+  
+  // NOTE(Egor): this is an asset arena
+  memory_arena Arena;
+  debug_platform_read_entire_file *ReadEntireFile;
 
   loaded_bitmap *Bitmap[GAID_Count];
   
@@ -240,7 +246,7 @@ struct game_assets {
 };
 
 inline loaded_bitmap *
-GetBitmap(game_assets *Assets, game_assets_id ID) {
+GetBitmap(game_assets *Assets, game_asset_id ID) {
  
   loaded_bitmap *Result = Assets->Bitmap[ID];
   
@@ -327,6 +333,8 @@ GetLowEntity(game_state *GameState, uint32 LowIndex) {
 
 global_variable platform_add_entry *PlatformAddEntry;
 global_variable platform_complete_all_work *PlatformCompleteAllWork;
+
+internal void LoadAsset(game_assets *Assets, game_asset_id ID);
 
 #define GAME_H
 #endif

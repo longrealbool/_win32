@@ -189,7 +189,7 @@ PushBitmap(render_group *Group, loaded_bitmap *Bitmap, v3 Offset, real32 Height,
 }
 
 internal void
-PushBitmap(render_group *Group, game_assets_id ID, v3 Offset, real32 Height,
+PushBitmap(render_group *Group, game_asset_id ID, v3 Offset, real32 Height,
            v4 Color = V4(1,1,1,1)) {
   
   loaded_bitmap *Bitmap = GetBitmap(Group->Assets,ID);
@@ -197,6 +197,10 @@ PushBitmap(render_group *Group, game_assets_id ID, v3 Offset, real32 Height,
   if(Bitmap) {
     
     PushBitmap(Group, Bitmap, Offset, Height, Color);
+  }
+  else {
+    
+    LoadAsset(Group->Assets, ID); 
   }
 }
 

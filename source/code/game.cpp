@@ -187,17 +187,6 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
 }
 
 
-
-internal loaded_bitmap *
-DEBUGAllocateLoadBMP(transient_state *TranState, debug_platform_read_entire_file *ReadEntireFile,
-             thread_context *Thread, char *FileName) {
-
-  loaded_bitmap *Result = PushStruct(&TranState->TranArena, loaded_bitmap);
-  *Result = DEBUGLoadBMP(ReadEntireFile, Thread, FileName);
-  return Result;
-}
-
-
 #if 0
 internal void
 DrawRectangleOutline(loaded_bitmap *Buffer, v2 vMin, v2 vMax,
@@ -891,7 +880,6 @@ MakeSphereNormalMapDebug(loaded_bitmap *Bitmap, real32 Roughness) {
   }
 }
 
-
 internal v2
 ConvertToBottomUpAlign(loaded_bitmap *Bitmap, v2 Align) {
   
@@ -899,13 +887,85 @@ ConvertToBottomUpAlign(loaded_bitmap *Bitmap, v2 Align) {
   return Align;
 }
 
+struct load_asset_work {
+  
+  game_assets *Assets;
+  loaded_bitmap *Bitmap;
+  game_asset_id ID;
+  char *FileName;
+  
+  task_with_memory *Task;
+};
+
+internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork) {
+  
+  
+  
+  load_asset_work *Work = (load_asset_work *)Data;  
+  Assert(Work);
+  
+  thread_context *Thread = 0;
+  debug_platform_read_entire_file *ReadEntireFile = Work->Assets->ReadEntireFile;
+  
+  *Work->Bitmap = DEBUGLoadBMP(ReadEntireFile, Thread, Work->FileName);
+  
+  Work->Assets->Bitmap[Work->ID] = Work->Bitmap;
+  
+  EndTask(Work->Task);
+}
+
+
+internal void
+LoadAsset(game_assets *Assets,
+          game_asset_id ID) {
+  
+  task_with_memory *Task = BeginTask(Assets->TranState);
+  
+  if(Task) {
+    
+    load_asset_work *Work = PushStruct(&Task->Arena, load_asset_work);
+    
+    Work->Assets = Assets;
+    Work->ID = ID;
+    Work->FileName = "";
+    Work->Task = Task;
+    Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
+    
+    switch(ID) {
+      
+      case GAID_Backdrop: {
+        
+        Work->FileName = "..//source//assets//background.bmp";
+      } break;
+      
+      case GAID_Sword: {
+        
+        Work->FileName = "..//source//assets//dagger.bmp";      
+      } break;
+      
+      case GAID_Tree: {
+        
+        Work->FileName = "..//..//test//tree00.bmp";
+      } break;
+      
+      InvalidDefaultCase;
+    }
+    
+    PlatformAddEntry(Assets->TranState->LowPriorityQueue, LoadAssetWork, Work);
+  }
+}
+
 
 internal void
 LoadAssets(game_memory *Memory, transient_state *TranState, thread_context *Thread) {
   
-  TranState->Assets.Bitmap[GAID_Backdrop] = DEBUGAllocateLoadBMP(TranState, Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
-  TranState->Assets.Bitmap[GAID_Sword] = DEBUGAllocateLoadBMP(TranState, Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//dagger.bmp");
-  TranState->Assets.Bitmap[GAID_Tree] = DEBUGAllocateLoadBMP(TranState, Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
+//  TranState->Assets.Bitmap[GAID_Backdrop] = DEBUGAllocateLoadBMP(TranState, Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//background.bmp");
+//  TranState->Assets.Bitmap[GAID_Sword] = DEBUGAllocateLoadBMP(TranState, Memory->DEBUGPlatformReadEntireFile, Thread, "..//source//assets//dagger.bmp");
+//  TranState->Assets.Bitmap[GAID_Tree] = DEBUGAllocateLoadBMP(TranState, Memory->DEBUGPlatformReadEntireFile, Thread, "..//..//test//tree00.bmp");
+  
+//  LoadAsset(&TranState->Assets, GAID_Backdrop); 
+//  LoadAsset(&TranState->Assets, GAID_Sword); 
+//  LoadAsset(&TranState->Assets, GAID_Tree); 
  
   loaded_bitmap *Stones = TranState->Assets.Stones;
   loaded_bitmap *Grass = TranState->Assets.Grass;
@@ -1209,7 +1269,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       SubArena(&Task->Arena, &TranState->TranArena, Megabytes(1));
     }
     
-    LoadAssets(Memory, TranState, Thread);
+    SubArena(&TranState->Assets.Arena, &TranState->TranArena, Megabytes(64)); 
+    TranState->Assets.ReadEntireFile = Memory->DEBUGPlatformReadEntireFile;
+    TranState->Assets.TranState = TranState;
+    
+
     
     TranState->RenderQueue = Memory->RenderQueue;
     TranState->LowPriorityQueue = Memory->LowPriorityQueue;
@@ -1258,6 +1322,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     MakeSphereNormalMap(&TranState->Assets.TestNormal, 0.0f, 1.0f, 1.0f);
     MakeSphereDiffuseMap(&TranState->Assets.TestDiffuse, 1.0f, 1.0f);
     //    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
+    
+    
+    LoadAssets(Memory, TranState, Thread);
     
     TranState->Initialized = true;
   }
