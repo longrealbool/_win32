@@ -1,6 +1,13 @@
 #if !defined(GAME_INTRINSICS_H)
 #include "math.h"
 
+
+inline uint32 CompareExchangeUInt32(uint32 volatile *Value, uint32 Expected, uint32 New) {
+ 
+  uint32 Result = _InterlockedCompareExchange((long *)Value, Expected, New);
+  return Result;
+}
+
 inline int32 SignOf(int32 Value) {
   
   int32 Result = Value >= 0 ? 1 : -1;

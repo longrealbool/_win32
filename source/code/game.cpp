@@ -91,7 +91,7 @@ DEBUGLoadBMP(debug_platform_read_entire_file *ReadEntireFile,
     Result.WidthOverHeight = SafeRatio0((real32)Result.Width, (real32)Result.Height);
     // NOTE(Egor): this is constant, and it should stay this way
     real32 PtM = 1.0f / 42.0f;
-    Result.NativeHeight = Result.Height * PtM;
+//    Result.NativeHeight = Result.Height * PtM;
     
     
     // NOTE(Egor): alignment
@@ -524,8 +524,6 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
     
     fill_ground_chunk_work *Work = PushStruct(&Task->Arena, fill_ground_chunk_work);
     
-    GroundBuffer->P = *Pos;
-    
     loaded_bitmap *Buffer =  &GroundBuffer->Bitmap;
     
     Buffer->AlignPercentage = V2(0.5f, 0.5f);
@@ -610,12 +608,15 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       }
     }
     
-    Work->Group = GroundGroup;
-    Work->Buffer = Buffer;
-    Work->Task = Task;
-    
-    PlatformAddEntry(TranState->LowPriorityQueue, DoGroundChunkRenderingWork, Work);
-    
+    if(AllAssetsAvaiable(GroundGroup)) {    
+      
+      GroundBuffer->P = *Pos;
+      Work->Group = GroundGroup;
+      Work->Buffer = Buffer;
+      Work->Task = Task;
+      
+      PlatformAddEntry(TranState->LowPriorityQueue, DoGroundChunkRenderingWork, Work);
+    }
   }
 }
 
@@ -892,7 +893,11 @@ struct load_asset_work {
   game_assets *Assets;
   loaded_bitmap *Bitmap;
   game_asset_id ID;
+  game_asset_state FinalState;
   char *FileName;
+  bool32 HasAlignment;
+  int32 AlignX;
+  int32 AlignY;
   
   task_with_memory *Task;
 };
@@ -907,9 +912,19 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork) {
   thread_context *Thread = 0;
   debug_platform_read_entire_file *ReadEntireFile = Work->Assets->ReadEntireFile;
   
-  *Work->Bitmap = DEBUGLoadBMP(ReadEntireFile, Thread, Work->FileName);
+  if(Work->HasAlignment) {
+    
+    *Work->Bitmap = DEBUGLoadBMP(ReadEntireFile, Thread, Work->FileName, Work->AlignX, Work->AlignY);
+  }
+  else {
+    
+    *Work->Bitmap = DEBUGLoadBMP(ReadEntireFile, Thread, Work->FileName);
+  }
   
-  Work->Assets->Bitmap[Work->ID] = Work->Bitmap;
+  WRITE_BARRIER;
+  
+  Work->Assets->Bitmaps[Work->ID].Bitmap = Work->Bitmap;
+  Work->Assets->Bitmaps[Work->ID].State = Work->FinalState;
   
   EndTask(Work->Task);
 }
@@ -919,39 +934,45 @@ internal void
 LoadAsset(game_assets *Assets,
           game_asset_id ID) {
   
-  task_with_memory *Task = BeginTask(Assets->TranState);
-  
-  if(Task) {
+  if(CompareExchangeUInt32((uint32 *)&Assets->Bitmaps[ID].State, GAS_Unloaded, GAS_Queued) ==
+     GAS_Unloaded) {
     
-    load_asset_work *Work = PushStruct(&Task->Arena, load_asset_work);
+    task_with_memory *Task = BeginTask(Assets->TranState);
     
-    Work->Assets = Assets;
-    Work->ID = ID;
-    Work->FileName = "";
-    Work->Task = Task;
-    Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
-    
-    switch(ID) {
+    if(Task) {
       
-      case GAID_Backdrop: {
+      load_asset_work *Work = PushStruct(&Task->Arena, load_asset_work);
+      
+      Work->Assets = Assets;
+      Work->ID = ID;
+      Work->FileName = "";
+      Work->Task = Task;
+      Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
+      Work->HasAlignment = false;
+      Work->FinalState = GAS_Loaded;
+      
+      switch(ID) {
         
-        Work->FileName = "..//source//assets//background.bmp";
-      } break;
-      
-      case GAID_Sword: {
+        case GAID_Backdrop: {
+          
+          Work->FileName = "..//source//assets//background.bmp";
+        } break;
         
-        Work->FileName = "..//source//assets//dagger.bmp";      
-      } break;
-      
-      case GAID_Tree: {
+        case GAID_Sword: {
+          
+          Work->FileName = "..//source//assets//dagger.bmp";      
+        } break;
         
-        Work->FileName = "..//..//test//tree00.bmp";
-      } break;
+        case GAID_Tree: {
+          
+          Work->FileName = "..//..//test//tree00.bmp";
+        } break;
+        
+        InvalidDefaultCase;
+      }
       
-      InvalidDefaultCase;
+      PlatformAddEntry(Assets->TranState->LowPriorityQueue, LoadAssetWork, Work);
     }
-    
-    PlatformAddEntry(Assets->TranState->LowPriorityQueue, LoadAssetWork, Work);
   }
 }
 

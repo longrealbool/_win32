@@ -70,13 +70,13 @@ GetArenaSizeRemaining(memory_arena *Arena, size_t Alignment = 4) {
 void *PushSize_(memory_arena *Arena, size_t Size, size_t Alignment = 4) {
   
   size_t AlignmentOffset = GetAlignmentOffset(Arena, Alignment);
-
+  
   Size += AlignmentOffset;
   Assert((Arena->Used + Size) <= Arena->Size);
-
+  
   void *Result = (void *)(Arena->Base + Arena->Used + AlignmentOffset);
   Arena->Used += Size;
-
+  
   return(Result);
 }
 
@@ -212,6 +212,14 @@ loaded_bitmap Sword;
 
 #endif
 
+enum game_asset_state {
+  
+  GAS_Unloaded,
+  GAS_Queued,
+  GAS_Loaded,
+  GAS_Locked,
+};
+
 enum game_asset_id {
   
   GAID_Backdrop,
@@ -219,6 +227,29 @@ enum game_asset_id {
   GAID_Sword,
   
   GAID_Count,
+};
+
+struct game_asset {
+  
+  game_asset_state State;
+  loaded_bitmap *Bitmap;
+};
+
+struct asset_tag {
+  
+  uint32 Tag;
+  real32 Value;
+};
+
+struct asset_bitmap_info {
+
+  v2 AlignPercentage;
+  real32 WidthOverHeight;
+  int32 Height;
+  int32 Width;
+  
+  uint32 FirstTagIndex;
+  uint32 TagCount;
 };
 
 struct game_assets {
@@ -229,7 +260,7 @@ struct game_assets {
   memory_arena Arena;
   debug_platform_read_entire_file *ReadEntireFile;
 
-  loaded_bitmap *Bitmap[GAID_Count];
+  game_asset Bitmaps[GAID_Count];
   
   // NOTE(Egor): array of assets
   loaded_bitmap Grass[2];
@@ -248,7 +279,8 @@ struct game_assets {
 inline loaded_bitmap *
 GetBitmap(game_assets *Assets, game_asset_id ID) {
  
-  loaded_bitmap *Result = Assets->Bitmap[ID];
+  loaded_bitmap *Result = Assets->Bitmaps[ID].Bitmap;
+  
   
   return Result;
 }

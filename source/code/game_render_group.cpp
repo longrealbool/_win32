@@ -60,12 +60,21 @@ AllocateRenderGroup(memory_arena *Arena, game_assets *Assets, uint32 MaxPushBuff
   Result->MaxPushBufferSize = MaxPushBufferSize;
   
   Result->GlobalAlpha = 1.0f;
+  Result->MissingAssetsCount = 0;
   
   Result->Transform.OffsetP = V3(0, 0, 0);
   Result->Transform.Scale = 1.0f;
   
   return Result;
 }
+
+internal bool32
+AllAssetsAvaiable(render_group *Group) {
+  
+  bool32 Result = Group->MissingAssetsCount == 0;
+  return Result;
+}
+
 
 
 inline void
@@ -200,7 +209,8 @@ PushBitmap(render_group *Group, game_asset_id ID, v3 Offset, real32 Height,
   }
   else {
     
-    LoadAsset(Group->Assets, ID); 
+    LoadAsset(Group->Assets, ID);
+    ++Group->MissingAssetsCount;
   }
 }
 

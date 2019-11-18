@@ -22,7 +22,7 @@ struct bilinear_sample {
 struct loaded_bitmap {
 
   real32 WidthOverHeight;
-  real32 NativeHeight;
+//  real32 NativeHeight;
   v2 AlignPercentage;
   
   int32 Height;
@@ -109,6 +109,8 @@ struct render_group {
   v2 MonitorHalfDimInMeters;
   
   real32 GlobalAlpha;
+  
+  uint32 MissingAssetsCount;
 
   uint32 MaxPushBufferSize;
   uint32 PushBufferSize;

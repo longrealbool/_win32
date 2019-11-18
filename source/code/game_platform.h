@@ -143,7 +143,7 @@ extern "C" {
     /* 2 */DebugCycleCounter_DrawRectangleSlowly,
     /* 4 */DebugCycleCounter_ProcessPixel,
     
-    DebugCycleCounter_Count, // NOTE(Egor): this is should be the last
+    DebugCycleCounter_Count, // NOTE(Egor): this should be the last
   };
   
   extern struct game_memory *DebugGlobalMemory;
