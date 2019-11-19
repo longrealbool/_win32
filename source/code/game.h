@@ -187,7 +187,6 @@ struct controlled_entity {
   real32 dZ;
 };
 
-
 struct pairwise_collision_rule {
   
   bool32 CanCollide;
@@ -202,17 +201,7 @@ struct ground_buffer {
   loaded_bitmap Bitmap;
 };
 
-
-#if 0
-
-// NOTE(Egor): unique assets
-loaded_bitmap Backdrop;
-loaded_bitmap Tree;
-loaded_bitmap Sword;
-
-#endif
-
-enum game_asset_state {
+enum asset_state {
   
   GAS_Unloaded,
   GAS_Queued,
@@ -220,19 +209,27 @@ enum game_asset_state {
   GAS_Locked,
 };
 
-enum game_asset_id {
+enum asset_id {
   
-  GAID_Backdrop,
-  GAID_Tree,
-  GAID_Sword,
+  AID_Backdrop,
+  AID_Tree,
+  AID_Sword,
+  AID_Rock,
   
   GAID_Count,
 };
 
-struct game_asset {
+struct asset_type {
   
-  game_asset_state State;
-  loaded_bitmap *Bitmap;
+  uint32 Count;
+};
+
+enum asset_tag_id {
+
+  Tag_Smootheness,
+  Tag_Flatness,
+  
+  TAG_Count,
 };
 
 struct asset_tag {
@@ -241,15 +238,24 @@ struct asset_tag {
   real32 Value;
 };
 
+struct asset {
+  
+  uint32 FirstTagIndex;
+  uint32 TagCount;
+};
+
 struct asset_bitmap_info {
 
   v2 AlignPercentage;
   real32 WidthOverHeight;
   int32 Height;
   int32 Width;
+};
+
+struct game_asset {
   
-  uint32 FirstTagIndex;
-  uint32 TagCount;
+  asset_state State;
+  loaded_bitmap *Bitmap;
 };
 
 struct game_assets {
@@ -260,7 +266,9 @@ struct game_assets {
   memory_arena Arena;
   debug_platform_read_entire_file *ReadEntireFile;
 
-  game_asset Bitmaps[GAID_Count];
+  uint32 BitmapCount;
+  game_asset *Bitmaps;
+  asset_type AssetTypes[GAID_Count];
   
   // NOTE(Egor): array of assets
   loaded_bitmap Grass[2];
