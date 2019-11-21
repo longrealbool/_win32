@@ -162,6 +162,26 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   
   Assets->BitmapCount = AID_Count;
   Assets->Bitmaps = PushArray(Arena, Assets->BitmapCount, asset_slot);
+
+  Assets->TagCount = 0;
+  Assets->Tags = 0;
+  
+  Assets->AssetCount = Assets->BitmapCount;
+  Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
+  
+  
+  // NOTE(Egor): dummy table 
+  for(uint32 AssetID = 0; AssetID < AID_Count; ++AssetID) {
+    
+    asset_type *Type = Assets->AssetTypes + AssetID;
+    Type->FirstAssetIndex = AssetID;
+    Type->OnePastLastAssetIndex = AssetID + 1;
+    
+    asset *Asset = Assets->Assets + Type->FirstAssetIndex;
+    Asset->FirstTagIndex = 0;
+    Asset->OnePastLastTagIndex = 0;
+    Asset->SlotID = Type->FirstAssetIndex;
+  }
   
   loaded_bitmap *Stones = Assets->Stones;
   loaded_bitmap *Grass = Assets->Grass;
@@ -242,8 +262,8 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork) {
 internal void
 LoadBitmap(game_assets *Assets, bitmap_id ID) {
   
-  if(CompareExchangeUInt32((uint32 *)&Assets->Bitmaps[ID.Value].State, GAS_Unloaded, GAS_Queued) ==
-     GAS_Unloaded) {
+  if(ID.Value && (CompareExchangeUInt32((uint32 *)&Assets->Bitmaps[ID.Value].State, GAS_Unloaded, GAS_Queued) ==
+                   GAS_Unloaded)) {
     
     task_with_memory *Task = BeginTask(Assets->TranState);
     
@@ -294,7 +314,16 @@ GetBitmap(game_assets *Assets, bitmap_id ID) {
 internal bitmap_id
 GetFirstBitmapID(game_assets *Assets, asset_type_id ID) {
   
-  bitmap_id Result = {(uint32)ID};
+  bitmap_id Result = {};
+  asset_type *Type = Assets->AssetTypes + ID;
+  asset *Asset = Assets->Assets + Type->FirstAssetIndex;
+  
+  // NOTE(Egor): range is not empty set
+  if(Type->FirstAssetIndex != Type->OnePastLastAssetIndex) {
+    
+    Result.Value = Asset->SlotID; 
+  }
+  
   return Result;
 };
 

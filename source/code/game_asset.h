@@ -32,6 +32,8 @@ enum asset_tag_id {
 
 enum asset_type_id {
   
+  AID_None,
+  
   AID_Backdrop,
   AID_Tree,
   AID_Sword,
@@ -55,7 +57,6 @@ struct asset {
 
 struct asset_type {
   
-  uint32 Count;
   uint32 FirstAssetIndex;
   uint32 OnePastLastAssetIndex;
 };
@@ -68,11 +69,6 @@ struct asset_bitmap_info {
   int32 Width;
 };
 
-struct asset_group {
-  
-  uint32 FirstTagIndex;
-  uint32 One;
-};
 
 struct game_assets {
   
@@ -83,6 +79,12 @@ struct game_assets {
 
   uint32 BitmapCount;
   asset_slot *Bitmaps;
+  
+  uint32 AssetCount;
+  asset *Assets;
+  
+  uint32 TagCount;
+  asset_tag *Tags;
   
   asset_type AssetTypes[AID_Count];
   
