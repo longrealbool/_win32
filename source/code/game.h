@@ -14,9 +14,7 @@
     1 - Slow code welcome.
 */
 
-
 #include "game_platform.h"
-
 
 struct memory_arena {
   size_t Size;
@@ -25,7 +23,6 @@ struct memory_arena {
   int32 TempCount;
   
 };
-
 
 internal void 
 InitializeArena(memory_arena *Arena, size_t Size, void *Base) {
@@ -59,9 +56,6 @@ GetArenaSizeRemaining(memory_arena *Arena, size_t Alignment = 4) {
   return Result;
 }
 
-
-
-
 // TODO(Egor): I have no fucking idea why ## __VA_ARGS__ has to be inserted in function call 
 #define PushStruct(Arena, type, ...) (type *)PushSize_(Arena, sizeof(type), ## __VA_ARGS__)
 #define PushArray(Arena, Count, type, ...) (type *)PushSize_(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
@@ -79,7 +73,6 @@ void *PushSize_(memory_arena *Arena, size_t Size, size_t Alignment = 4) {
   
   return(Result);
 }
-
 
 internal void
 SubArena(memory_arena *Result, memory_arena *Arena, size_t Size, size_t Alignment = 16) {
@@ -145,14 +138,10 @@ ZeroSize(size_t Size, void *Ptr) {
 #include "game_world.h"
 #include "game_sim_region.h"
 #include "game_entity.h"
+#include "game_asset.h"
 
 
-struct hero_bitmaps {
-  
-  loaded_bitmap HeroHead;
-  loaded_bitmap HeroCape;
-  v2 Align;
-};
+
 
 
 struct low_entity {
@@ -187,6 +176,7 @@ struct controlled_entity {
   real32 dZ;
 };
 
+
 struct pairwise_collision_rule {
   
   bool32 CanCollide;
@@ -195,103 +185,12 @@ struct pairwise_collision_rule {
   pairwise_collision_rule *NextInHash;
 };
 
+
 struct ground_buffer {
   
   world_position P;
   loaded_bitmap Bitmap;
 };
-
-enum asset_state {
-  
-  GAS_Unloaded,
-  GAS_Queued,
-  GAS_Loaded,
-  GAS_Locked,
-};
-
-enum asset_id {
-  
-  AID_Backdrop,
-  AID_Tree,
-  AID_Sword,
-  AID_Rock,
-  
-  GAID_Count,
-};
-
-struct asset_type {
-  
-  uint32 Count;
-};
-
-enum asset_tag_id {
-
-  Tag_Smootheness,
-  Tag_Flatness,
-  
-  TAG_Count,
-};
-
-struct asset_tag {
-  
-  uint32 Tag;
-  real32 Value;
-};
-
-struct asset {
-  
-  uint32 FirstTagIndex;
-  uint32 TagCount;
-};
-
-struct asset_bitmap_info {
-
-  v2 AlignPercentage;
-  real32 WidthOverHeight;
-  int32 Height;
-  int32 Width;
-};
-
-struct game_asset {
-  
-  asset_state State;
-  loaded_bitmap *Bitmap;
-};
-
-struct game_assets {
-  
-  struct transient_state *TranState;
-  
-  // NOTE(Egor): this is an asset arena
-  memory_arena Arena;
-  debug_platform_read_entire_file *ReadEntireFile;
-
-  uint32 BitmapCount;
-  game_asset *Bitmaps;
-  asset_type AssetTypes[GAID_Count];
-  
-  // NOTE(Egor): array of assets
-  loaded_bitmap Grass[2];
-  loaded_bitmap Stones[4];
-  loaded_bitmap Tuft[3];
-  loaded_bitmap Slumps[4];
-  
-  // NOTE(Egor): structured assets
-  hero_bitmaps Hero[4];
-  
-  // NOTE(Egor): test assets
-  loaded_bitmap TestDiffuse;
-  loaded_bitmap TestNormal;
-};
-
-inline loaded_bitmap *
-GetBitmap(game_assets *Assets, game_asset_id ID) {
- 
-  loaded_bitmap *Result = Assets->Bitmaps[ID].Bitmap;
-  
-  
-  return Result;
-}
 
 
 struct game_state {
@@ -348,7 +247,7 @@ struct transient_state {
   uint32 GroundBufferCount;
   ground_buffer *GroundBuffers;
   
-  game_assets Assets;
+  game_assets *Assets;
 
   uint32 EnvMapWidth;
   uint32 EnvMapHeight;
@@ -373,8 +272,15 @@ GetLowEntity(game_state *GameState, uint32 LowIndex) {
 
 global_variable platform_add_entry *PlatformAddEntry;
 global_variable platform_complete_all_work *PlatformCompleteAllWork;
+global_variable debug_platform_read_entire_file *DEBUGReadEntireFile;
 
-internal void LoadAsset(game_assets *Assets, game_asset_id ID);
+internal void EndTask(task_with_memory *Task);
+internal task_with_memory * BeginTask(transient_state *TranState);
+
+internal void LoadBitmap(game_assets *Assets, bitmap_id ID);
+internal loaded_bitmap * GetBitmap(game_assets *Assets, bitmap_id ID);
+
+
 
 #define GAME_H
 #endif
