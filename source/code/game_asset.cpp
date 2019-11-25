@@ -139,7 +139,7 @@ DEBUGLoadBMP(char *FileName, v2 AlignPercentage = V2(0.5f , 0.5f))
 }
 
 internal bitmap_id
-DEBUGAddBitmapInfo(game_assets *Assets, v2 AlignPercentage, char *FileName) {
+DEBUGAddBitmapInfo(game_assets *Assets, char *FileName, v2 AlignPercentage) {
  
   Assert(Assets->DEBUGUsedBitmapCount < Assets->BitmapCount);
   bitmap_id ID = {Assets->DEBUGUsedBitmapCount++};
@@ -154,20 +154,31 @@ DEBUGAddBitmapInfo(game_assets *Assets, v2 AlignPercentage, char *FileName) {
 internal void
 BeginAssetType(game_assets *Assets, asset_type_id ID) {
   
-  asset_type *Type = Assets->AssetTypes + AssetID;
+  Assert(Assets->DEBUGAssetType == 0);
   
+  Assets->DEBUGAssetType = Assets->AssetTypes + ID;
+  Assets->DEBUGAssetType->FirstAssetIndex = Assets->DEBUGUsedAssetCount;
+  Assets->DEBUGAssetType->OnePastLastAssetIndex = Assets->DEBUGAssetType->FirstAssetIndex;
 }
 
 internal void
 AddBitmapAsset(game_assets *Assets, char *FileName, v2 AlignPercentage) {
   
+  Assert(Assets->DEBUGAssetType);
   
+  asset *Asset = Assets->Assets + Assets->DEBUGAssetType->OnePastLastAssetIndex++;
+  Asset->FirstTagIndex = 0;
+  Asset->OnePastLastTagIndex = 0;
+  Asset->SlotID = DEBUGAddBitmapInfo(Assets, FileName, AlignPercentage).Value;
 }
 
 internal void
 EndAssetType(game_assets *Assets) {
   
+  Assert(Assets->DEBUGAssetType);
   
+  Assets->DEBUGUsedAssetCount = Assets->DEBUGAssetType->OnePastLastAssetIndex;
+  Assets->DEBUGAssetType = 0;
 }
 
 
@@ -203,13 +214,7 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   for(uint32 AssetID = 0; AssetID < AID_Count; ++AssetID) {
     
 
-    Type->FirstAssetIndex = AssetID;
-    Type->OnePastLastAssetIndex = AssetID + 1;
-    
-    asset *Asset = Assets->Assets + Type->FirstAssetIndex;
-    Asset->FirstTagIndex = 0;
-    Asset->OnePastLastTagIndex = 0;
-    Asset->SlotID = Type->FirstAssetIndex;
+
   }
   
   loaded_bitmap *Stones = Assets->Stones;

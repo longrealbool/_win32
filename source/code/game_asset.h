@@ -81,6 +81,7 @@ struct game_assets {
   
   uint32 DEBUGUsedBitmapCount;
   uint32 DEBUGUsedAssetCount;
+  asset_type *DEBUGAssetType;
   
   uint32 BitmapCount;
   asset_bitmap_info *BitmapInfos;
