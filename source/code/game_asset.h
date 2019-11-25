@@ -39,6 +39,11 @@ enum asset_type_id {
   AID_Sword,
   AID_Rock,
   
+  AID_Grass,
+  AID_Stone,
+  AID_Tuft,
+  
+  
   AID_Count,
 };
 
@@ -64,20 +69,21 @@ struct asset_type {
 struct asset_bitmap_info {
   
   v2 AlignPercentage;
-  real32 WidthOverHeight;
-  int32 Height;
-  int32 Width;
+  char *FileName;
 };
 
 
 struct game_assets {
   
   struct transient_state *TranState;
-  
   // NOTE(Egor): this is an asset arena
   memory_arena Arena;
-
+  
+  uint32 DEBUGUsedBitmapCount;
+  uint32 DEBUGUsedAssetCount;
+  
   uint32 BitmapCount;
+  asset_bitmap_info *BitmapInfos;
   asset_slot *Bitmaps;
   
   uint32 AssetCount;

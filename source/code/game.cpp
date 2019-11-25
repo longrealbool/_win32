@@ -1140,7 +1140,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Controlled->dZ = 3.0f;
       }
       
-#if 0
+#if 1
       Controlled->dSword = {};
       if(Controller->ActionUp.EndedDown) {
         

@@ -33,7 +33,7 @@ struct bitmap_header {
 #pragma pack(pop)
 
 internal loaded_bitmap
-DEBUGLoadBMP(char *FileName, int32 AlignX, int32 AlignY)
+DEBUGLoadBMP(char *FileName, v2 AlignPercentage = V2(0.5f , 0.5f))
 {
   
   loaded_bitmap Result = {};
@@ -61,10 +61,6 @@ DEBUGLoadBMP(char *FileName, int32 AlignX, int32 AlignY)
     
     
     // NOTE(Egor): alignment
-    v2 Align = V2i(AlignX, (Result.Height - 1) - AlignY);
-    v2 AlignPercentage;
-    AlignPercentage.x = SafeRatio0(Align.x, (real32)Result.Width); 
-    AlignPercentage.y = SafeRatio0(Align.y, (real32)Result.Height);
     Result.AlignPercentage = AlignPercentage;
     
     // NOTE(Egor, bitmap_loading): we have to account all color masks in header,
@@ -142,12 +138,35 @@ DEBUGLoadBMP(char *FileName, int32 AlignX, int32 AlignY)
   return Result;
 }
 
-internal loaded_bitmap
-DEBUGLoadBMP( char *FileName) {
+internal bitmap_id
+DEBUGAddBitmapInfo(game_assets *Assets, v2 AlignPercentage, char *FileName) {
+ 
+  Assert(Assets->DEBUGUsedBitmapCount < Assets->BitmapCount);
+  bitmap_id ID = {Assets->DEBUGUsedBitmapCount++};
   
-  loaded_bitmap Result = DEBUGLoadBMP(FileName, 0, 0);
-  Result.AlignPercentage = V2(0.5f, 0.5f);
-  return Result;
+  asset_bitmap_info *Info = Assets->BitmapInfos + ID.Value;
+  Info->AlignPercentage = AlignPercentage;
+  Info->FileName = FileName;
+  
+  return ID;
+}
+
+internal void
+BeginAssetType(game_assets *Assets, asset_type_id ID) {
+  
+  asset_type *Type = Assets->AssetTypes + AssetID;
+  
+}
+
+internal void
+AddBitmapAsset(game_assets *Assets, char *FileName, v2 AlignPercentage) {
+  
+  
+}
+
+internal void
+EndAssetType(game_assets *Assets) {
+  
   
 }
 
@@ -160,20 +179,30 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   SubArena(&Assets->Arena, Arena, Size); 
   Assets->TranState = TranState;
   
-  Assets->BitmapCount = AID_Count;
+  Assets->BitmapCount = 256*AID_Count;
+  Assets->DEBUGUsedBitmapCount = 1;
   Assets->Bitmaps = PushArray(Arena, Assets->BitmapCount, asset_slot);
-
+  Assets->BitmapInfos = PushArray(Arena, Assets->BitmapCount, asset_bitmap_info);
+  
   Assets->TagCount = 0;
   Assets->Tags = 0;
   
   Assets->AssetCount = Assets->BitmapCount;
   Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
   
+  BeginAssetType(Assets, AID_Tree);
+  AddBitmapAsset(Assets,"..//..//test//tree00.bmp", V2(0.493872f, 0.29565f));
+  EndAssetType(Assets);
+  
+  BeginAssetType(Assets, AID_Sword);
+  AddBitmapAsset(Assets, "..//source//assets//dagger.bmp", V2(0.5f, 0.5f));      
+  EndAssetType(Assets);
+  
   
   // NOTE(Egor): dummy table 
   for(uint32 AssetID = 0; AssetID < AID_Count; ++AssetID) {
     
-    asset_type *Type = Assets->AssetTypes + AssetID;
+
     Type->FirstAssetIndex = AssetID;
     Type->OnePastLastAssetIndex = AssetID + 1;
     
@@ -199,18 +228,18 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   
   hero_bitmaps *Bitmap = Assets->Hero;
   
-  Bitmap->HeroHead = DEBUGLoadBMP("..//source//assets//figurine.bmp", 51, 112);
-  Bitmap->HeroCape = DEBUGLoadBMP("..//source//assets//arrow_right.bmp", 51, 112);
+  Bitmap->HeroHead = DEBUGLoadBMP("..//source//assets//figurine.bmp");
+  Bitmap->HeroCape = DEBUGLoadBMP("..//source//assets//arrow_right.bmp");
   Bitmap->Align = ConvertToBottomUpAlign(&Bitmap->HeroHead,V2(51, 112));
   
   Bitmap[1] = Bitmap[0];
-  Bitmap[1].HeroCape = DEBUGLoadBMP("..//source//assets//arrow_up.bmp", 51, 112);
+  Bitmap[1].HeroCape = DEBUGLoadBMP("..//source//assets//arrow_up.bmp");
   
   Bitmap[2] = Bitmap[0];
-  Bitmap[2].HeroCape = DEBUGLoadBMP("..//source//assets//arrow_left.bmp", 51, 112);
+  Bitmap[2].HeroCape = DEBUGLoadBMP("..//source//assets//arrow_left.bmp");
   
   Bitmap[3] = Bitmap[0];
-  Bitmap[3].HeroCape = DEBUGLoadBMP("..//source//assets//arrow_down.bmp", 51, 112);
+  Bitmap[3].HeroCape = DEBUGLoadBMP("..//source//assets//arrow_down.bmp");
   
   return Assets;
 };
@@ -227,9 +256,7 @@ struct load_bitmap_work {
   bitmap_id ID;
   asset_state FinalState;
   char *FileName;
-  bool32 HasAlignment;
-  int32 AlignX;
-  int32 AlignY;
+  v2 AlignPercentage;
   
   task_with_memory *Task;
 };
@@ -240,15 +267,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork) {
   load_bitmap_work *Work = (load_bitmap_work *)Data;  
   Assert(Work);
   
-  
-  if(Work->HasAlignment) {
-    
-    *Work->Bitmap = DEBUGLoadBMP(Work->FileName, Work->AlignX, Work->AlignY);
-  }
-  else {
-    
-    *Work->Bitmap = DEBUGLoadBMP(Work->FileName);
-  }
+  *Work->Bitmap = DEBUGLoadBMP(Work->FileName, Work->AlignPercentage);
   
   WRITE_BARRIER;
   
@@ -263,7 +282,7 @@ internal void
 LoadBitmap(game_assets *Assets, bitmap_id ID) {
   
   if(ID.Value && (CompareExchangeUInt32((uint32 *)&Assets->Bitmaps[ID.Value].State, GAS_Unloaded, GAS_Queued) ==
-                   GAS_Unloaded)) {
+                  GAS_Unloaded)) {
     
     task_with_memory *Task = BeginTask(Assets->TranState);
     
@@ -276,34 +295,14 @@ LoadBitmap(game_assets *Assets, bitmap_id ID) {
       Work->FileName = "";
       Work->Task = Task;
       Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
-      Work->HasAlignment = false;
       Work->FinalState = GAS_Loaded;
+      Work->AlignPercentage = V2(0.5f, 0.5f);
       
-      switch(ID.Value) {
-        
-        case AID_Backdrop: {
-          
-          Work->FileName = "..//source//assets//background.bmp";
-        } break;
-        
-        case AID_Sword: {
-          
-          Work->FileName = "..//source//assets//dagger.bmp";      
-        } break;
-        
-        case AID_Tree: {
-          
-          Work->FileName = "..//..//test//tree00.bmp";
-        } break;
-        
-        InvalidDefaultCase;
-      }
       
-      PlatformAddEntry(Assets->TranState->LowPriorityQueue, LoadBitmapWork, Work);
     }
   }
 }
-
+  
 internal loaded_bitmap *
 GetBitmap(game_assets *Assets, bitmap_id ID) {
   
