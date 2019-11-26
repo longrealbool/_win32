@@ -189,33 +189,24 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   game_assets *Assets = PushStruct(Arena, game_assets);
   SubArena(&Assets->Arena, Arena, Size); 
   Assets->TranState = TranState;
-  
   Assets->BitmapCount = 256*AID_Count;
-  Assets->DEBUGUsedBitmapCount = 1;
   Assets->Bitmaps = PushArray(Arena, Assets->BitmapCount, asset_slot);
   Assets->BitmapInfos = PushArray(Arena, Assets->BitmapCount, asset_bitmap_info);
-  
   Assets->TagCount = 0;
   Assets->Tags = 0;
-  
   Assets->AssetCount = Assets->BitmapCount;
   Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
   
+  Assets->DEBUGUsedBitmapCount = 1;
+  Assets->DEBUGUsedAssetCount = 1;
+  
   BeginAssetType(Assets, AID_Tree);
-  AddBitmapAsset(Assets,"..//..//test//tree00.bmp", V2(0.493872f, 0.29565f));
+  AddBitmapAsset(Assets,"..//source//assets//tree.bmp", V2(0.493872f, 0.29565f));
   EndAssetType(Assets);
   
   BeginAssetType(Assets, AID_Sword);
   AddBitmapAsset(Assets, "..//source//assets//dagger.bmp", V2(0.5f, 0.5f));      
   EndAssetType(Assets);
-  
-  
-  // NOTE(Egor): dummy table 
-  for(uint32 AssetID = 0; AssetID < AID_Count; ++AssetID) {
-    
-
-
-  }
   
   loaded_bitmap *Stones = Assets->Stones;
   loaded_bitmap *Grass = Assets->Grass;
@@ -272,7 +263,9 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork) {
   load_bitmap_work *Work = (load_bitmap_work *)Data;  
   Assert(Work);
   
-  *Work->Bitmap = DEBUGLoadBMP(Work->FileName, Work->AlignPercentage);
+  asset_bitmap_info *Info = Work->Assets->BitmapInfos + Work->ID.Value;
+  
+  *Work->Bitmap = DEBUGLoadBMP(Info->FileName, Info->AlignPercentage);
   
   WRITE_BARRIER;
   
@@ -297,13 +290,11 @@ LoadBitmap(game_assets *Assets, bitmap_id ID) {
       
       Work->Assets = Assets;
       Work->ID = ID;
-      Work->FileName = "";
       Work->Task = Task;
       Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
       Work->FinalState = GAS_Loaded;
-      Work->AlignPercentage = V2(0.5f, 0.5f);
       
-      
+      PlatformAddEntry(Assets->TranState->LowPriorityQueue, LoadBitmapWork, Work);
     }
   }
 }
