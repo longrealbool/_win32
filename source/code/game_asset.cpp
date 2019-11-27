@@ -162,7 +162,7 @@ BeginAssetType(game_assets *Assets, asset_type_id ID) {
 }
 
 internal void
-AddBitmapAsset(game_assets *Assets, char *FileName, v2 AlignPercentage) {
+AddBitmapAsset(game_assets *Assets, char *FileName, v2 AlignPercentage = V2(0.5f, 0.5f)) {
   
   Assert(Assets->DEBUGAssetType);
   
@@ -207,6 +207,25 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   BeginAssetType(Assets, AID_Sword);
   AddBitmapAsset(Assets, "..//source//assets//dagger.bmp", V2(0.5f, 0.5f));      
   EndAssetType(Assets);
+  
+  BeginAssetType(Assets, AID_Grass);
+  AddBitmapAsset(Assets, "..//..//test//grass00.bmp", V2(0.5f, 0.5f));
+  AddBitmapAsset(Assets, "..//..//test//grass01.bmp", V2(0.5f, 0.5f));
+  EndAssetType(Assets);
+  
+  BeginAssetType(Assets, AID_Stone);
+  AddBitmapAsset(Assets, "..//..//test//ground00.bmp", V2(0.5f, 0.5f));
+  AddBitmapAsset(Assets, "..//..//test//ground01.bmp", V2(0.5f, 0.5f));
+  AddBitmapAsset(Assets, "..//..//test//ground02.bmp", V2(0.5f, 0.5f));
+  AddBitmapAsset(Assets, "..//..//test//ground03.bmp", V2(0.5f, 0.5f));
+  EndAssetType(Assets);
+  
+  BeginAssetType(Assets, AID_Tuft);
+  AddBitmapAsset(Assets, "..//..//test//tuft00.bmp", V2(0.5f, 0.5f));
+  AddBitmapAsset(Assets, "..//..//test//tuft01.bmp", V2(0.5f, 0.5f));
+  AddBitmapAsset(Assets, "..//..//test//tuft02.bmp", V2(0.5f, 0.5f));
+  EndAssetType(Assets);
+  
   
   loaded_bitmap *Stones = Assets->Stones;
   loaded_bitmap *Grass = Assets->Grass;
@@ -298,7 +317,7 @@ LoadBitmap(game_assets *Assets, bitmap_id ID) {
     }
   }
 }
-  
+
 internal loaded_bitmap *
 GetBitmap(game_assets *Assets, bitmap_id ID) {
   
@@ -317,6 +336,24 @@ GetFirstBitmapID(game_assets *Assets, asset_type_id ID) {
   if(Type->FirstAssetIndex != Type->OnePastLastAssetIndex) {
     
     Result.Value = Asset->SlotID; 
+  }
+  
+  return Result;
+};
+
+internal bitmap_id
+RandomAssetFrom(game_assets *Assets, random_series *Series, asset_type_id TypeID) {
+  
+  bitmap_id Result = {};
+  asset_type *Type = Assets->AssetTypes + TypeID;
+  
+  if(Type->FirstAssetIndex != Type->OnePastLastAssetIndex) {
+    
+    uint32 ChoiceCount = Type->OnePastLastAssetIndex - Type->FirstAssetIndex;
+    uint32 Choice = RandomChoice(Series, ChoiceCount);
+    uint32 AssetIndex = (Type->FirstAssetIndex + Choice);
+    asset *Asset = Assets->Assets + Choice;
+    Result.Value = Asset->SlotID;
   }
   
   return Result;

@@ -421,8 +421,11 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
         v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
         
         loaded_bitmap *Stamp = 0;
-        for(uint32 Index = 0; Index < 50; ++Index) {
+        for(uint32 Index = 0; Index < 1; ++Index) {
           
+          bitmap_id Stamp = RandomAssetFrom(TranState->Assets, &Series, AID_Grass);
+          
+#if 0
           if(RandomChoice(&Series, 2)) {
             
             Stamp = TranState->Assets->Grass + RandomChoice(&Series,  ArrayCount(TranState->Assets->Grass));
@@ -431,6 +434,7 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
             
             Stamp = TranState->Assets->Stones + RandomChoice(&Series, ArrayCount(TranState->Assets->Stones));
           }
+#endif
           
           v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
                                                RandomBilateral(&Series)));
@@ -1137,7 +1141,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       }
       
       if(Controller->Start.EndedDown) {
-        Controlled->dZ = 3.0f;
+      //  Controlled->dZ = 3.0f;
       }
       
 #if 1

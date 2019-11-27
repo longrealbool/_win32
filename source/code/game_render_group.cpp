@@ -127,7 +127,7 @@ GetRenderEntityBasisP(render_transform *Transform, v3 PushOffset) {
   }
   else {
     
-    real32 CameraDistanceAboveGround = Transform->CameraDistanceAboveGround + 26.0f;
+    real32 CameraDistanceAboveGround = Transform->CameraDistanceAboveGround;// + 26.0f;
     real32 NearClipPlane = 0.2f;
     
     real32 DistanceToPz = (CameraDistanceAboveGround - P.z);
