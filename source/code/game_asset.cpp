@@ -352,7 +352,7 @@ RandomAssetFrom(game_assets *Assets, random_series *Series, asset_type_id TypeID
     uint32 ChoiceCount = Type->OnePastLastAssetIndex - Type->FirstAssetIndex;
     uint32 Choice = RandomChoice(Series, ChoiceCount);
     uint32 AssetIndex = (Type->FirstAssetIndex + Choice);
-    asset *Asset = Assets->Assets + Choice;
+    asset *Asset = Assets->Assets + AssetIndex;
     Result.Value = Asset->SlotID;
   }
   

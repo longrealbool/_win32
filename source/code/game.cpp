@@ -421,26 +421,26 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
         v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
         
         loaded_bitmap *Stamp = 0;
-        for(uint32 Index = 0; Index < 1; ++Index) {
+        for(uint32 Index = 0; Index < 20; ++Index) {
           
-          bitmap_id Stamp = RandomAssetFrom(TranState->Assets, &Series, AID_Grass);
+          bitmap_id Stamp;
           
-#if 0
           if(RandomChoice(&Series, 2)) {
             
-            Stamp = TranState->Assets->Grass + RandomChoice(&Series,  ArrayCount(TranState->Assets->Grass));
+            Stamp = RandomAssetFrom(TranState->Assets, &Series, AID_Grass);
           }
           else {
             
-            Stamp = TranState->Assets->Stones + RandomChoice(&Series, ArrayCount(TranState->Assets->Stones));
+            Stamp = RandomAssetFrom(TranState->Assets, &Series, AID_Stone);
           }
-#endif
+          
+          
+          Assert(Stamp.Value);
           
           v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
                                                RandomBilateral(&Series)));
           PushBitmap(GroundGroup, Stamp, ToV3(P, 0.0f), 3.5f, Color);
         }
-        //        PushRect(GroundGroup, V3(0, 0, 0), V2(2,2), V4(1.0f, 0, 0, 1));
       }
     }
     
@@ -477,6 +477,12 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
       
       PlatformAddEntry(TranState->LowPriorityQueue, DoGroundChunkRenderingWork, Work);
     }
+    else {
+      
+      EndTask(Task);
+    };
+      
+      
   }
 }
 
