@@ -455,11 +455,11 @@ FillGroundChunk(transient_state *TranState, game_state *GameState,
         random_series Series = Seed(12*ChunkX + 34*ChunkY + 57*ChunkZ);
         v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
         
-        loaded_bitmap *Stamp = 0;
+        bitmap_id Stamp;
         
         for(uint32 Index = 0; Index < 5; ++Index) {
           
-          Stamp = TranState->Assets->Tuft + RandomChoice(&Series, ArrayCount(TranState->Assets->Tuft));
+          Stamp = Stamp = RandomAssetFrom(TranState->Assets, &Series, AID_Tuft);
           
           v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series),
                                                RandomBilateral(&Series)));

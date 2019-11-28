@@ -95,12 +95,6 @@ struct game_assets {
   
   asset_type AssetTypes[AID_Count];
   
-  // NOTE(Egor): array of assets
-  loaded_bitmap Grass[2];
-  loaded_bitmap Stones[4];
-  loaded_bitmap Tuft[3];
-  loaded_bitmap Slumps[4];
-  
   // NOTE(Egor): structured assets
   hero_bitmaps Hero[4];
   

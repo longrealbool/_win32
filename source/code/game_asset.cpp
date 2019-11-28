@@ -227,20 +227,6 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   EndAssetType(Assets);
   
   
-  loaded_bitmap *Stones = Assets->Stones;
-  loaded_bitmap *Grass = Assets->Grass;
-  loaded_bitmap *Tuft = Assets->Tuft;
-  
-  Grass[0] = DEBUGLoadBMP(  "..//..//test//grass00.bmp");
-  Grass[1] = DEBUGLoadBMP(  "..//..//test//grass01.bmp");
-  Stones[0] = DEBUGLoadBMP(  "..//..//test//ground00.bmp");    
-  Stones[1] = DEBUGLoadBMP(  "..//..//test//ground01.bmp");    
-  Stones[2] = DEBUGLoadBMP(  "..//..//test//ground02.bmp");    
-  Stones[3] = DEBUGLoadBMP(  "..//..//test//ground03.bmp");    
-  Tuft[0] = DEBUGLoadBMP(  "..//..//test//tuft00.bmp");    
-  Tuft[1] = DEBUGLoadBMP(  "..//..//test//tuft00.bmp");    
-  Tuft[2] = DEBUGLoadBMP(  "..//..//test//tuft00.bmp");    
-  
   hero_bitmaps *Bitmap = Assets->Hero;
   
   Bitmap->HeroHead = DEBUGLoadBMP("..//source//assets//figurine.bmp");
