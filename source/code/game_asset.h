@@ -26,8 +26,9 @@ enum asset_tag_id {
   
   Tag_Smootheness,
   Tag_Flatness,
+  Tag_FacingDirection,
   
-  TAG_Count,
+  Tag_Count,
 };
 
 enum asset_type_id {
@@ -43,14 +44,22 @@ enum asset_type_id {
   AID_Stone,
   AID_Tuft,
   
+  AID_Figurine,
+  AID_FigurineArrow,
   
   AID_Count,
 };
 
 struct asset_tag {
   
-  uint32 Tag;
+  uint32 ID;
   real32 Value;
+};
+
+
+struct asset_vector {
+  
+  real32 E[Tag_Count];
 };
 
 struct asset {

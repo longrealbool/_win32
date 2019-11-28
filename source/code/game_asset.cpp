@@ -345,6 +345,36 @@ RandomAssetFrom(game_assets *Assets, random_series *Series, asset_type_id TypeID
   return Result;
 };
 
+internal bitmap_id
+BestMatchAsset(game_assets *Assets, asset_type_id TypeID, asset_tag *Tags,
+               asset_vector *MatchVector, asset_vector *WeightVector) {
+  
+  bitmap_id Result = {};
+  asset_type *Type = Assets->AssetTypes + TypeID;
+  
+  for(uint32 AssetIndex = Type->FirstAssetIndex;
+      AssetIndex < Type->OnePastLastAssetIndex;
+      ++AssetIndex) {
+    
+    asset *Asset = Assets->Assets + AssetIndex;
+    
+    
+    for(uint32 TagIndex = Asset->FirstTagIndex;
+        TagIndex < Asset->OnePastLastTagIndex;
+        ++TagIndex) {
+      
+      asset_tag *Tag = Assets->Tags + TagIndex;
+      real32 Difference = MatchVector->E[Tag->ID] - Tag->Value;
+      
+      
+    }
+  }
+  
+  
+  
+  return Result;
+}
+
 
 
   
