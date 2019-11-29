@@ -1,12 +1,7 @@
 #if !defined(GAME_ASSET_H)
 
 
-struct hero_bitmaps {
-  
-  loaded_bitmap HeroHead;
-  loaded_bitmap HeroCape;
-  v2 Align;
-};
+
 
 enum asset_state {
   
@@ -105,7 +100,7 @@ struct game_assets {
   asset_type AssetTypes[AID_Count];
   
   // NOTE(Egor): structured assets
-  hero_bitmaps Hero[4];
+//  hero_bitmaps Hero[4];
   
   // NOTE(Egor): test assets
   loaded_bitmap TestDiffuse;
@@ -115,6 +110,12 @@ struct game_assets {
 struct bitmap_id {
   
   uint32 Value;
+};
+
+struct hero_bitmaps {
+  
+  bitmap_id Figurine;
+  bitmap_id Arrow;
 };
 
 

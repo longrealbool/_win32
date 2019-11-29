@@ -226,7 +226,21 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   AddBitmapAsset(Assets, "..//..//test//tuft02.bmp", V2(0.5f, 0.5f));
   EndAssetType(Assets);
   
+  BeginAssetType(Assets, AID_Figurine);
+  AddBitmapAsset(Assets, "..//source//assets//figurine.bmp");
+  EndAssetType(Assets);
+
+  #if 1  
+  BeginAssetType(Assets, AID_FigurineArrow);
+  AddBitmapAsset(Assets, "..//source//assets//arrow_right.bmp");
+  AddBitmapAsset(Assets, "..//source//assets//arrow_up.bmp");
+  AddBitmapAsset(Assets, "..//source//assets//arrow_left.bmp");
+  AddBitmapAsset(Assets, "..//source//assets//arrow_down.bmp");
+  EndAssetType(Assets);
+  #endif
   
+
+  #if 0
   hero_bitmaps *Bitmap = Assets->Hero;
   
   Bitmap->HeroHead = DEBUGLoadBMP("..//source//assets//figurine.bmp");
@@ -241,6 +255,7 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   
   Bitmap[3] = Bitmap[0];
   Bitmap[3].HeroCape = DEBUGLoadBMP("..//source//assets//arrow_down.bmp");
+  #endif
   
   return Assets;
 };
@@ -346,10 +361,13 @@ RandomAssetFrom(game_assets *Assets, random_series *Series, asset_type_id TypeID
 };
 
 internal bitmap_id
-BestMatchAsset(game_assets *Assets, asset_type_id TypeID, asset_tag *Tags,
+BestMatchAsset(game_assets *Assets, asset_type_id TypeID,
                asset_vector *MatchVector, asset_vector *WeightVector) {
   
   bitmap_id Result = {};
+  
+  real32 BestDiff = real32Maximum;
+  
   asset_type *Type = Assets->AssetTypes + TypeID;
   
   for(uint32 AssetIndex = Type->FirstAssetIndex;
@@ -357,7 +375,7 @@ BestMatchAsset(game_assets *Assets, asset_type_id TypeID, asset_tag *Tags,
       ++AssetIndex) {
     
     asset *Asset = Assets->Assets + AssetIndex;
-    
+    real32 TotalWeightedDiff = 0.0f;
     
     for(uint32 TagIndex = Asset->FirstTagIndex;
         TagIndex < Asset->OnePastLastTagIndex;
@@ -365,12 +383,16 @@ BestMatchAsset(game_assets *Assets, asset_type_id TypeID, asset_tag *Tags,
       
       asset_tag *Tag = Assets->Tags + TagIndex;
       real32 Difference = MatchVector->E[Tag->ID] - Tag->Value;
+      real32 Weighted = WeightVector->E[Tag->ID]*AbsoluteValue(Difference);
+      TotalWeightedDiff += Weighted;
+    }
+    
+    if(BestDiff > TotalWeightedDiff) {
       
-      
+      BestDiff = TotalWeightedDiff;
+      Result.Value = Asset->SlotID;
     }
   }
-  
-  
   
   return Result;
 }

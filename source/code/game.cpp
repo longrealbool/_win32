@@ -793,6 +793,7 @@ game_memory *DebugGlobalMemory;
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
   
+  
   PlatformAddEntry = Memory->PlatformAddEntry;
   PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
   DEBUGReadEntireFile = Memory->DEBUGPlatformReadEntireFile;
@@ -1345,6 +1346,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
   // NOTE(Egor): Relative coordinate of camera to sim_region Origin
   v3 CameraP = Subtract(World, &GameState->CameraP, &SimCenterP);
   
+  
   for(uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
     
     sim_entity *Entity = SimRegion->Entities + EntityIndex;
@@ -1372,8 +1374,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         RenderGroup->GlobalAlpha = Clamp01MapToRange(FadeBottomEnd, CameraRelativeGroundP.z, FadeBottomStart);
       }
       
-      // NOTE(Egor): SIMULATING ENTITIES
-      hero_bitmaps *Hero = &TranState->Assets->Hero[Entity->FacingDirection];    
+      
+      asset_vector MatchVector = {};
+      asset_vector WeightVector = {};
+      MatchVector.E[Tag_FacingDirection] = (real32)Entity->FacingDirection;
+      WeightVector.E[Tag_FacingDirection] = 1.0f;
+      
+      hero_bitmaps HeroBitmaps = {};
+      HeroBitmaps.Figurine = BestMatchAsset(TranState->Assets, AID_Figurine,  
+                                            &MatchVector, &WeightVector);
+      HeroBitmaps.Arrow = BestMatchAsset(TranState->Assets, AID_FigurineArrow,
+                                         &MatchVector, &WeightVector);
+      
+      
+      // NOTE(Egor): simulating entities
       switch(Entity->Type) {
         
         case EntityType_Sword: {
@@ -1518,8 +1532,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           }
           
           real32 HeroSizeC = 2.0f;
-          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), HeroSizeC*1.4f);
-          PushBitmap(RenderGroup, &Hero->HeroCape, V3(0, 0, 0), HeroSizeC*1.4f);
+          PushBitmap(RenderGroup, HeroBitmaps.Figurine, V3(0, 0, 0), HeroSizeC*1.4f);
+          PushBitmap(RenderGroup, HeroBitmaps.Arrow, V3(0, 0, 0), HeroSizeC*1.4f);
           //PushRect(RenderGroup, V3(0, 0, 0), Entity->Collision->TotalVolume.Dim.xy, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           
           DrawHitpoints(Entity, RenderGroup);
@@ -1540,7 +1554,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         case EntityType_Wall: {
           
           //PushRect(&RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
-          PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, AID_Tree), V3(0, 0, 0), 2.5f);
+          bitmap_id Tree = GetFirstBitmapID(TranState->Assets, AID_Tree);
+//          PushBitmap(RenderGroup, Tree, V3(0, 0, 0), 2.5f);
           
         } break;
         case EntityType_Stairwell: {
@@ -1549,8 +1564,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         } break;
         case EntityType_Monster: {
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), 1.4f);
-          DrawHitpoints(Entity, RenderGroup);
+//          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), 1.4f);
+//          DrawHitpoints(Entity, RenderGroup);
         } break;
         case EntityType_Familiar: {
           
@@ -1583,7 +1598,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           MoveSpec.Drag = 8.0f;
           MoveSpec.UnitMaxAccelVector = true;
           
-          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), 1.4f);
+//          PushBitmap(RenderGroup, &Hero->HeroHead, V3(0, 0, 0), 1.4f);
         } break;
         default: {
           InvalidCodePath;

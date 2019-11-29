@@ -731,6 +731,34 @@ DrawRectangleSlowly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
   
 }
 
+internal void
+TestReverseSSE3() {
+  
+  uint32 Array [16] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+  
+  __m128i ReverseMask = _mm_set_epi8(3, 1, 2, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
+  __m128i ReversedLowerElement;
+  __m128i ReversedUpperElement;
+  __m128i LowerElements;
+  __m128i UpperElements;
+  
+  for(uint32 Index = 0; Index < ArrayCount(Array)/2; Index += 4) {
+    
+    LowerElements = _mm_load_si128((__m128i *)(Array + Index));
+    UpperElements = _mm_load_si128((__m128i *)((Array + ArrayCount(Array) - 4 - Index)));
+    
+    ReversedLowerElement = _mm_shuffle_epi8(LowerElements, ReverseMask);
+    ReversedUpperElement = _mm_shuffle_epi8(UpperElements, ReverseMask);
+    
+    _mm_store_si128((__m128i *)(Array + Index), ReversedUpperElement);
+    _mm_store_si128((__m128i *)(Array + ArrayCount(Array) - 4 - Index), ReversedLowerElement);
+    
+    int a = 3;
+  }
+  
+};
+
+
 
 internal void
 DrawRectangleQuickly(loaded_bitmap *Buffer, render_v2_basis Basis, v4 Color,
