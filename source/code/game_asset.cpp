@@ -167,10 +167,24 @@ AddBitmapAsset(game_assets *Assets, char *FileName, v2 AlignPercentage = V2(0.5f
   Assert(Assets->DEBUGAssetType);
   
   asset *Asset = Assets->Assets + Assets->DEBUGAssetType->OnePastLastAssetIndex++;
-  Asset->FirstTagIndex = 0;
-  Asset->OnePastLastTagIndex = 0;
+  Asset->FirstTagIndex = Assets->DEBUGUsedTagCount;
+  Asset->OnePastLastTagIndex = Asset->FirstTagIndex;
   Asset->SlotID = DEBUGAddBitmapInfo(Assets, FileName, AlignPercentage).Value;
+  
+  Assets->DEBUGAsset = Asset;
 }
+
+internal void
+AddTag(game_assets *Assets, asset_tag_id TagID, real32 Value) {
+  
+  Assert(Assets->DEBUGAssetType);
+  
+  asset *Asset = Assets->DEBUGAsset;
+  Asset->OnePastLastTagIndex++;
+  asset_tag *Tag = Assets->Tags + Assets->DEBUGUsedTagCount++;
+  Tag->TagID = TagID;
+  Tag->Value = Value;
+};
 
 internal void
 EndAssetType(game_assets *Assets) {
@@ -189,13 +203,15 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   game_assets *Assets = PushStruct(Arena, game_assets);
   SubArena(&Assets->Arena, Arena, Size); 
   Assets->TranState = TranState;
+  
   Assets->BitmapCount = 256*AID_Count;
+  Assets->AssetCount = Assets->BitmapCount;
+  Assets->TagCount = Tag_Count*Assets->AssetCount;
+  
+  Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
+  Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
   Assets->Bitmaps = PushArray(Arena, Assets->BitmapCount, asset_slot);
   Assets->BitmapInfos = PushArray(Arena, Assets->BitmapCount, asset_bitmap_info);
-  Assets->TagCount = 0;
-  Assets->Tags = 0;
-  Assets->AssetCount = Assets->BitmapCount;
-  Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
   
   Assets->DEBUGUsedBitmapCount = 1;
   Assets->DEBUGUsedAssetCount = 1;
@@ -233,12 +249,15 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   #if 1  
   BeginAssetType(Assets, AID_FigurineArrow);
   AddBitmapAsset(Assets, "..//source//assets//arrow_right.bmp");
+  AddTag(Assets, Tag_FacingDirection, 0.0f);
   AddBitmapAsset(Assets, "..//source//assets//arrow_up.bmp");
+  AddTag(Assets, Tag_FacingDirection, Pi32/2.0f);
   AddBitmapAsset(Assets, "..//source//assets//arrow_left.bmp");
+  AddTag(Assets, Tag_FacingDirection, Pi32);
   AddBitmapAsset(Assets, "..//source//assets//arrow_down.bmp");
+  AddTag(Assets, Tag_FacingDirection, -Pi32/2.0f);
   EndAssetType(Assets);
   #endif
-  
 
   #if 0
   hero_bitmaps *Bitmap = Assets->Hero;
@@ -382,8 +401,8 @@ BestMatchAsset(game_assets *Assets, asset_type_id TypeID,
         ++TagIndex) {
       
       asset_tag *Tag = Assets->Tags + TagIndex;
-      real32 Difference = MatchVector->E[Tag->ID] - Tag->Value;
-      real32 Weighted = WeightVector->E[Tag->ID]*AbsoluteValue(Difference);
+      real32 Difference = MatchVector->E[Tag->TagID] - Tag->Value;
+      real32 Weighted = WeightVector->E[Tag->TagID]*AbsoluteValue(Difference);
       TotalWeightedDiff += Weighted;
     }
     

@@ -38,6 +38,12 @@ inline real32 Sin(real32 Phi) {
   return Result;
 }
 
+inline real32 ATan2(real32 X, real32 Y) {
+ 
+  real32 Result = atan2f(Y, X);
+  return Result;
+}
+
 inline real32 
 SquareRoot(real32 Value) {
   

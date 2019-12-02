@@ -1377,7 +1377,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       
       asset_vector MatchVector = {};
       asset_vector WeightVector = {};
-      MatchVector.E[Tag_FacingDirection] = (real32)Entity->FacingDirection;
+      MatchVector.E[Tag_FacingDirection] = Entity->FacingDirection;
       WeightVector.E[Tag_FacingDirection] = 1.0f;
       
       hero_bitmaps HeroBitmaps = {};
@@ -1555,7 +1555,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
           
           //PushRect(&RenderGroup, V2(0,0), 0.0f, 0.0f, Entity->Collision->TotalVolume.Dim.XY, V4(1.0f, 0.0f, 0.0f, 1.0f)); 
           bitmap_id Tree = GetFirstBitmapID(TranState->Assets, AID_Tree);
-//          PushBitmap(RenderGroup, Tree, V3(0, 0, 0), 2.5f);
+          PushBitmap(RenderGroup, Tree, V3(0, 0, 0), 2.5f);
           
         } break;
         case EntityType_Stairwell: {

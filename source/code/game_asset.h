@@ -47,7 +47,7 @@ enum asset_type_id {
 
 struct asset_tag {
   
-  uint32 ID;
+  uint32 TagID;
   real32 Value;
 };
 
@@ -85,7 +85,10 @@ struct game_assets {
   
   uint32 DEBUGUsedBitmapCount;
   uint32 DEBUGUsedAssetCount;
+  uint32 DEBUGUsedTagCount;
   asset_type *DEBUGAssetType;
+  asset *DEBUGAsset;
+  
   
   uint32 BitmapCount;
   asset_bitmap_info *BitmapInfos;

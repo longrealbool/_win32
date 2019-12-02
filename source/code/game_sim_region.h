@@ -72,7 +72,7 @@ struct sim_entity {
   // NOTE(Egor): stairs implementation
   int32 dAbsTileZ;
   
-  uint32 FacingDirection;
+  real32 FacingDirection;
   
   sim_entity_collision_volume_group *Collision;
   

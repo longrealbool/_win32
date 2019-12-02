@@ -853,26 +853,8 @@ MoveEntity(game_state *GameState, sim_region *SimRegion, sim_entity *Entity,
   
   // NOTE(Egor): updating facing directions
   if(Entity->dP.x != 0 || Entity->dP.y != 0) {
-    if(AbsoluteValue(Entity->dP.x) > AbsoluteValue(Entity->dP.y)) {
-      
-      if(Entity->dP.x > 0) {
-        
-        Entity->FacingDirection = 0;        
-      }
-      else {
-        
-        Entity->FacingDirection = 2;      
-      }
-    }
-    else if(AbsoluteValue(Entity->dP.x) < AbsoluteValue(Entity->dP.y)) {
-      
-      if(Entity->dP.y > 0) {
-        Entity->FacingDirection = 1;
-      }
-      else {
-        
-        Entity->FacingDirection = 3;
-      }
-    }
+    
+    Entity->FacingDirection = ATan2(Entity->dP.x, Entity->dP.y);
   }
+  
 }
