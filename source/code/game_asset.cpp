@@ -204,6 +204,15 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   SubArena(&Assets->Arena, Arena, Size); 
   Assets->TranState = TranState;
   
+  for(uint32 TagType = 0;
+      TagType < ArrayCount(Assets->TagRange);
+      ++TagType) {
+    
+    Assets->TagRange[TagType] = 1000000.0f;
+  }
+  
+  Assets->TagRange[Tag_FacingDirection] = 2.0f*Pi32;
+  
   Assets->BitmapCount = 256*AID_Count;
   Assets->AssetCount = Assets->BitmapCount;
   Assets->TagCount = Tag_Count*Assets->AssetCount;
@@ -401,7 +410,15 @@ BestMatchAsset(game_assets *Assets, asset_type_id TypeID,
         ++TagIndex) {
       
       asset_tag *Tag = Assets->Tags + TagIndex;
-      real32 Difference = MatchVector->E[Tag->TagID] - Tag->Value;
+      
+      real32 A = MatchVector->E[Tag->TagID];
+      real32 B =  Tag->Value;
+      real32 TagRange = Assets->TagRange[Tag->TagID];
+      
+      real32 D0 = A - B;
+      real32 D1 = (A - TagRange*SignOf(A)) - B;
+      real32 Difference = Min(AbsoluteValue(D0), AbsoluteValue(D1));
+      
       real32 Weighted = WeightVector->E[Tag->TagID]*AbsoluteValue(Difference);
       TotalWeightedDiff += Weighted;
     }

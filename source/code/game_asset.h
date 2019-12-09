@@ -83,6 +83,8 @@ struct game_assets {
   // NOTE(Egor): this is an asset arena
   memory_arena Arena;
   
+  real32 TagRange[Tag_Count];
+  
   uint32 DEBUGUsedBitmapCount;
   uint32 DEBUGUsedAssetCount;
   uint32 DEBUGUsedTagCount;
