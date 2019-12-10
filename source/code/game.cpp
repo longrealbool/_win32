@@ -1609,9 +1609,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
+  for(uint32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 4; ++ParticleSpawnIndex) {
+    
+    particle *Particle = GameState->Particles + GameState->NextParticle++;
+    if(GameState->NextParticle >= ArrayCount(GameState->Particles)) {
+      
+      GameState->NextParticle = 0; 
+    }
+    
+    
+  }
  
   // NOTE(Egor): particle system
-  
+  RenderGroup->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
+  RenderGroup->GlobalAlpha = 1.0f;
   for(uint32 ParticleIndex = 0;
       ParticleIndex < ArrayCount(GameState->Particles);
       ++ParticleIndex) {
@@ -1622,8 +1633,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     Particle->P += Input->dtForFrame*Particle->dP;
     
+    Particle->Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+    
+    bitmap_id Tree = GetFirstBitmapID(TranState->Assets, AID_Tree);
     // NOTE(Egor): render 
-    PushBitmap(RenderGroup, &TranState->Assets->TestDiffuse, Particle->P, 0.1f, Particle->Color);
+    PushBitmap(RenderGroup, Tree, Particle->P, 1.3f, Particle->Color);
   }
   
   
