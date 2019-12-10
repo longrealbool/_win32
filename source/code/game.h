@@ -193,6 +193,14 @@ struct ground_buffer {
 };
 
 
+struct particle {
+  
+  v3 P;
+  v3 dP;
+  v4 Color;
+};
+
+
 struct game_state {
   
   memory_arena WorldArena;
@@ -226,6 +234,9 @@ struct game_state {
   real32 Time;
   real32 Scale;
   real32 Angle;
+  
+  uint32 NextParticle;
+  particle Particles[64];
 };
 
 

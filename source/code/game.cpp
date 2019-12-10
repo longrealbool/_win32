@@ -1064,18 +1064,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     InitializeGroundChunks(TranState, GroundBufferWidth, GroundBufferHeight);
     
     
-#if 0
-    TranState->Assets.TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
+#if 1
+    TranState->Assets->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
 #if 0
     DrawRectangle(&GameState->TestDiffuse, V2(0,0),
                   V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), V4(0.5f, 0.5f, 0.5f, 1.0f));
 #endif
     
-    TranState->Assets.TestNormal = MakeEmptyBitmap(&TranState->TranArena,
-                                                   TranState->Assets.TestDiffuse.Width,
-                                                   TranState->Assets.TestDiffuse.Height);
-    MakeSphereNormalMap(&TranState->Assets.TestNormal, 0.0f, 1.0f, 1.0f);
-    MakeSphereDiffuseMap(&TranState->Assets.TestDiffuse, 1.0f, 1.0f);
+    TranState->Assets->TestNormal = MakeEmptyBitmap(&TranState->TranArena,
+                                                   TranState->Assets->TestDiffuse.Width,
+                                                   TranState->Assets->TestDiffuse.Height);
+    MakeSphereNormalMap(&TranState->Assets->TestNormal, 0.0f, 1.0f, 1.0f);
+    MakeSphereDiffuseMap(&TranState->Assets->TestDiffuse, 1.0f, 1.0f);
     //    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
     
 #endif
@@ -1609,93 +1609,27 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
+ 
+  // NOTE(Egor): particle system
   
-#if 0
-  GameState->Time += Input->dtForFrame;
-  real32 Angle = 0.1f*GameState->Time;
-  v2 Disp = 100.0f*V2(0.0f, Sin(3.0f*Angle));
-  
-  v2 Origin = ScreenCenter + Disp;
-  v2 XAxis = 100.0f*V2(Cos(Angle), Sin(Angle));
-  //  v2 XAxis = 100.0f*V2(1.0f, 0.0f);
-  v2 YAxis = Perp(XAxis);
-  
-#if 0
-  
-  real32 CAngle = 5.0f*Angle;
-  v4 Color = V4(0.5f+0.5f*Sin(CAngle),
-                0.5f+0.5f*Sin(2.9f*CAngle),
-                0.5f+0.5f*Cos(9.9f*CAngle),
-                0.5f + 0.5f*Sin(40.0f*CAngle));
-#else
-  
-  v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
-#endif
-  
-  
-  uint32 CheckerHeight = 16;
-  uint32 CheckerWidth = 16;
-  uint32 Toggle = 0;
-  
-  v4 ColorMatrix[] = 
-  { {1,0,0,1},
-    {0,1,0,1},
-    {0,0,1,1}
-  };
-  
-  
-  for(uint32 Index = 0;Index < ArrayCount(TranState->EnvMaps); ++Index) {
+  for(uint32 ParticleIndex = 0;
+      ParticleIndex < ArrayCount(GameState->Particles);
+      ++ParticleIndex) {
+   
+    particle *Particle = GameState->Particles + ParticleIndex;
     
-    environment_map *Map = TranState->EnvMaps + Index;
-    loaded_bitmap *LOD = &Map->LOD[0];
+    // NOTE(Egor): simulate
     
-    for(uint32 Y = 0; Y < TranState->EnvMapHeight; Y += CheckerHeight, ++Toggle %= 2) {
-      for(uint32 X = 0; X < TranState->EnvMapWidth;
-          X += CheckerWidth, ++Toggle %= 2) {
-        
-        v4 CheckerColor = Toggle ? ColorMatrix[Index] : V4(0, 0, 0, 1);
-        
-        DrawRectangle(LOD,
-                      V2i(X, Y), V2i(X + CheckerWidth, Y + CheckerHeight),
-                      CheckerColor);
-      }
-    }
-  }
-  TranState->EnvMaps[0].Pz = -8.0f;
-  TranState->EnvMaps[1].Pz = 0.0f;
-  TranState->EnvMaps[2].Pz = 8.0f;
-  
-  PushCoordinateSystem(RenderGroup, Origin - 0.5f*XAxis - 0.5f*YAxis,
-                       XAxis, YAxis, Color, 
-                       &GameState->TestDiffuse, &GameState->TestNormal,
-                       TranState->EnvMaps + 2,
-                       TranState->EnvMaps + 1,
-                       TranState->EnvMaps + 0);
-  
-  v2 MapP = V2(0,0);
-  for(uint32 Index = 0;
-      Index < ArrayCount(TranState->EnvMaps);
-      ++Index) {
+    Particle->P += Input->dtForFrame*Particle->dP;
     
-    environment_map *Map = TranState->EnvMaps + Index;
-    loaded_bitmap *LOD = &Map->LOD[0];
-    
-    XAxis = 0.5f*V2i(LOD->Width, 0);
-    YAxis = 0.5f*V2i(0, LOD->Height);
-    
-    PushCoordinateSystem(RenderGroup, MapP, XAxis, YAxis, V4(1.0f, 1.0f, 1.0f, 1.0f),
-                         &TranState->EnvMaps[Index].LOD[0], 0,0,0,0);
-    MapP += YAxis + V2(0.0f, 6.0f);
+    // NOTE(Egor): render 
+    PushBitmap(RenderGroup, &TranState->Assets->TestDiffuse, Particle->P, 0.1f, Particle->Color);
   }
   
-#endif
+  
+
   TiledRenderPushBuffer(TranState->RenderQueue, RenderGroup, DrawBuffer);
  
-  #if 0
-  world_position WorldOrigin = {};
-  v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
-  DrawRectangle(DrawBuffer, Diff.XY, V2(10.0f, 10.0f), V4(1.0f, 1.0f, 0.0f, 1.0f));
-  #endif
  
   
   // NOTE(Egor): Ending the simulation
