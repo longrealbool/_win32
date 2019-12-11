@@ -197,6 +197,7 @@ struct particle {
   
   v3 P;
   v3 dP;
+  v4 dColor;
   v4 Color;
 };
 

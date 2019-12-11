@@ -1076,6 +1076,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
                                                    TranState->Assets->TestDiffuse.Height);
     MakeSphereNormalMap(&TranState->Assets->TestNormal, 0.0f, 1.0f, 1.0f);
     MakeSphereDiffuseMap(&TranState->Assets->TestDiffuse, 1.0f, 1.0f);
+    TranState->Assets->TestDiffuse.AlignPercentage = V2(0.5f, 0.5f);
+    TranState->Assets->TestDiffuse.WidthOverHeight = 1.0f;
+    
+    TranState->Assets->TestNormal.AlignPercentage = V2(0.5f, 0.5f);
+    TranState->Assets->TestNormal.WidthOverHeight = 1.0f;
     //    MakePyramidNormalMap(&GameState->TestNormal, 0.0f);
     
 #endif
@@ -1609,13 +1614,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
   }
   
-  for(uint32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 4; ++ParticleSpawnIndex) {
+  for(uint32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 2; ++ParticleSpawnIndex) {
     
     particle *Particle = GameState->Particles + GameState->NextParticle++;
     if(GameState->NextParticle >= ArrayCount(GameState->Particles)) {
       
       GameState->NextParticle = 0; 
     }
+    
+    Particle->P = V3(0, 0, 0);
+    Particle->dP = V3(3.0f ,0, 0.0f);
+    Particle->Color = V4(0.0f, 0.0f, 1.0f, 1.0f);
+    Particle->dColor = V4(1.0f, 1.0f, 0.0f, -1.0f);
     
     
   }
@@ -1632,12 +1642,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // NOTE(Egor): simulate
     
     Particle->P += Input->dtForFrame*Particle->dP;
+    Particle->Color += Input->dtForFrame*Particle->dColor;
     
-    Particle->Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+    v4 Color;
+    Color.r = Clamp01(Particle->Color.r);
+    Color.g = Clamp01(Particle->Color.g);
+    Color.b = Clamp01(Particle->Color.b);
+    Color.a = Clamp01(Particle->Color.a);
     
-    bitmap_id Tree = GetFirstBitmapID(TranState->Assets, AID_Tree);
+    bitmap_id Arrow = GetFirstBitmapID(TranState->Assets, AID_FigurineArrow);
     // NOTE(Egor): render 
-    PushBitmap(RenderGroup, Tree, Particle->P, 1.3f, Particle->Color);
+    PushBitmap(RenderGroup, Arrow, Particle->P, 4.0f, Particle->Color);
   }
   
   
