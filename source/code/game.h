@@ -238,6 +238,8 @@ struct game_state {
   
   uint32 NextParticle;
   particle Particles[64];
+  
+  random_series EffectSeries;
 };
 
 

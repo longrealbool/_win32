@@ -33,11 +33,11 @@ enum asset_type_id {
   AID_Backdrop,
   AID_Tree,
   AID_Sword,
-  AID_Rock,
   
   AID_Grass,
   AID_Stone,
   AID_Tuft,
+  AID_Rock,
   
   AID_Figurine,
   AID_FigurineArrow,

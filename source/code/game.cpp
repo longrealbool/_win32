@@ -1622,12 +1622,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
       GameState->NextParticle = 0; 
     }
     
-    Particle->P = V3(0, 0, 0);
-    Particle->dP = V3(3.0f ,0, 0.0f);
-    Particle->Color = V4(0.0f, 0.0f, 1.0f, 1.0f);
+    real32 RandomX = RandomBilateral(&GameState->EffectSeries);
+    real32 RandomY = RandomBilateral(&GameState->EffectSeries);
+    
+    Particle->P = V3(2.0f*RandomX, 2.0f*RandomY, 0);
+    Particle->dP = V3(RandomX*3.0f, RandomY*5.0f, 0.0f);
+    
+    Particle->Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
     Particle->dColor = V4(1.0f, 1.0f, 0.0f, -1.0f);
-    
-    
   }
  
   // NOTE(Egor): particle system
@@ -1650,9 +1652,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Color.b = Clamp01(Particle->Color.b);
     Color.a = Clamp01(Particle->Color.a);
     
-    bitmap_id Arrow = GetFirstBitmapID(TranState->Assets, AID_FigurineArrow);
+    bitmap_id Arrow = GetFirstBitmapID(TranState->Assets, AID_Rock);
     // NOTE(Egor): render 
-    PushBitmap(RenderGroup, Arrow, Particle->P, 4.0f, Particle->Color);
+    PushBitmap(RenderGroup, Arrow, Particle->P, 2.0f, Particle->Color);
   }
   
   

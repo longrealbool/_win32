@@ -245,6 +245,10 @@ AllocateGameAssets(memory_arena *Arena, uint32 Size,
   AddBitmapAsset(Assets, "..//..//test//ground03.bmp", V2(0.5f, 0.5f));
   EndAssetType(Assets);
   
+  BeginAssetType(Assets, AID_Rock);
+  AddBitmapAsset(Assets, "..//..//test//rock00.bmp", V2(0.5f, 0.5f));
+  EndAssetType(Assets);
+  
   BeginAssetType(Assets, AID_Tuft);
   AddBitmapAsset(Assets, "..//..//test//tuft00.bmp", V2(0.5f, 0.5f));
   AddBitmapAsset(Assets, "..//..//test//tuft01.bmp", V2(0.5f, 0.5f));
